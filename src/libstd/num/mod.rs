@@ -19,6 +19,7 @@
 pub use core::num::{Zero, One};
 pub use core::num::{FpCategory, ParseIntError, ParseFloatError};
 pub use core::num::{wrapping, Wrapping};
+pub use core::num::{WidenWeak, TruncateWeak, WidenStrict, TruncateStrict, AsSigned, AsUnsigned};
 
 #[cfg(test)] use cmp::PartialEq;
 #[cfg(test)] use fmt;

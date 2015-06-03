@@ -19,7 +19,7 @@ use char::CharExt;
 use cmp::{Eq, PartialOrd};
 use fmt;
 use intrinsics;
-use marker::Copy;
+use marker::{Copy, Sized};
 use mem::size_of;
 use option::Option::{self, Some, None};
 use result::Result::{self, Ok, Err};
@@ -1560,3 +1560,163 @@ impl fmt::Display for ParseFloatError {
         self.__description().fmt(f)
     }
 }
+
+pub trait WidenWeak<Target>: Sized {
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn widen_weak(self) -> Target;
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn widen_weak2(self, _: Target) -> Target {
+        self.widen_weak()
+    }
+}
+pub trait TruncateWeak<Target>: Sized {
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn truncate_weak(self) -> Target;
+}
+
+pub trait WidenStrict<Target>: Sized {
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn widen_strict(self) -> Target;
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn widen_strict2(self, _: Target) -> Target {
+        self.widen_strict()
+    }
+}
+pub trait TruncateStrict<Target>: Sized {
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn truncate_strict(self) -> Target;
+}
+
+pub trait AsSigned: Sized {
+    type Target;
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn as_signed(self) -> Self::Target;
+}
+pub trait AsUnsigned: Sized {
+    type Target;
+    #[stable(feature = "rust1", since = "9.9.9")]
+    fn as_unsigned(self) -> Self::Target;
+}
+
+macro_rules! impl_conv_strict {
+    ($Small: ty, $Large: ty) => {
+        impl WidenStrict<$Large> for $Small {
+            #[inline]
+            fn widen_strict(self) -> $Large {
+                self as $Large
+            }
+        }
+        impl TruncateStrict<$Small> for $Large {
+            #[inline]
+            fn truncate_strict(self) -> $Small {
+                self as $Small
+            }
+        }
+    }
+}
+
+macro_rules! impl_conv_weak {
+    ($Small: ty, $Large: ty) => {
+        impl WidenWeak<$Large> for $Small {
+            #[inline]
+            fn widen_weak(self) -> $Large {
+                self as $Large
+            }
+        }
+        impl TruncateWeak<$Small> for $Large {
+            #[inline]
+            fn truncate_weak(self) -> $Small {
+                self as $Small
+            }
+        }
+    }
+}
+
+macro_rules! impl_conv_sign {
+    ($Signed: ty, $Unsigned: ty) => {
+        impl AsSigned for $Unsigned {
+            type Target = $Signed;
+            #[inline]
+            fn as_signed(self) -> Self::Target {
+                self as $Signed
+            }
+        }
+        impl AsUnsigned for $Signed {
+            type Target = $Unsigned;
+            #[inline]
+            fn as_unsigned(self) -> Self::Target {
+                self as $Unsigned
+            }
+        }
+    }
+}
+
+impl_conv_weak! { u8, u8 }
+impl_conv_weak! { u8, u16 }
+impl_conv_weak! { u8, u32 }
+impl_conv_weak! { u8, u64 }
+impl_conv_weak! { u8, usize }
+impl_conv_weak! { u16, u16 }
+impl_conv_weak! { u16, u32 }
+impl_conv_weak! { u16, u64 }
+impl_conv_weak! { u16, usize }
+impl_conv_weak! { u32, u32 }
+impl_conv_weak! { u32, u64 }
+impl_conv_weak! { u32, usize }
+impl_conv_weak! { u64, u64 }
+#[cfg(target_pointer_width = "64")]
+impl_conv_weak! { u64, usize }
+#[cfg(target_pointer_width = "32")]
+impl_conv_weak! { usize, u32 }
+impl_conv_weak! { usize, u64 }
+impl_conv_weak! { usize, usize }
+impl_conv_weak! { i8, i8 }
+impl_conv_weak! { i8, i16 }
+impl_conv_weak! { i8, i32 }
+impl_conv_weak! { i8, i64 }
+impl_conv_weak! { i8, isize }
+impl_conv_weak! { i16, i16 }
+impl_conv_weak! { i16, i32 }
+impl_conv_weak! { i16, i64 }
+impl_conv_weak! { i16, isize }
+impl_conv_weak! { i32, i32 }
+impl_conv_weak! { i32, i64 }
+impl_conv_weak! { i32, isize }
+impl_conv_weak! { i64, i64 }
+#[cfg(target_pointer_width = "64")]
+impl_conv_weak! { i64, isize }
+#[cfg(target_pointer_width = "32")]
+impl_conv_weak! { isize, i32 }
+impl_conv_weak! { isize, i64 }
+impl_conv_weak! { isize, isize }
+
+impl_conv_strict! { u8, u16 }
+impl_conv_strict! { u8, u32 }
+impl_conv_strict! { u8, u64 }
+impl_conv_strict! { u8, usize }
+impl_conv_strict! { u16, u32 }
+impl_conv_strict! { u16, u64 }
+impl_conv_strict! { u16, usize }
+impl_conv_strict! { u32, u64 }
+#[cfg(target_pointer_width = "64")]
+impl_conv_strict! { u32, usize }
+#[cfg(target_pointer_width = "32")]
+impl_conv_strict! { usize, u64 }
+impl_conv_strict! { i8, i16 }
+impl_conv_strict! { i8, i32 }
+impl_conv_strict! { i8, i64 }
+impl_conv_strict! { i8, isize }
+impl_conv_strict! { i16, i32 }
+impl_conv_strict! { i16, i64 }
+impl_conv_strict! { i16, isize }
+impl_conv_strict! { i32, i64 }
+#[cfg(target_pointer_width = "64")]
+impl_conv_strict! { i32, isize }
+#[cfg(target_pointer_width = "32")]
+impl_conv_strict! { isize, i64 }
+
+impl_conv_sign! { i8, u8 }
+impl_conv_sign! { i16, u16 }
+impl_conv_sign! { i32, u32 }
+impl_conv_sign! { i64, u64 }
+impl_conv_sign! { isize, usize }

@@ -49,3 +49,5 @@
 #[doc(no_inline)] pub use string::{String, ToString};
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)] pub use vec::Vec;
+
+pub use num::{WidenWeak, TruncateWeak, WidenStrict, TruncateStrict, AsSigned, AsUnsigned};
