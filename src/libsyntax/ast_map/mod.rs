@@ -261,7 +261,7 @@ impl<'ast> Map<'ast> {
     }
 
     fn find_entry(&self, id: NodeId) -> Option<MapEntry<'ast>> {
-        self.map.borrow().get(id.widen_weak()).cloned()
+        self.map.borrow().get(id.widen()).cloned()
     }
 
     pub fn krate(&self) -> &'ast Crate {
@@ -586,7 +586,7 @@ impl<'a, 'ast> Iterator for NodesMatchingSuffix<'a, 'ast> {
     fn next(&mut self) -> Option<NodeId> {
         loop {
             let idx = self.idx;
-            if idx.widen_weak2(0usize) >= self.map.entry_count() {
+            if idx.widen_(0usize) >= self.map.entry_count() {
                 return None;
             }
             self.idx += 1;
@@ -655,10 +655,10 @@ impl<'ast> NodeCollector<'ast> {
     fn insert_entry(&mut self, id: NodeId, entry: MapEntry<'ast>) {
         debug!("ast_map: {:?} => {:?}", id, entry);
         let len = self.map.len();
-        if id.widen_weak2(0usize) >= len {
-            self.map.extend(repeat(NotPresent).take(id.widen_weak2(0usize) - len + 1));
+        if id.widen_(0usize) >= len {
+            self.map.extend(repeat(NotPresent).take(id.widen_(0usize) - len + 1));
         }
-        self.map[id.widen_weak2(0usize)] = entry;
+        self.map[id.widen_(0usize)] = entry;
     }
 
     fn insert(&mut self, id: NodeId, node: Node<'ast>) {

@@ -266,9 +266,9 @@ impl AsciiExt for u8 {
     #[inline]
     fn is_ascii(&self) -> bool { *self & 128 == 0 }
     #[inline]
-    fn to_ascii_uppercase(&self) -> u8 { ASCII_UPPERCASE_MAP[self.widen_strict2(0usize)] }
+    fn to_ascii_uppercase(&self) -> u8 { ASCII_UPPERCASE_MAP[self.widen_(0usize)] }
     #[inline]
-    fn to_ascii_lowercase(&self) -> u8 { ASCII_LOWERCASE_MAP[self.widen_strict2(0usize)] }
+    fn to_ascii_lowercase(&self) -> u8 { ASCII_LOWERCASE_MAP[self.widen_(0usize)] }
     #[inline]
     fn eq_ignore_ascii_case(&self, other: &u8) -> bool {
         self.to_ascii_lowercase() == other.to_ascii_lowercase()

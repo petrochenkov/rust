@@ -22,7 +22,7 @@ use core::iter::Filter;
 use core::mem;
 use core::slice;
 use core::str::Split;
-use core::num::WidenStrict;
+use core::num::Widen;
 
 use tables::grapheme::GraphemeCat;
 
@@ -392,7 +392,7 @@ static UTF8_CHAR_WIDTH: [u8; 256] = [
 /// Given a first byte, determine how many bytes are in this UTF-8 character
 #[inline]
 pub fn utf8_char_width(b: u8) -> usize {
-    UTF8_CHAR_WIDTH[b.widen_strict2(0usize)].widen_strict()
+    UTF8_CHAR_WIDTH[b.widen_(0usize)].widen()
 }
 
 /// Determines if a vector of `u16` contains valid UTF-16

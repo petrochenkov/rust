@@ -42,8 +42,8 @@ impl ToHex for [u8] {
     fn to_hex(&self) -> String {
         let mut v = Vec::with_capacity(self.len() * 2);
         for &byte in self {
-            v.push(CHARS[(byte >> 4).widen_strict2(0usize)]);
-            v.push(CHARS[(byte & 0xf).widen_strict2(0usize)]);
+            v.push(CHARS[(byte >> 4).widen_(0usize)]);
+            v.push(CHARS[(byte & 0xf).widen_(0usize)]);
         }
 
         unsafe {

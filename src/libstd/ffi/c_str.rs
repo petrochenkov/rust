@@ -10,7 +10,7 @@
 
 #![unstable(feature = "std_misc")]
 
-use core::num::WidenWeak;
+use core::num::Widen;
 use borrow::Cow;
 use convert::{Into, From};
 use cmp::{PartialEq, Eq, PartialOrd, Ord, Ordering};
@@ -307,7 +307,7 @@ impl CStr {
     #[stable(feature = "rust1", since = "1.0.0")]
     pub unsafe fn from_ptr<'a>(ptr: *const libc::c_char) -> &'a CStr {
         let len = libc::strlen(ptr);
-        mem::transmute(slice::from_raw_parts(ptr, len.widen_weak2(0usize) + 1))
+        mem::transmute(slice::from_raw_parts(ptr, len.widen_(0usize) + 1))
     }
 
     /// Returns the inner pointer to this C string.

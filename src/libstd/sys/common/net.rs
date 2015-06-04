@@ -44,7 +44,7 @@ pub fn getsockopt<T: Copy>(sock: &Socket, opt: c_int,
         try!(cvt(c::getsockopt(*sock.as_inner(), opt, val,
                                &mut slot as *mut _ as *mut _,
                                &mut len)));
-        assert_eq!(len.as_unsigned().widen_strict2(0usize), mem::size_of::<T>());
+        assert_eq!(len.as_unsigned().widen_(0usize), mem::size_of::<T>());
         Ok(slot)
     }
 }
@@ -56,7 +56,7 @@ fn sockname<F>(f: F) -> io::Result<SocketAddr>
         let mut storage: libc::sockaddr_storage = mem::zeroed();
         let mut len = mem::size_of_val(&storage) as socklen_t;
         try!(cvt(f(&mut storage as *mut _ as *mut _, &mut len)));
-        sockaddr_to_addr(&storage, len.as_unsigned().widen_strict())
+        sockaddr_to_addr(&storage, len.as_unsigned().widen())
     }
 }
 
@@ -103,7 +103,7 @@ impl Iterator for LookupHost {
         unsafe {
             if self.cur.is_null() { return None }
             let ret = sockaddr_to_addr(mem::transmute((*self.cur).ai_addr),
-                                       (*self.cur).ai_addrlen.widen_weak());
+                                       (*self.cur).ai_addrlen.widen());
             self.cur = (*self.cur).ai_next as *mut libc::addrinfo;
             Some(ret)
         }
@@ -247,7 +247,7 @@ impl TcpStream {
                        buf.len() as wrlen_t,
                        0)
         }));
-        Ok(ret.as_unsigned().widen_strict())
+        Ok(ret.as_unsigned().widen())
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
@@ -347,7 +347,7 @@ impl TcpListener {
         let mut len = mem::size_of_val(&storage) as socklen_t;
         let sock = try!(self.inner.accept(&mut storage as *mut _ as *mut _,
                                           &mut len));
-        let addr = try!(sockaddr_to_addr(&storage, len.as_unsigned().widen_strict()));
+        let addr = try!(sockaddr_to_addr(&storage, len.as_unsigned().widen()));
         Ok((TcpStream { inner: sock, }, addr))
     }
 
@@ -412,8 +412,8 @@ impl UdpSocket {
                            buf.len() as wrlen_t, 0,
                            &mut storage as *mut _ as *mut _, &mut addrlen)
         }));
-        Ok((n.as_unsigned().widen_strict(),
-            try!(sockaddr_to_addr(&storage, addrlen.as_unsigned().widen_strict()))))
+        Ok((n.as_unsigned().widen(),
+            try!(sockaddr_to_addr(&storage, addrlen.as_unsigned().widen()))))
     }
 
     pub fn send_to(&self, buf: &[u8], dst: &SocketAddr) -> io::Result<usize> {
@@ -423,7 +423,7 @@ impl UdpSocket {
                          buf.as_ptr() as *const c_void, buf.len() as wrlen_t,
                          0, dstp, dstlen)
         }));
-        Ok(ret.as_unsigned().widen_strict())
+        Ok(ret.as_unsigned().widen())
     }
 
     pub fn set_broadcast(&self, on: bool) -> io::Result<()> {

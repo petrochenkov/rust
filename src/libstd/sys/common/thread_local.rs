@@ -188,9 +188,9 @@ impl StaticKey {
             key2
         };
         assert!(key != 0);
-        match self.key.compare_and_swap(0, key.widen_strict(), Ordering::SeqCst) {
+        match self.key.compare_and_swap(0, key.widen(), Ordering::SeqCst) {
             // The CAS succeeded, so we've created the actual key
-            0 => key.widen_strict(),
+            0 => key.widen(),
             // If someone beat us to the punch, use their key instead
             n => { imp::destroy(key); n }
         }

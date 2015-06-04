@@ -15,7 +15,7 @@ use mem;
 use libc;
 use libc::types::os::arch::extra::{LPVOID, DWORD, LONG, BOOL};
 use sys_common::stack;
-use core::num::WidenStrict;
+use core::num::Widen;
 
 pub struct Handler {
     _data: *mut libc::c_void
@@ -57,7 +57,7 @@ extern "system" fn vectored_handler(ExceptionInfo: *mut EXCEPTION_POINTERS) -> L
 pub unsafe fn init() {
     let mut info = mem::zeroed();
     libc::GetSystemInfo(&mut info);
-    PAGE_SIZE = info.dwPageSize.widen_strict();
+    PAGE_SIZE = info.dwPageSize.widen();
 
     if AddVectoredExceptionHandler(0, vectored_handler) == ptr::null_mut() {
         panic!("failed to install exception handler");

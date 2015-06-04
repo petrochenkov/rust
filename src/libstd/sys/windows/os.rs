@@ -329,7 +329,7 @@ pub fn page_size() -> usize {
     unsafe {
         let mut info = mem::zeroed();
         libc::GetSystemInfo(&mut info);
-        return info.dwPageSize.widen_strict();
+        return info.dwPageSize.widen();
     }
 }
 

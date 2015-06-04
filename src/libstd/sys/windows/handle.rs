@@ -74,7 +74,7 @@ impl RawHandle {
         });
 
         match res {
-            Ok(_) => Ok(read.widen_strict()),
+            Ok(_) => Ok(read.widen()),
 
             // The special treatment of BrokenPipe is to deal with Windows
             // pipe semantics, which yields this error when *reading* from
@@ -93,7 +93,7 @@ impl RawHandle {
                             buf.len() as libc::DWORD, &mut amt,
                             ptr::null_mut())
         }));
-        Ok(amt.widen_strict())
+        Ok(amt.widen())
     }
 
     pub fn duplicate(&self, access: libc::DWORD, inherit: bool,

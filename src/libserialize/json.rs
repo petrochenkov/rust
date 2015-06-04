@@ -1316,7 +1316,7 @@ impl Stack {
             InternalIndex(i) => StackElement::Index(i),
             InternalKey(start, size) => {
                 StackElement::Key(str::from_utf8(
-                    &self.str_buffer[start.widen_strict() .. (start + size).widen_strict()])
+                    &self.str_buffer[start.widen() .. (start + size).widen()])
                         .unwrap())
             }
         }
@@ -1359,7 +1359,7 @@ impl Stack {
             Some(&InternalIndex(i)) => Some(StackElement::Index(i)),
             Some(&InternalKey(start, size)) => {
                 Some(StackElement::Key(str::from_utf8(
-                    &self.str_buffer[start.widen_strict() .. (start+size).widen_strict()]
+                    &self.str_buffer[start.widen() .. (start+size).widen()]
                 ).unwrap()))
             }
         }
@@ -1383,7 +1383,7 @@ impl Stack {
         assert!(!self.is_empty());
         match *self.stack.last().unwrap() {
             InternalKey(_, sz) => {
-                let new_size = self.str_buffer.len() - sz.widen_strict2(0usize);
+                let new_size = self.str_buffer.len() - sz.widen_(0usize);
                 self.str_buffer.truncate(new_size);
             }
             InternalIndex(_) => {}

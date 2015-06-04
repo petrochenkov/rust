@@ -406,7 +406,7 @@ def emit_charwidth_module(f, width_table):
     f.write("    use core::option::Option::{Some, None};\n")
     f.write("    use core::slice::SliceExt;\n")
     f.write("    use core::result::Result::{Ok, Err};\n")
-    f.write("    use core::num::WidenStrict;\n")
+    f.write("    use core::num::Widen;\n")
     f.write("""
     fn bsearch_range_value_table(c: char, is_cjk: bool, r: &'static [(char, char, u8, u8)]) -> u8 {
         use core::cmp::Ordering::{Equal, Less, Greater};
@@ -431,7 +431,7 @@ def emit_charwidth_module(f, width_table):
             cu if cu < 0x20 => None,    // control sequences have no width
             cu if cu < 0x7F => Some(1), // ASCII
             cu if cu < 0xA0 => None,    // more control sequences
-            _ => Some(bsearch_range_value_table(c, is_cjk, charwidth_table).widen_strict())
+            _ => Some(bsearch_range_value_table(c, is_cjk, charwidth_table).widen())
         }
     }
 

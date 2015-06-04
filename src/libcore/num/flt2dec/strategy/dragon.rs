@@ -17,7 +17,7 @@ Almost direct (but slightly optimized) Rust translation of Figure 3 of [1].
 
 use prelude::*;
 use num::Float;
-use num::{AsUnsigned, WidenStrict};
+use num::{AsUnsigned, Widen};
 use cmp::Ordering;
 
 use num::flt2dec::{Decoded, MAX_SIG_DIGITS, round_up};
@@ -115,20 +115,20 @@ pub fn format_shortest(d: &Decoded, buf: &mut [u8]) -> (/*#digits*/ usize, /*exp
     let mut plus = Big::from_u64(d.plus);
     let mut scale = Big::from_small(1);
     if d.exp < 0 {
-        scale.mul_pow2((-d.exp).as_unsigned().widen_strict());
+        scale.mul_pow2((-d.exp).as_unsigned().widen());
     } else {
-        mant.mul_pow2(d.exp.as_unsigned().widen_strict());
-        minus.mul_pow2(d.exp.as_unsigned().widen_strict());
-        plus.mul_pow2(d.exp.as_unsigned().widen_strict());
+        mant.mul_pow2(d.exp.as_unsigned().widen());
+        minus.mul_pow2(d.exp.as_unsigned().widen());
+        plus.mul_pow2(d.exp.as_unsigned().widen());
     }
 
     // divide `mant` by `10^k`. now `scale / 10 < mant + plus <= scale * 10`.
     if k >= 0 {
-        mul_pow10(&mut scale, k.as_unsigned().widen_strict());
+        mul_pow10(&mut scale, k.as_unsigned().widen());
     } else {
-        mul_pow10(&mut mant, (-k).as_unsigned().widen_strict());
-        mul_pow10(&mut minus, (-k).as_unsigned().widen_strict());
-        mul_pow10(&mut plus, (-k).as_unsigned().widen_strict());
+        mul_pow10(&mut mant, (-k).as_unsigned().widen());
+        mul_pow10(&mut minus, (-k).as_unsigned().widen());
+        mul_pow10(&mut plus, (-k).as_unsigned().widen());
     }
 
     // fixup when `mant + plus > scale` (or `>=`).
@@ -243,16 +243,16 @@ pub fn format_exact(d: &Decoded, buf: &mut [u8], limit: i16) -> (/*#digits*/ usi
     let mut mant = Big::from_u64(d.mant);
     let mut scale = Big::from_small(1);
     if d.exp < 0 {
-        scale.mul_pow2((-d.exp).as_unsigned().widen_strict());
+        scale.mul_pow2((-d.exp).as_unsigned().widen());
     } else {
-        mant.mul_pow2(d.exp.as_unsigned().widen_strict());
+        mant.mul_pow2(d.exp.as_unsigned().widen());
     }
 
     // divide `mant` by `10^k`. now `scale / 10 < mant <= scale * 10`.
     if k >= 0 {
-        mul_pow10(&mut scale, k.as_unsigned().widen_strict());
+        mul_pow10(&mut scale, k.as_unsigned().widen());
     } else {
-        mul_pow10(&mut mant, (-k).as_unsigned().widen_strict());
+        mul_pow10(&mut mant, (-k).as_unsigned().widen());
     }
 
     // fixup when `mant + plus >= scale`, where `plus / scale = 10^-buf.len() / 2`.
@@ -275,8 +275,8 @@ pub fn format_exact(d: &Decoded, buf: &mut [u8], limit: i16) -> (/*#digits*/ usi
         // we return an empty buffer, with an exception of the later rounding-up case
         // which occurs when `k == limit` and has to produce exactly one digit.
         0
-    } else if (k as i32 - limit as i32).as_unsigned().widen_strict2(0usize) < buf.len() {
-        (k - limit).as_unsigned().widen_strict()
+    } else if (k as i32 - limit as i32).as_unsigned().widen_(0usize) < buf.len() {
+        (k - limit).as_unsigned().widen()
     } else {
         buf.len()
     };

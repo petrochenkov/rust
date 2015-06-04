@@ -18,7 +18,7 @@ Rust adaptation of Grisu3 algorithm described in [1]. It uses about
 
 use prelude::*;
 use num::Float;
-use num::{AsUnsigned, WidenStrict};
+use num::{AsUnsigned, Widen};
 
 use num::flt2dec::{Decoded, MAX_SIG_DIGITS, round_up};
 
@@ -183,7 +183,7 @@ pub fn cached_power(alpha: i16, gamma: i16) -> (i16, Fp) {
     let range = (CACHED_POW10.len() as i32) - 1;
     let domain = (CACHED_POW10_LAST_E - CACHED_POW10_FIRST_E) as i32;
     let idx = ((gamma as i32) - offset) * range / domain;
-    let (f, e, k) = CACHED_POW10[idx.as_unsigned().widen_strict2(0usize)];
+    let (f, e, k) = CACHED_POW10[idx.as_unsigned().widen_(0usize)];
     debug_assert!(alpha <= e && e <= gamma);
     (k, Fp { f: f, e: e })
 }
@@ -330,7 +330,7 @@ pub fn format_shortest_opt(d: &Decoded,
 
         // break the loop when we have rendered all integral digits.
         // the exact number of digits is `max_kappa + 1` as `plus1 < 10^(max_kappa+1)`.
-        if i > max_kappa.widen_strict() {
+        if i > max_kappa.widen() {
             debug_assert_eq!(ten_kappa, 1);
             debug_assert_eq!(kappa, 0);
             break;
@@ -543,8 +543,8 @@ pub fn format_exact_opt(d: &Decoded, buf: &mut [u8], limit: i16)
         // this will increase the false negative rate, but only very, *very* slightly;
         // it can only matter noticably when the mantissa is bigger than 60 bits.
         return possibly_round(buf, 0, exp, limit, v.f / 10, (max_ten_kappa as u64) << e, err << e);
-    } else if (exp as i32 - limit as i32).as_unsigned().widen_strict2(0usize) < buf.len() {
-        (exp - limit).as_unsigned().widen_strict()
+    } else if (exp as i32 - limit as i32).as_unsigned().widen_(0usize) < buf.len() {
+        (exp - limit).as_unsigned().widen()
     } else {
         buf.len()
     };
@@ -576,7 +576,7 @@ pub fn format_exact_opt(d: &Decoded, buf: &mut [u8], limit: i16)
 
         // break the loop when we have rendered all integral digits.
         // the exact number of digits is `max_kappa + 1` as `plus1 < 10^(max_kappa+1)`.
-        if i > max_kappa.widen_strict() {
+        if i > max_kappa.widen() {
             debug_assert_eq!(ten_kappa, 1);
             debug_assert_eq!(kappa, 0);
             break;

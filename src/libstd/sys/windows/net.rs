@@ -126,7 +126,7 @@ impl Socket {
                              buf.len() as i32, 0) {
                 -1 if c::WSAGetLastError() == c::WSAESHUTDOWN => Ok(0),
                 -1 => Err(last_error()),
-                n => Ok(n.as_unsigned().widen_strict())
+                n => Ok(n.as_unsigned().widen())
             }
         }
     }

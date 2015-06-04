@@ -55,7 +55,7 @@ pub struct CharPos(pub usize);
 
 impl Pos for BytePos {
     fn from_usize(n: usize) -> BytePos { BytePos(n as u32) }
-    fn to_usize(&self) -> usize { let BytePos(n) = *self; n.widen_weak() }
+    fn to_usize(&self) -> usize { let BytePos(n) = *self; n.widen() }
 }
 
 impl Add for BytePos {
@@ -424,7 +424,7 @@ impl Decodable for FileMap {
             let lines: Vec<BytePos> = try! {
                 d.read_struct_field("lines", 3, |d| {
                     let num_lines: u32 = try! { Decodable::decode(d) };
-                    let mut lines = Vec::with_capacity(num_lines.widen_weak());
+                    let mut lines = Vec::with_capacity(num_lines.widen());
 
                     if num_lines > 0 {
                         // Read the number of bytes used per diff.
@@ -917,7 +917,7 @@ impl CodeMap {
         let mut expansions = self.expansions.borrow_mut();
         expansions.push(expn_info);
         let len = expansions.len();
-        if len > u32::max_value().widen_weak() {
+        if len > u32::max_value().widen() {
             panic!("too many ExpnInfo's!");
         }
         ExpnId(len as u32 - 1)
@@ -928,7 +928,7 @@ impl CodeMap {
     {
         match id {
             NO_EXPANSION | COMMAND_LINE_EXPN => f(None),
-            ExpnId(i) => f(Some(&(*self.expansions.borrow())[i.widen_weak2(0usize)]))
+            ExpnId(i) => f(Some(&(*self.expansions.borrow())[i.widen_(0usize)]))
         }
     }
 

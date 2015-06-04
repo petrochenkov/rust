@@ -18,7 +18,7 @@ use core::marker;
 use core::fmt;
 use core::iter::{FromIterator};
 use core::ops::{Sub, BitOr, BitAnd, BitXor};
-use core::num::WidenStrict;
+use core::num::Widen;
 
 // FIXME(contentions): implement union family of methods? (general design may be wrong here)
 
@@ -104,7 +104,7 @@ impl<E:CLike> EnumSet<E> {
     #[unstable(feature = "collections",
                reason = "matches collection reform specification, waiting for dust to settle")]
     pub fn len(&self) -> usize {
-        self.bits.count_ones().widen_strict()
+        self.bits.count_ones().widen()
     }
 
     /// Returns true if the `EnumSet` is empty.
@@ -259,7 +259,7 @@ impl<E:CLike> Iterator for Iter<E> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let exact = self.bits.count_ones().widen_strict();
+        let exact = self.bits.count_ones().widen();
         (exact, Some(exact))
     }
 }

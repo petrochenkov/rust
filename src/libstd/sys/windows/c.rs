@@ -13,7 +13,7 @@
 #![allow(bad_style, dead_code, overflowing_literals)]
 
 use libc;
-use core::num::WidenStrict;
+use core::num::Widen;
 
 pub use self::GET_FILEEX_INFO_LEVELS::*;
 pub use self::FILE_INFO_BY_HANDLE_CLASS::*;
@@ -130,7 +130,7 @@ pub struct fd_set {
 }
 
 pub fn fd_set(set: &mut fd_set, s: libc::SOCKET) {
-    set.fd_array[set.fd_count.widen_strict2(0usize)] = s;
+    set.fd_array[set.fd_count.widen_(0usize)] = s;
     set.fd_count += 1;
 }
 

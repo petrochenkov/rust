@@ -33,7 +33,7 @@ use raw::{Repr, Slice};
 use result::Result::{self, Ok, Err};
 use slice::{self, SliceExt};
 use usize;
-use num::WidenStrict;
+use num::Widen;
 
 pub mod pattern;
 
@@ -1237,7 +1237,7 @@ fn run_utf8_validation_iterator(iter: &mut slice::Iter<u8>)
         // ASCII characters are always valid, so only large
         // bytes need more examination.
         if first >= 128 {
-            let w = UTF8_CHAR_WIDTH[first.widen_strict2(0usize)];
+            let w = UTF8_CHAR_WIDTH[first.widen_(0usize)];
             let second = next!();
             // 2-byte encoding is for codepoints  \u{0080} to  \u{07ff}
             //        first  C2 80        last DF BF
@@ -1767,7 +1767,7 @@ impl StrExt for str {
             }
 
             let first= s.as_bytes()[i];
-            let w = UTF8_CHAR_WIDTH[first.widen_strict2(0usize)];
+            let w = UTF8_CHAR_WIDTH[first.widen_(0usize)];
             assert!(w != 0);
 
             let mut val = utf8_first_byte(first, w as u32);
@@ -1867,7 +1867,7 @@ pub fn char_range_at_raw(bytes: &[u8], i: usize) -> (u32, usize) {
     // Multibyte case is a fn to allow char_range_at to inline cleanly
     fn multibyte_char_range_at(bytes: &[u8], i: usize) -> (u32, usize) {
         let first = bytes[i];
-        let w = UTF8_CHAR_WIDTH[first.widen_strict2(0usize)];
+        let w = UTF8_CHAR_WIDTH[first.widen_(0usize)];
         assert!(w != 0);
 
         let mut val = utf8_first_byte(first, w as u32);
@@ -1875,7 +1875,7 @@ pub fn char_range_at_raw(bytes: &[u8], i: usize) -> (u32, usize) {
         if w > 2 { val = utf8_acc_cont_byte(val, bytes[i + 2]); }
         if w > 3 { val = utf8_acc_cont_byte(val, bytes[i + 3]); }
 
-        return (val, i + w.widen_strict2(0usize));
+        return (val, i + w.widen_(0usize));
     }
 
     multibyte_char_range_at(bytes, i)

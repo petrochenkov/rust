@@ -12,7 +12,7 @@ use core::prelude::*;
 use io::prelude::*;
 use os::windows::prelude::*;
 
-use core::num::WidenStrict;
+use core::num::Widen;
 use ffi::OsString;
 use fmt;
 use io::{self, Error, SeekFrom};
@@ -344,7 +344,7 @@ impl File {
             let subst_off = (*info).SubstituteNameOffset / 2;
             let subst_ptr = path_buffer.offset(subst_off as isize);
             let subst_len = (*info).SubstituteNameLength / 2;
-            let subst = slice::from_raw_parts(subst_ptr, subst_len.widen_strict());
+            let subst = slice::from_raw_parts(subst_ptr, subst_len.widen());
 
             Ok(PathBuf::from(OsString::from_wide(subst)))
         }

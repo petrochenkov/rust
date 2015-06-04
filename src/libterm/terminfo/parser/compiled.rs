@@ -285,13 +285,13 @@ pub fn parse(file: &mut Read, longnames: bool)
 
 
             // Find the offset of the NUL we want to go to
-            let nulpos = string_table[offset.widen_strict() .. string_table_bytes]
+            let nulpos = string_table[offset.widen() .. string_table_bytes]
                 .iter().position(|&b| b == 0);
             match nulpos {
                 Some(len) => {
                     string_map.insert(name.to_string(),
-                                      string_table[offset.widen_strict() ..
-                                                   (offset.widen_strict2(0usize) + len)].to_vec())
+                                      string_table[offset.widen() ..
+                                                   (offset.widen_(0usize) + len)].to_vec())
                 },
                 None => {
                     return Err("invalid file: missing NUL in \

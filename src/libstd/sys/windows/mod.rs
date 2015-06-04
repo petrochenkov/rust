@@ -120,7 +120,7 @@ fn fill_utf16_buf<F1, F2, T>(mut f1: F1, f2: F2) -> io::Result<T>
                 0 if libc::GetLastError() == 0 => 0,
                 0 => return Err(io::Error::last_os_error()),
                 n => n,
-            }.widen_strict();
+            }.widen();
             if k == n && libc::GetLastError() ==
                             libc::ERROR_INSUFFICIENT_BUFFER as libc::DWORD {
                 n *= 2;

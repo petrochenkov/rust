@@ -90,7 +90,7 @@ use core::iter::RandomAccessIterator;
 use core::iter::{Chain, Enumerate, Repeat, Skip, Take, repeat, Cloned};
 use core::iter::{self, FromIterator};
 use core::mem::swap;
-use core::num::WidenStrict;
+use core::num::Widen;
 use core::ops::Index;
 use core::slice;
 use core::{u8, u32, usize};
@@ -1877,7 +1877,7 @@ impl BitSet {
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn len(&self) -> usize  {
-        self.bit_vec.blocks().fold(0, |acc, n| acc + n.count_ones().widen_strict2(0usize))
+        self.bit_vec.blocks().fold(0, |acc, n| acc + n.count_ones().widen_(0usize))
     }
 
     /// Returns whether there are no bits set in this set
@@ -2049,7 +2049,7 @@ impl<'a, T> Iterator for BlockIter<T> where T: Iterator<Item=u32> {
         // update block, removing the LSB
         self.head &= self.head - 1;
         // return offset + (index of LSB)
-        Some(self.head_offset + u32::count_ones(k).widen_strict2(0usize))
+        Some(self.head_offset + u32::count_ones(k).widen_(0usize))
     }
 
     #[inline]

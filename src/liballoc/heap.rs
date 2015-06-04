@@ -205,7 +205,7 @@ mod imp {
     use core::ptr::{null_mut, null};
     use libc::{c_char, c_int, c_void, size_t};
     use super::MIN_ALIGN;
-    use core::num::WidenWeak;
+    use core::num::Widen;
 
     #[link(name = "jemalloc", kind = "static")]
     #[cfg(not(test))]
@@ -256,7 +256,7 @@ mod imp {
     pub unsafe fn reallocate_inplace(ptr: *mut u8, _old_size: usize, size: usize,
                                      align: usize) -> usize {
         let flags = align_to_flags(align);
-        je_xallocx(ptr as *mut c_void, size as size_t, 0, flags).widen_weak()
+        je_xallocx(ptr as *mut c_void, size as size_t, 0, flags).widen()
     }
 
     #[inline]
@@ -268,7 +268,7 @@ mod imp {
     #[inline]
     pub fn usable_size(size: usize, align: usize) -> usize {
         let flags = align_to_flags(align);
-        unsafe { je_nallocx(size as size_t, flags).widen_weak() }
+        unsafe { je_nallocx(size as size_t, flags).widen() }
     }
 
     pub fn stats_print() {

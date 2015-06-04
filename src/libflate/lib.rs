@@ -108,7 +108,7 @@ fn deflate_bytes_internal(bytes: &[u8], flags: c_int) -> Bytes {
         assert!(!res.is_null());
         Bytes {
             ptr: Unique::new(res as *mut u8),
-            len: outsz.widen_weak(),
+            len: outsz.widen(),
         }
     }
 }
@@ -133,7 +133,7 @@ fn inflate_bytes_internal(bytes: &[u8], flags: c_int) -> Result<Bytes,Error> {
         if !res.is_null() {
             Ok(Bytes {
                 ptr: Unique::new(res as *mut u8),
-                len: outsz.widen_weak(),
+                len: outsz.widen(),
             })
         } else {
             Err(Error::new())

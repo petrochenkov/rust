@@ -19,7 +19,7 @@
 
 use core::prelude::*;
 use core::num::Float;
-use core::num::WidenWeak;
+use core::num::Widen;
 use core::marker::PhantomData;
 
 use {Rng, Rand};
@@ -221,7 +221,7 @@ fn ziggurat<R: Rng, P, Z>(
         // this may be slower than it would be otherwise.)
         // FIXME: investigate/optimise for the above.
         let bits: u64 = rng.gen();
-        let i = (bits & 0xff).widen_weak2(0usize);
+        let i = (bits & 0xff).widen_(0usize);
         let f = (bits >> 11) as f64 / SCALE;
 
         // u is either U(-1, 1) or U(0, 1) depending on if this is a

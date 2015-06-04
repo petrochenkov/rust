@@ -297,7 +297,7 @@ pub fn expand(cap: &[u8], params: &[Param], vars: &mut Variables)
             PushParam => {
                 // params are 1-indexed
                 stack.push(mparams[match cur.to_digit(10) {
-                    Some(d) => d.widen_strict2(0usize) - 1,
+                    Some(d) => d.widen_(0usize) - 1,
                     None => return Err("bad param number".to_string())
                 }].clone());
             },
@@ -305,12 +305,12 @@ pub fn expand(cap: &[u8], params: &[Param], vars: &mut Variables)
                 if cur >= 'A' && cur <= 'Z' {
                     if !stack.is_empty() {
                         let idx = (cur as u8) - b'A';
-                        vars.sta[idx.widen_strict2(0usize)] = stack.pop().unwrap();
+                        vars.sta[idx.widen_(0usize)] = stack.pop().unwrap();
                     } else { return Err("stack is empty".to_string()) }
                 } else if cur >= 'a' && cur <= 'z' {
                     if !stack.is_empty() {
                         let idx = (cur as u8) - b'a';
-                        vars.dyn[idx.widen_strict2(0usize)] = stack.pop().unwrap();
+                        vars.dyn[idx.widen_(0usize)] = stack.pop().unwrap();
                     } else { return Err("stack is empty".to_string()) }
                 } else {
                     return Err("bad variable name in %P".to_string());
@@ -319,10 +319,10 @@ pub fn expand(cap: &[u8], params: &[Param], vars: &mut Variables)
             GetVar => {
                 if cur >= 'A' && cur <= 'Z' {
                     let idx = (cur as u8) - b'A';
-                    stack.push(vars.sta[idx.widen_strict2(0usize)].clone());
+                    stack.push(vars.sta[idx.widen_(0usize)].clone());
                 } else if cur >= 'a' && cur <= 'z' {
                     let idx = (cur as u8) - b'a';
-                    stack.push(vars.dyn[idx.widen_strict2(0usize)].clone());
+                    stack.push(vars.dyn[idx.widen_(0usize)].clone());
                 } else {
                     return Err("bad variable name in %g".to_string());
                 }

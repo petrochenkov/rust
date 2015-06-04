@@ -72,7 +72,7 @@ fn write(out: &Output, data: &[u8]) -> io::Result<usize> {
 
     // FIXME if this only partially writes the utf16 buffer then we need to
     //       figure out how many bytes of `data` were actually written
-    assert_eq!(written.widen_strict2(0usize), utf16.len());
+    assert_eq!(written.widen_(0usize), utf16.len());
     Ok(data.len())
 }
 
@@ -91,7 +91,7 @@ impl Stdin {
         };
         let mut utf8 = self.utf8.lock().unwrap();
         // Read more if the buffer is empty
-        if utf8.position().widen_weak2(0usize) == utf8.get_ref().len() {
+        if utf8.position().widen_(0usize) == utf8.get_ref().len() {
             let mut utf16: Vec<u16> = repeat(0u16).take(0x1000).collect();
             let mut num = 0;
             try!(cvt(unsafe {
@@ -101,7 +101,7 @@ impl Stdin {
                                 &mut num,
                                 ptr::null_mut())
             }));
-            utf16.truncate(num.widen_strict());
+            utf16.truncate(num.widen());
             // FIXME: what to do about this data that has already been read?
             let data = match String::from_utf16(&utf16) {
                 Ok(utf8) => utf8.into_bytes(),
