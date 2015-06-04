@@ -628,13 +628,13 @@ impl<T: Write> ConsoleTestState<T> {
 pub fn fmt_bench_samples(bs: &BenchSamples) -> String {
     if bs.mb_s != 0 {
         format!("{:>9} ns/iter (+/- {}) = {} MB/s",
-             bs.ns_iter_summ.median as usize,
-             (bs.ns_iter_summ.max - bs.ns_iter_summ.min) as usize,
+             bs.ns_iter_summ.median,
+             (bs.ns_iter_summ.max - bs.ns_iter_summ.min),
              bs.mb_s)
     } else {
         format!("{:>9} ns/iter (+/- {})",
-             bs.ns_iter_summ.median as usize,
-             (bs.ns_iter_summ.max - bs.ns_iter_summ.min) as usize)
+             bs.ns_iter_summ.median,
+             (bs.ns_iter_summ.max - bs.ns_iter_summ.min))
     }
 }
 
@@ -858,7 +858,7 @@ fn get_concurrency() -> usize {
                 1
             } else {
                 extern { fn rust_get_num_cpus() -> libc::uintptr_t; }
-                unsafe { rust_get_num_cpus() as usize }
+                unsafe { rust_get_num_cpus() }
             }
         }
     }
@@ -1180,7 +1180,7 @@ pub mod bench {
 
         BenchSamples {
             ns_iter_summ: ns_iter_summ,
-            mb_s: mb_s as usize
+            mb_s: mb_s
         }
     }
 

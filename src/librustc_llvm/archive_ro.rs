@@ -93,11 +93,11 @@ impl<'a> Iterator for Iter<'a> {
                     None
                 } else {
                     let name = slice::from_raw_parts(name_ptr as *const u8,
-                                                     name_len as usize);
+                                                     name_len);
                     str::from_utf8(name).ok().map(|s| s.trim())
                 },
                 data: slice::from_raw_parts(data_ptr as *const u8,
-                                            data_len as usize),
+                                            data_len),
             };
             ::LLVMRustArchiveIteratorNext(self.ptr);
             Some(child)

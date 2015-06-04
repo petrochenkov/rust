@@ -9,11 +9,12 @@
 // except according to those terms.
 
 use core::{isize, usize};
+use core::num::AsUnsigned;
 
 #[inline(always)]
 fn check_size_and_alignment(size: usize, align: usize) {
     debug_assert!(size != 0);
-    debug_assert!(size <= isize::MAX as usize, "Tried to allocate too much: {} bytes", size);
+    debug_assert!(size <= isize::MAX.as_unsigned(), "Tried to allocate too much: {} bytes", size);
     debug_assert!(usize::is_power_of_two(align), "Invalid alignment of allocation: {}", align);
 }
 
@@ -204,6 +205,7 @@ mod imp {
     use core::ptr::{null_mut, null};
     use libc::{c_char, c_int, c_void, size_t};
     use super::MIN_ALIGN;
+    use core::num::WidenWeak;
 
     #[link(name = "jemalloc", kind = "static")]
     #[cfg(not(test))]
@@ -254,7 +256,7 @@ mod imp {
     pub unsafe fn reallocate_inplace(ptr: *mut u8, _old_size: usize, size: usize,
                                      align: usize) -> usize {
         let flags = align_to_flags(align);
-        je_xallocx(ptr as *mut c_void, size as size_t, 0, flags) as usize
+        je_xallocx(ptr as *mut c_void, size as size_t, 0, flags).widen_weak()
     }
 
     #[inline]
@@ -266,7 +268,7 @@ mod imp {
     #[inline]
     pub fn usable_size(size: usize, align: usize) -> usize {
         let flags = align_to_flags(align);
-        unsafe { je_nallocx(size as size_t, flags) as usize }
+        unsafe { je_nallocx(size as size_t, flags).widen_weak() }
     }
 
     pub fn stats_print() {

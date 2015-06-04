@@ -91,6 +91,7 @@ use core::iter::Iterator;
 use core::marker::Sized;
 use core::mem::size_of;
 use core::mem;
+use core::num::AsUnsigned;
 use core::ops::FnMut;
 use core::option::Option::{self, Some, None};
 use core::ptr;
@@ -1259,7 +1260,7 @@ fn insertion_sort<T, F>(v: &mut [T], mut compare: F) where F: FnMut(&T, &T) -> O
                 let tmp = ptr::read(read_ptr);
                 ptr::copy(&*buf_v.offset(j),
                           buf_v.offset(j + 1),
-                          (i - j) as usize);
+                          (i - j).as_unsigned());
                 ptr::copy_nonoverlapping(&tmp, buf_v.offset(j), 1);
                 mem::forget(tmp);
             }
@@ -1335,7 +1336,7 @@ fn merge_sort<T, F>(v: &mut [T], mut compare: F) where F: FnMut(&T, &T) -> Order
                 // `.offset(j)` is always in bounds.
                 ptr::copy(&*buf_dat.offset(j),
                           buf_dat.offset(j + 1),
-                          i - j as usize);
+                          i - j.as_unsigned());
                 ptr::copy_nonoverlapping(read_ptr, buf_dat.offset(j), 1);
             }
         }

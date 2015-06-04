@@ -2526,7 +2526,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 // type parameter (for now, to avoid tracking edge cases).
                 let i = if let Some(&ty::ty_param(p)) = fields.last().map(|ty| &ty.sty) {
                     assert!(p.space == TypeSpace);
-                    p.idx as usize
+                    p.idx
                 } else {
                     return Err(Unimplemented);
                 };

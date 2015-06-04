@@ -15,6 +15,7 @@
 // compile-flags: -C lto
 // no-prefer-dynamic
 // ignore-android FIXME #18800
+// ignore-windows
 
 extern crate sepcomp_lib;
 use sepcomp_lib::a::one;

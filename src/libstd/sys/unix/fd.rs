@@ -41,7 +41,7 @@ impl FileDesc {
                        buf.as_mut_ptr() as *mut c_void,
                        buf.len() as size_t)
         }));
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
@@ -50,7 +50,7 @@ impl FileDesc {
                         buf.as_ptr() as *const c_void,
                         buf.len() as size_t)
         }));
-        Ok(ret as usize)
+        Ok(ret)
     }
 
     pub fn set_cloexec(&self) {

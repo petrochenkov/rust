@@ -14,6 +14,7 @@ use core::prelude::*;
 use core::char;
 use core::isize;
 use core::usize;
+use core::num::WidenWeak;
 
 use {Rand,Rng};
 
@@ -60,9 +61,9 @@ impl Rand for usize {
     #[inline]
     fn rand<R: Rng>(rng: &mut R) -> usize {
         if usize::BITS == 32 {
-            rng.gen::<u32>() as usize
+            rng.gen::<u32>().widen_weak()
         } else {
-            rng.gen::<u64>() as usize
+            rng.gen::<u64>().widen_weak()
         }
     }
 }

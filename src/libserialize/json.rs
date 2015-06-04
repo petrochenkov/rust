@@ -1316,7 +1316,7 @@ impl Stack {
             InternalIndex(i) => StackElement::Index(i),
             InternalKey(start, size) => {
                 StackElement::Key(str::from_utf8(
-                    &self.str_buffer[start as usize .. start as usize + size as usize])
+                    &self.str_buffer[start.widen_strict() .. (start + size).widen_strict()])
                         .unwrap())
             }
         }
@@ -1359,7 +1359,7 @@ impl Stack {
             Some(&InternalIndex(i)) => Some(StackElement::Index(i)),
             Some(&InternalKey(start, size)) => {
                 Some(StackElement::Key(str::from_utf8(
-                    &self.str_buffer[start as usize .. (start+size) as usize]
+                    &self.str_buffer[start.widen_strict() .. (start+size).widen_strict()]
                 ).unwrap()))
             }
         }
@@ -1383,7 +1383,7 @@ impl Stack {
         assert!(!self.is_empty());
         match *self.stack.last().unwrap() {
             InternalKey(_, sz) => {
-                let new_size = self.str_buffer.len() - sz as usize;
+                let new_size = self.str_buffer.len() - sz.widen_strict2(0usize);
                 self.str_buffer.truncate(new_size);
             }
             InternalIndex(_) => {}
@@ -3930,15 +3930,15 @@ mod tests {
         assert_eq!((vec![1_usize, 2_usize]).to_json(), array2);
         assert_eq!(vec!(1_usize, 2_usize, 3_usize).to_json(), array3);
         let mut tree_map = BTreeMap::new();
-        tree_map.insert("a".to_string(), 1 as usize);
+        tree_map.insert("a".to_string(), 1);
         tree_map.insert("b".to_string(), 2);
         assert_eq!(tree_map.to_json(), object);
         let mut hash_map = HashMap::new();
-        hash_map.insert("a".to_string(), 1 as usize);
+        hash_map.insert("a".to_string(), 1);
         hash_map.insert("b".to_string(), 2);
         assert_eq!(hash_map.to_json(), object);
         assert_eq!(Some(15).to_json(), I64(15));
-        assert_eq!(Some(15 as usize).to_json(), U64(15));
+        assert_eq!(Some(15).to_json(), U64(15));
         assert_eq!(None::<isize>.to_json(), Null);
     }
 

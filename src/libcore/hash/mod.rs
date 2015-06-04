@@ -63,6 +63,7 @@
 use prelude::*;
 
 use mem;
+use num::AsUnsigned;
 
 pub use self::sip::SipHasher;
 
@@ -160,7 +161,7 @@ pub trait Hasher {
     /// Write a single `isize` into this hasher.
     #[inline]
     #[unstable(feature = "hash", reason = "module was recently redesigned")]
-    fn write_isize(&mut self, i: isize) { self.write_usize(i as usize) }
+    fn write_isize(&mut self, i: isize) { self.write_usize(i.as_unsigned()) }
 }
 
 /// Hash a value with the default SipHasher algorithm (two initial keys of 0).

@@ -8,7 +8,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-static X: usize = 0 as *const usize as usize;
+static X: usize = 0 as *const usize;
 //~^ ERROR: raw pointers cannot be cast to integers in statics
 
 fn main() {

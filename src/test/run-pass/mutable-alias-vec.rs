@@ -19,5 +19,5 @@ pub fn main() {
     grow(&mut v);
     let len = v.len();
     println!("{}", len);
-    assert_eq!(len, 3 as usize);
+    assert_eq!(len, 3);
 }

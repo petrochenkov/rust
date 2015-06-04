@@ -72,14 +72,14 @@ fn lookup_hash<'a, F>(d: rbml::Doc<'a>, mut eq_fn: F, hash: u64) -> Option<rbml:
 {
     let index = reader::get_doc(d, tag_index);
     let table = reader::get_doc(index, tag_index_table);
-    let hash_pos = table.start + (hash % 256 * 4) as usize;
-    let pos = u32_from_be_bytes(&d.data[hash_pos..]) as usize;
+    let hash_pos = table.start + (hash % 256 * 4);
+    let pos = u32_from_be_bytes(&d.data[hash_pos..]);
     let tagged_doc = reader::doc_at(d.data, pos).unwrap();
 
     reader::tagged_docs(tagged_doc.doc, tag_index_buckets_bucket_elt).find(|elt| {
         eq_fn(&elt.data[elt.start + 4 .. elt.end])
     }).map(|elt| {
-        let pos = u32_from_be_bytes(&elt.data[elt.start..]) as usize;
+        let pos = u32_from_be_bytes(&elt.data[elt.start..]);
         reader::doc_at(d.data, pos).unwrap().doc
     })
 }
@@ -544,7 +544,7 @@ pub fn each_lang_item<F>(cdata: Cmd, mut f: F) -> bool where
     let lang_items = reader::get_doc(root, tag_lang_items);
     reader::tagged_docs(lang_items, tag_lang_items_item).all(|item_doc| {
         let id_doc = reader::get_doc(item_doc, tag_lang_items_item_id);
-        let id = reader::doc_as_u32(id_doc) as usize;
+        let id = reader::doc_as_u32(id_doc);
         let node_id_doc = reader::get_doc(item_doc,
                                           tag_lang_items_item_node_id);
         let node_id = reader::doc_as_u32(node_id_doc) as ast::NodeId;
@@ -1498,7 +1498,7 @@ fn doc_generics<'tcx>(base_doc: rbml::Doc,
         let def_id = translated_def_id(cdata, def_id_doc);
 
         let doc = reader::get_doc(rp_doc, tag_region_param_def_space);
-        let space = subst::ParamSpace::from_uint(reader::doc_as_u64(doc) as usize);
+        let space = subst::ParamSpace::from_uint(reader::doc_as_u64(doc));
 
         let doc = reader::get_doc(rp_doc, tag_region_param_def_index);
         let index = reader::doc_as_u64(doc) as u32;
@@ -1529,7 +1529,7 @@ fn doc_predicates<'tcx>(base_doc: rbml::Doc,
     let mut predicates = subst::VecPerParamSpace::empty();
     for predicate_doc in reader::tagged_docs(doc, tag_predicate) {
         let space_doc = reader::get_doc(predicate_doc, tag_predicate_space);
-        let space = subst::ParamSpace::from_uint(reader::doc_as_u8(space_doc) as usize);
+        let space = subst::ParamSpace::from_uint(reader::doc_as_u8(space_doc));
 
         let data_doc = reader::get_doc(predicate_doc, tag_predicate_data);
         let data = parse_predicate_data(data_doc.data, data_doc.start, cdata.cnum, tcx,

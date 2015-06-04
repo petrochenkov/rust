@@ -44,7 +44,7 @@ use std::thread;
 fn start(n_tasks: i32, token: i32) {
     let (tx, mut rx) = channel();
     tx.send(token).unwrap();
-    let mut guards = Vec::with_capacity(n_tasks as usize);
+    let mut guards = Vec::with_capacity(n_tasks);
     for i in 2 .. n_tasks + 1 {
         let (tx, next_rx) = channel();
         let cur_rx = std::mem::replace(&mut rx, next_rx);

@@ -12,6 +12,7 @@ use self::Entry::*;
 use self::SearchResult::*;
 use self::VacantEntryState::*;
 
+use core::num::AsUnsigned;
 use borrow::Borrow;
 use clone::Clone;
 use cmp::{max, Eq, PartialEq};
@@ -807,7 +808,7 @@ impl<K, V, S> HashMap<K, V, S>
 
             if (ib as isize) < robin_ib {
                 // Found a luckier bucket than me. Better steal his spot.
-                return robin_hood(bucket, robin_ib as usize, hash, k, v);
+                return robin_hood(bucket, robin_ib.as_unsigned(), hash, k, v);
             }
 
             probe = bucket.next();
@@ -1191,7 +1192,7 @@ fn search_entry_hashed<'a, K: Eq, V>(table: &'a mut RawTable<K,V>, hash: SafeHas
             return Vacant(VacantEntry {
                 hash: hash,
                 key: k,
-                elem: NeqElem(bucket, robin_ib as usize),
+                elem: NeqElem(bucket, robin_ib.as_unsigned()),
             });
         }
 

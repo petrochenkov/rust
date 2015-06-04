@@ -4955,7 +4955,7 @@ pub fn check_bounds_are_used<'a, 'tcx>(ccx: &CrateCtxt<'a, 'tcx>,
             match t.sty {
                 ty::ty_param(ParamTy {idx, ..}) => {
                     debug!("Found use of ty param num {}", idx);
-                    tps_used[idx as usize] = true;
+                    tps_used[idx] = true;
                 }
                 _ => ()
             }

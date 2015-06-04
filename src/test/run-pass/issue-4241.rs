@@ -31,7 +31,7 @@ enum Result {
 fn parse_data(len: usize, io: @io::Reader) -> Result {
   let res =
       if (len > 0) {
-      let bytes = io.read_bytes(len as usize);
+      let bytes = io.read_bytes(len);
       assert_eq!(bytes.len(), len);
       Data(bytes)
   } else {
@@ -63,7 +63,7 @@ fn parse_bulk(io: @io::Reader) -> Result {
     match from_str::<isize>(chop(io.read_line())) {
     None => panic!(),
     Some(-1) => Nil,
-    Some(len) if len >= 0 => parse_data(len as usize, io),
+    Some(len) if len >= 0 => parse_data(len, io),
     Some(_) => panic!()
     }
 }
@@ -73,7 +73,7 @@ fn parse_multi(io: @io::Reader) -> Result {
     None => panic!(),
     Some(-1) => Nil,
     Some(0) => List(vec![]),
-    Some(len) if len >= 0 => parse_list(len as usize, io),
+    Some(len) if len >= 0 => parse_list(len, io),
     Some(_) => panic!()
     }
 }

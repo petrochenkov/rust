@@ -18,6 +18,7 @@ Rust adaptation of Grisu3 algorithm described in [1]. It uses about
 
 use prelude::*;
 use num::Float;
+use num::{AsUnsigned, WidenStrict};
 
 use num::flt2dec::{Decoded, MAX_SIG_DIGITS, round_up};
 
@@ -68,7 +69,7 @@ impl Fp {
     fn normalize_to(&self, e: i16) -> Fp {
         let edelta = self.e - e;
         assert!(edelta >= 0);
-        let edelta = edelta as usize;
+        let edelta = edelta;
         assert_eq!(self.f << edelta >> edelta, self.f);
         Fp { f: self.f << edelta, e: e }
     }
@@ -182,7 +183,7 @@ pub fn cached_power(alpha: i16, gamma: i16) -> (i16, Fp) {
     let range = (CACHED_POW10.len() as i32) - 1;
     let domain = (CACHED_POW10_LAST_E - CACHED_POW10_FIRST_E) as i32;
     let idx = ((gamma as i32) - offset) * range / domain;
-    let (f, e, k) = CACHED_POW10[idx as usize];
+    let (f, e, k) = CACHED_POW10[idx.as_unsigned().widen_strict2(0usize)];
     debug_assert!(alpha <= e && e <= gamma);
     (k, Fp { f: f, e: e })
 }
@@ -276,7 +277,7 @@ pub fn format_shortest_opt(d: &Decoded,
 //  let plus0 = plus.f - 1; // only for explanation
 //  let minus0 = minus.f + 1; // only for explanation
     let minus1 = minus.f - 1;
-    let e = -plus.e as usize; // shared exponent
+    let e = -plus.e; // shared exponent
 
     // divide `plus1` into integral and fractional parts.
     // integral parts are guaranteed to fit in u32, since cached power guarantees `plus < 2^32`
@@ -300,7 +301,7 @@ pub fn format_shortest_opt(d: &Decoded,
     // (e.g. `x` = 32000, `y` = 32777; `kappa` = 2 since `y mod 10^3 = 777 < y - x = 777`.)
     // the algorithm relies on the later verification phase to exclude `y`.
     let delta1 = plus1 - minus1;
-//  let delta1int = (delta1 >> e) as usize; // only for explanation
+//  let delta1int = (delta1 >> e); // only for explanation
     let delta1frac = delta1 & ((1 << e) - 1);
 
     // render integral parts, while checking for the accuracy at each step.
@@ -329,7 +330,7 @@ pub fn format_shortest_opt(d: &Decoded,
 
         // break the loop when we have rendered all integral digits.
         // the exact number of digits is `max_kappa + 1` as `plus1 < 10^(max_kappa+1)`.
-        if i > max_kappa as usize {
+        if i > max_kappa.widen_strict() {
             debug_assert_eq!(ten_kappa, 1);
             debug_assert_eq!(kappa, 0);
             break;
@@ -505,7 +506,7 @@ pub fn format_exact_opt(d: &Decoded, buf: &mut [u8], limit: i16)
     let v = v.mul(&cached);
 
     // divide `v` into integral and fractional parts.
-    let e = -v.e as usize;
+    let e = -v.e;
     let vint = (v.f >> e) as u32;
     let vfrac = v.f & ((1 << e) - 1);
 
@@ -542,8 +543,8 @@ pub fn format_exact_opt(d: &Decoded, buf: &mut [u8], limit: i16)
         // this will increase the false negative rate, but only very, *very* slightly;
         // it can only matter noticably when the mantissa is bigger than 60 bits.
         return possibly_round(buf, 0, exp, limit, v.f / 10, (max_ten_kappa as u64) << e, err << e);
-    } else if ((exp as i32 - limit as i32) as usize) < buf.len() {
-        (exp - limit) as usize
+    } else if (exp as i32 - limit as i32).as_unsigned().widen_strict2(0usize) < buf.len() {
+        (exp - limit).as_unsigned().widen_strict()
     } else {
         buf.len()
     };
@@ -575,7 +576,7 @@ pub fn format_exact_opt(d: &Decoded, buf: &mut [u8], limit: i16)
 
         // break the loop when we have rendered all integral digits.
         // the exact number of digits is `max_kappa + 1` as `plus1 < 10^(max_kappa+1)`.
-        if i > max_kappa as usize {
+        if i > max_kappa.widen_strict() {
             debug_assert_eq!(ten_kappa, 1);
             debug_assert_eq!(kappa, 0);
             break;

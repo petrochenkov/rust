@@ -35,5 +35,5 @@ pub fn main() {
     let ptr: &usize = &5;
     let ptr2 = ptr as *const _;
 
-    assert_eq!(ptr as *const usize as usize, ptr2 as usize);
+    assert_eq!(ptr as *const usize, ptr2);
 }

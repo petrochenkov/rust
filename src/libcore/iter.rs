@@ -65,6 +65,7 @@ use default::Default;
 use marker;
 use mem;
 use num::{Zero, One};
+use num::{AsUnsigned, WidenWeak};
 use ops::{self, Add, Sub, FnMut, Mul, RangeFrom};
 use option::Option::{self, Some, None};
 use marker::Sized;
@@ -2609,8 +2610,8 @@ macro_rules! step_impl_unsigned {
                 if *by == 0 { return None; }
                 if *start < *end {
                     // Note: We assume $t <= usize here
-                    let diff = (*end - *start) as usize;
-                    let by = *by as usize;
+                    let diff = (*end - *start).widen_weak2(0usize);
+                    let by = by.widen_weak2(0usize);
                     if diff % by > 0 {
                         Some(diff / by + 1)
                     } else {
@@ -2643,14 +2644,14 @@ macro_rules! step_impl_signed {
                     // Note: We assume $t <= isize here
                     // Use .wrapping_sub and cast to usize to compute the
                     // difference that may not fit inside the range of isize.
-                    diff = (*end as isize).wrapping_sub(*start as isize) as usize;
-                    by_u = *by as usize;
+                    diff = (*end as isize).wrapping_sub(*start as isize).as_unsigned();
+                    by_u = by.as_unsigned().widen_weak();
                 } else {
                     if *start <= *end {
                         return Some(0);
                     }
-                    diff = (*start as isize).wrapping_sub(*end as isize) as usize;
-                    by_u = (*by as isize).wrapping_mul(-1) as usize;
+                    diff = (*start as isize).wrapping_sub(*end as isize).as_unsigned();
+                    by_u = (*by as isize).wrapping_mul(-1).as_unsigned();
                 }
                 if diff % by_u > 0 {
                     Some(diff / by_u + 1)

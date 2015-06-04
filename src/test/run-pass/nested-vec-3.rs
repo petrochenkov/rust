@@ -25,7 +25,7 @@ impl Drop for D {
     fn drop(&mut self) {
         println!("Dropping {}", self.0);
         let old = LOG.load(Ordering::SeqCst);
-        LOG.compare_and_swap(old, old << 4 | self.0 as usize, Ordering::SeqCst);
+        LOG.compare_and_swap(old, old << 4 | self.0, Ordering::SeqCst);
     }
 }
 

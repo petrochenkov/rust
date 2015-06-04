@@ -72,7 +72,7 @@ mod imp {
                     panic!("unexpected getrandom error: {}", err);
                 }
             } else {
-                read += result as usize;
+                read += result;
             }
         }
     }

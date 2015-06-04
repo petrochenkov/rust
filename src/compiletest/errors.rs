@@ -67,7 +67,7 @@ fn parse_expected(last_nonfollow_error: Option<usize>,
     } else {
         (false, line[start + 3..].chars().take_while(|c| *c == '^').count())
     };
-    let kind_start = start + 3 + adjusts + (follow as usize);
+    let kind_start = start + 3 + adjusts + (follow);
     let letters = line[kind_start..].chars();
     let kind = letters.skip_while(|c| c.is_whitespace())
                       .take_while(|c| !c.is_whitespace())

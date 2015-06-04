@@ -43,7 +43,7 @@ impl Condvar {
                                                0);
         if r == 0 {
             const ERROR_TIMEOUT: DWORD = 0x5B4;
-            debug_assert_eq!(os::errno() as usize, ERROR_TIMEOUT as usize);
+            debug_assert_eq!(os::errno(), ERROR_TIMEOUT.as_signed());
             false
         } else {
             true

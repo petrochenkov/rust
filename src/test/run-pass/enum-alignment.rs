@@ -12,7 +12,7 @@
 use std::mem;
 
 fn addr_of<T>(ptr: &T) -> usize {
-    ptr as *const T as usize
+    ptr as *const T
 }
 
 fn is_aligned<T>(ptr: &T) -> bool {

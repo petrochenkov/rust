@@ -13,7 +13,7 @@ enum chan { chan_t, }
 
 impl PartialEq for chan {
     fn eq(&self, other: &chan) -> bool {
-        ((*self) as usize) == ((*other) as usize)
+        ((*self)) == ((*other))
     }
     fn ne(&self, other: &chan) -> bool { !(*self).eq(other) }
 }

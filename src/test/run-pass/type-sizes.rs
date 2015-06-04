@@ -31,17 +31,17 @@ enum e3 {
 }
 
 pub fn main() {
-    assert_eq!(size_of::<u8>(), 1 as usize);
-    assert_eq!(size_of::<u32>(), 4 as usize);
-    assert_eq!(size_of::<char>(), 4 as usize);
-    assert_eq!(size_of::<i8>(), 1 as usize);
-    assert_eq!(size_of::<i32>(), 4 as usize);
-    assert_eq!(size_of::<t>(), 2 as usize);
-    assert_eq!(size_of::<u>(), 3 as usize);
+    assert_eq!(size_of::<u8>(), 1);
+    assert_eq!(size_of::<u32>(), 4);
+    assert_eq!(size_of::<char>(), 4);
+    assert_eq!(size_of::<i8>(), 1);
+    assert_eq!(size_of::<i32>(), 4);
+    assert_eq!(size_of::<t>(), 2);
+    assert_eq!(size_of::<u>(), 3);
     // Alignment causes padding before the char and the u32.
 
     assert!(size_of::<v>() ==
-                16 as usize);
+                16);
     assert_eq!(size_of::<isize>(), size_of::<usize>());
     assert_eq!(size_of::<w>(), size_of::<isize>());
     assert_eq!(size_of::<x>(), size_of::<isize>());
@@ -50,7 +50,7 @@ pub fn main() {
     // Make sure enum types are the appropriate size, mostly
     // around ensuring alignment is handled properly
 
-    assert_eq!(size_of::<e1>(), 8 as usize);
-    assert_eq!(size_of::<e2>(), 8 as usize);
-    assert_eq!(size_of::<e3>(), 4 as usize);
+    assert_eq!(size_of::<e1>(), 8);
+    assert_eq!(size_of::<e2>(), 8);
+    assert_eq!(size_of::<e3>(), 4);
 }

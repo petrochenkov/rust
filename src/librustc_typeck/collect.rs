@@ -1862,7 +1862,7 @@ fn get_or_create_type_parameter_def<'a,'tcx>(ccx: &CrateCtxt<'a,'tcx>,
                                              index: u32)
                                              -> ty::TypeParameterDef<'tcx>
 {
-    let param = &ast_generics.ty_params[index as usize];
+    let param = &ast_generics.ty_params[index];
 
     let tcx = ccx.tcx;
     match tcx.ty_param_defs.borrow().get(&param.id) {

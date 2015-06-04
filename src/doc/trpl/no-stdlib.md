@@ -128,8 +128,8 @@ pub extern fn dot_product(a: *const u32, a_len: u32,
     // cannot tell the pointers are valid.
     let (a_slice, b_slice): (&[u32], &[u32]) = unsafe {
         mem::transmute((
-            Slice { data: a, len: a_len as usize },
-            Slice { data: b, len: b_len as usize },
+            Slice { data: a, len: a_len },
+            Slice { data: b, len: b_len },
         ))
     };
 

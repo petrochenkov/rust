@@ -241,19 +241,19 @@ impl Type {
     /// Return the number of elements in `self` if it is a LLVM vector type.
     pub fn vector_length(&self) -> usize {
         unsafe {
-            llvm::LLVMGetVectorSize(self.to_ref()) as usize
+            llvm::LLVMGetVectorSize(self.to_ref())
         }
     }
 
     pub fn array_length(&self) -> usize {
         unsafe {
-            llvm::LLVMGetArrayLength(self.to_ref()) as usize
+            llvm::LLVMGetArrayLength(self.to_ref())
         }
     }
 
     pub fn field_types(&self) -> Vec<Type> {
         unsafe {
-            let n_elts = llvm::LLVMCountStructElementTypes(self.to_ref()) as usize;
+            let n_elts = llvm::LLVMCountStructElementTypes(self.to_ref());
             if n_elts == 0 {
                 return Vec::new();
             }
@@ -270,7 +270,7 @@ impl Type {
 
     pub fn func_params(&self) -> Vec<Type> {
         unsafe {
-            let n_args = llvm::LLVMCountParamTypes(self.to_ref()) as usize;
+            let n_args = llvm::LLVMCountParamTypes(self.to_ref());
             let mut args: Vec<_> = repeat(Type { rf: ptr::null_mut() }).take(n_args).collect();
             llvm::LLVMGetParamTypes(self.to_ref(),
                                     args.as_mut_ptr() as *mut TypeRef);

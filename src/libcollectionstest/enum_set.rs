@@ -22,7 +22,7 @@ enum Foo {
 
 impl CLike for Foo {
     fn to_usize(&self) -> usize {
-        *self as usize
+        *self
     }
 
     fn from_usize(v: usize) -> Foo {
@@ -232,7 +232,7 @@ fn test_overflow() {
 
     impl CLike for Bar {
         fn to_usize(&self) -> usize {
-            *self as usize
+            *self
         }
 
         fn from_usize(v: usize) -> Bar {

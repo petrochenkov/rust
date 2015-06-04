@@ -122,10 +122,10 @@ pub fn check_intrinsics(ccx: &CrateContext) {
                     &format!("transmute called on types with potentially different sizes: \
                               {} (could be {} bit{}) to {} (could be {} bit{})",
                              ty_to_string(ccx.tcx(), transmute_restriction.original_from),
-                             from_type_size as usize,
+                             from_type_size,
                              if from_type_size == 1 {""} else {"s"},
                              ty_to_string(ccx.tcx(), transmute_restriction.original_to),
-                             to_type_size as usize,
+                             to_type_size,
                              if to_type_size == 1 {""} else {"s"}));
             } else {
                 ccx.sess().span_err(
@@ -133,10 +133,10 @@ pub fn check_intrinsics(ccx: &CrateContext) {
                     &format!("transmute called on types with different sizes: \
                               {} ({} bit{}) to {} ({} bit{})",
                              ty_to_string(ccx.tcx(), transmute_restriction.original_from),
-                             from_type_size as usize,
+                             from_type_size,
                              if from_type_size == 1 {""} else {"s"},
                              ty_to_string(ccx.tcx(), transmute_restriction.original_to),
-                             to_type_size as usize,
+                             to_type_size,
                              if to_type_size == 1 {""} else {"s"}));
             }
         }

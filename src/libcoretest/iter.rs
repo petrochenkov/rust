@@ -947,7 +947,7 @@ fn test_range() {
     assert_eq!((-70..58i8).size_hint(), (128, Some(128)));
     assert_eq!((-128..127i8).size_hint(), (255, Some(255)));
     assert_eq!((-2..isize::MAX).size_hint(),
-               (isize::MAX as usize + 2, Some(isize::MAX as usize + 2)));
+               (isize::MAX + 2, Some(isize::MAX + 2)));
 }
 
 #[test]

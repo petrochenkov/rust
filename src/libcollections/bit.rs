@@ -54,7 +54,7 @@
 //!     bv.set(0, false);
 //!     bv.set(1, false);
 //!
-//!     for i in iter::range_inclusive(2, (max_prime as f64).sqrt() as usize) {
+//!     for i in iter::range_inclusive(2, (max_prime as f64).sqrt()) {
 //!         // if i is a prime
 //!         if bv[i] {
 //!             // Mark all multiples of i as non-prime (any multiples below i * i
@@ -90,6 +90,7 @@ use core::iter::RandomAccessIterator;
 use core::iter::{Chain, Enumerate, Repeat, Skip, Take, repeat, Cloned};
 use core::iter::{self, FromIterator};
 use core::mem::swap;
+use core::num::WidenStrict;
 use core::ops::Index;
 use core::slice;
 use core::{u8, u32, usize};
@@ -1876,7 +1877,7 @@ impl BitSet {
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn len(&self) -> usize  {
-        self.bit_vec.blocks().fold(0, |acc, n| acc + n.count_ones() as usize)
+        self.bit_vec.blocks().fold(0, |acc, n| acc + n.count_ones().widen_strict2(0usize))
     }
 
     /// Returns whether there are no bits set in this set
@@ -2048,13 +2049,13 @@ impl<'a, T> Iterator for BlockIter<T> where T: Iterator<Item=u32> {
         // update block, removing the LSB
         self.head &= self.head - 1;
         // return offset + (index of LSB)
-        Some(self.head_offset + (u32::count_ones(k) as usize))
+        Some(self.head_offset + u32::count_ones(k).widen_strict2(0usize))
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         match self.tail.size_hint() {
-            (_, Some(h)) => (0, Some(1 + h * (u32::BITS as usize))),
+            (_, Some(h)) => (0, Some(1 + h * (u32::BITS))),
             _ => (0, None)
         }
     }

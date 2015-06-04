@@ -781,10 +781,10 @@ mod bench {
     #[bench]
     fn bench_usize_small(b: &mut Bencher) {
         let mut r = rng();
-        let mut bit_vec = 0 as usize;
+        let mut bit_vec = 0;
         b.iter(|| {
             for _ in 0..100 {
-                bit_vec |= 1 << ((r.next_u32() as usize) % u32::BITS);
+                bit_vec |= 1 << ((r.next_u32()) % u32::BITS);
             }
             black_box(&bit_vec);
         });
@@ -796,7 +796,7 @@ mod bench {
         let mut bit_vec = BitVec::from_elem(BENCH_BITS, false);
         b.iter(|| {
             for _ in 0..100 {
-                bit_vec.set((r.next_u32() as usize) % BENCH_BITS, true);
+                bit_vec.set((r.next_u32()) % BENCH_BITS, true);
             }
             black_box(&bit_vec);
         });
@@ -808,7 +808,7 @@ mod bench {
         let mut bit_vec = BitVec::from_elem(BENCH_BITS, false);
         b.iter(|| {
             for _ in 0..100 {
-                bit_vec.set((r.next_u32() as usize) % BENCH_BITS, r.gen());
+                bit_vec.set((r.next_u32()) % BENCH_BITS, r.gen());
             }
             black_box(&bit_vec);
         });
@@ -820,7 +820,7 @@ mod bench {
         let mut bit_vec = BitVec::from_elem(u32::BITS, false);
         b.iter(|| {
             for _ in 0..100 {
-                bit_vec.set((r.next_u32() as usize) % u32::BITS, true);
+                bit_vec.set((r.next_u32()) % u32::BITS, true);
             }
             black_box(&bit_vec);
         });
@@ -842,7 +842,7 @@ mod bench {
             let mut sum = 0;
             for _ in 0..10 {
                 for pres in &bit_vec {
-                    sum += pres as usize;
+                    sum += pres;
                 }
             }
             sum
@@ -855,7 +855,7 @@ mod bench {
         b.iter(|| {
             let mut sum = 0;
             for pres in &bit_vec {
-                sum += pres as usize;
+                sum += pres;
             }
             sum
         })

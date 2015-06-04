@@ -40,7 +40,7 @@ fn main()
 
     let _ = v as f32; //~ ERROR through a usize first
     let _ = main as f64; //~ ERROR through a usize first
-    let _ = &v as usize; //~ ERROR through a raw pointer first
+    let _ = &v; //~ ERROR through a raw pointer first
     let _ = f as *const u8; //~ ERROR through a usize first
     let _ = 3 as bool; //~ ERROR compare with zero
     let _ = E::A as bool; //~ ERROR compare with zero
@@ -63,7 +63,7 @@ fn main()
     let _ = main as *mut str; //~ ERROR illegal cast
     let _ = &f as *mut f32; //~ ERROR illegal cast
     let _ = &f as *const f64; //~ ERROR illegal cast
-    let _ = fat_v as usize; //~ ERROR through a raw pointer first
+    let _ = fat_v; //~ ERROR through a raw pointer first
 
     let a : *const str = "hello";
     let _ = a as *const Foo;

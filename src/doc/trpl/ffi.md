@@ -120,11 +120,11 @@ pub fn compress(src: &[u8]) -> Vec<u8> {
         let psrc = src.as_ptr();
 
         let mut dstlen = snappy_max_compressed_length(srclen);
-        let mut dst = Vec::with_capacity(dstlen as usize);
+        let mut dst = Vec::with_capacity(dstlen);
         let pdst = dst.as_mut_ptr();
 
         snappy_compress(psrc, srclen, pdst, &mut dstlen);
-        dst.set_len(dstlen as usize);
+        dst.set_len(dstlen);
         dst
     }
 }
@@ -153,11 +153,11 @@ pub fn uncompress(src: &[u8]) -> Option<Vec<u8>> {
         let mut dstlen: size_t = 0;
         snappy_uncompressed_length(psrc, srclen, &mut dstlen);
 
-        let mut dst = Vec::with_capacity(dstlen as usize);
+        let mut dst = Vec::with_capacity(dstlen);
         let pdst = dst.as_mut_ptr();
 
         if snappy_uncompress(psrc, srclen, pdst, &mut dstlen) == 0 {
-            dst.set_len(dstlen as usize);
+            dst.set_len(dstlen);
             Some(dst)
         } else {
             None // SNAPPY_INVALID_INPUT

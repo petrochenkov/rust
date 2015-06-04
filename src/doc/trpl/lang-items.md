@@ -33,7 +33,7 @@ unsafe fn allocate(size: usize, _align: usize) -> *mut u8 {
     let p = libc::malloc(size as libc::size_t) as *mut u8;
 
     // malloc failed
-    if p as usize == 0 {
+    if p == 0 {
         abort();
     }
 

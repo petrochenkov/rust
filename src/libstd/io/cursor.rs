@@ -112,7 +112,7 @@ macro_rules! buffer {
     () => {
         fn fill_buf(&mut self) -> io::Result<&[u8]> {
             let amt = cmp::min(self.pos, self.inner.len() as u64);
-            Ok(&self.inner[(amt as usize)..])
+            Ok(&self.inner[amt.widen_weak()..])
         }
         fn consume(&mut self, amt: usize) { self.pos += amt as u64; }
     }
@@ -129,7 +129,7 @@ impl<'a> BufRead for Cursor<Vec<u8>> { buffer!(); }
 impl<'a> Write for Cursor<&'a mut [u8]> {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         let pos = cmp::min(self.pos, self.inner.len() as u64);
-        let amt = try!((&mut self.inner[(pos as usize)..]).write(data));
+        let amt = try!((&mut self.inner[pos.widen_weak()..]).write(data));
         self.pos += amt as u64;
         Ok(amt)
     }
@@ -143,13 +143,13 @@ impl Write for Cursor<Vec<u8>> {
         // currently are
         let pos = self.position();
         let amt = pos.saturating_sub(self.inner.len() as u64);
-        self.inner.extend(repeat(0).take(amt as usize));
+        self.inner.extend(repeat(0).take(amt.widen_weak()));
 
         // Figure out what bytes will be used to overwrite what's currently
         // there (left), and what will be appended on the end (right)
-        let space = self.inner.len() - pos as usize;
+        let space = self.inner.len() - pos.widen_weak2(0usize);
         let (left, right) = buf.split_at(cmp::min(space, buf.len()));
-        slice::bytes::copy_memory(left, &mut self.inner[(pos as usize)..]);
+        slice::bytes::copy_memory(left, &mut self.inner[pos.widen_weak()..]);
         self.inner.push_all(right);
 
         // Bump us forward

@@ -226,8 +226,8 @@ fn parse_antlr_token(s: &str, tokens: &HashMap<String, token::Token>, surrogate_
     let mut hi = end.parse::<u32>().unwrap() + 1 - offset;
 
     // Adjust the span: For each surrogate pair already encountered, subtract one position.
-    lo -= surrogate_pairs_pos.binary_search(&(lo as usize)).unwrap_or_else(|x| x) as u32;
-    hi -= surrogate_pairs_pos.binary_search(&(hi as usize)).unwrap_or_else(|x| x) as u32;
+    lo -= surrogate_pairs_pos.binary_search(&(lo)).unwrap_or_else(|x| x) as u32;
+    hi -= surrogate_pairs_pos.binary_search(&(hi)).unwrap_or_else(|x| x) as u32;
 
     let sp = codemap::Span {
         lo: codemap::BytePos(lo),
@@ -274,7 +274,7 @@ fn main() {
     File::open(&Path::new(&filename)).unwrap().read_to_string(&mut code).unwrap();
 
     let surrogate_pairs_pos: Vec<usize> = code.chars().enumerate()
-                                                     .filter(|&(_, c)| c as usize > 0xFFFF)
+                                                     .filter(|&(_, c)| c > 0xFFFF)
                                                      .map(|(n, _)| n)
                                                      .enumerate()
                                                      .map(|(x, n)| x + n)

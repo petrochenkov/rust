@@ -55,14 +55,14 @@ unsafe fn test_triangle() -> bool {
         if ret.is_null() { alloc::oom() }
 
         if PRINT { println!("allocate(size={} align={}) ret: 0x{:010x}",
-                            size, align, ret as usize);
+                            size, align, ret);
         }
 
         ret
     }
     unsafe fn deallocate(ptr: *mut u8, size: usize, align: usize) {
         if PRINT { println!("deallocate(ptr=0x{:010x} size={} align={})",
-                            ptr as usize, size, align);
+                            ptr, size, align);
         }
 
         heap::deallocate(ptr, size, align);
@@ -70,7 +70,7 @@ unsafe fn test_triangle() -> bool {
     unsafe fn reallocate(ptr: *mut u8, old_size: usize, size: usize, align: usize) -> *mut u8 {
         if PRINT {
             println!("reallocate(ptr=0x{:010x} old_size={} size={} align={})",
-                     ptr as usize, old_size, size, align);
+                     ptr, old_size, size, align);
         }
 
         let ret = heap::reallocate(ptr, old_size, size, align);
@@ -79,7 +79,7 @@ unsafe fn test_triangle() -> bool {
         if PRINT {
             println!("reallocate(ptr=0x{:010x} old_size={} size={} align={}) \
                       ret: 0x{:010x}",
-                     ptr as usize, old_size, size, align, ret as usize);
+                     ptr, old_size, size, align, ret);
         }
         ret
     }

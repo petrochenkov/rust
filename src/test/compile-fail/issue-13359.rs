@@ -20,7 +20,7 @@ fn main() {
     //~| expected i16
     //~| found isize
 
-    bar(1*(1 as usize));
+    bar(1*(1));
     //~^ ERROR mismatched types
     //~| expected `u32`
     //~| found `usize`

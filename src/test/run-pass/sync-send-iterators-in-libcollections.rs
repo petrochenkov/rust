@@ -85,7 +85,7 @@ fn main() {
     enum Foo { A, B, C }
     impl CLike for Foo {
         fn to_usize(&self) -> usize {
-            *self as usize
+            *self
         }
 
         fn from_usize(v: usize) -> Foo {

@@ -14,6 +14,6 @@
 enum State { ST_NULL, ST_WHITESPACE }
 
 fn main() {
-    [State::ST_NULL; (State::ST_WHITESPACE as usize)];
+    [State::ST_NULL; (State::ST_WHITESPACE)];
     //~^ ERROR expected constant integer for repeat count, but non-constant path
 }

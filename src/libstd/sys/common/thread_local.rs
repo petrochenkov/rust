@@ -188,9 +188,9 @@ impl StaticKey {
             key2
         };
         assert!(key != 0);
-        match self.key.compare_and_swap(0, key as usize, Ordering::SeqCst) {
+        match self.key.compare_and_swap(0, key.widen_strict(), Ordering::SeqCst) {
             // The CAS succeeded, so we've created the actual key
-            0 => key as usize,
+            0 => key.widen_strict(),
             // If someone beat us to the punch, use their key instead
             n => { imp::destroy(key); n }
         }
@@ -252,8 +252,8 @@ mod tests {
         assert!(k2.get().is_null());
         k1.set(1 as *mut _);
         k2.set(2 as *mut _);
-        assert_eq!(k1.get() as usize, 1);
-        assert_eq!(k2.get() as usize, 2);
+        assert_eq!(k1.get(), 1);
+        assert_eq!(k2.get(), 2);
     }
 
     #[test]
@@ -266,8 +266,8 @@ mod tests {
             assert!(K2.get().is_null());
             K1.set(1 as *mut _);
             K2.set(2 as *mut _);
-            assert_eq!(K1.get() as usize, 1);
-            assert_eq!(K2.get() as usize, 2);
+            assert_eq!(K1.get(), 1);
+            assert_eq!(K2.get(), 2);
         }
     }
 }

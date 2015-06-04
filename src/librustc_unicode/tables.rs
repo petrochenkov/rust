@@ -4360,6 +4360,7 @@ pub mod charwidth {
     use core::option::Option::{Some, None};
     use core::slice::SliceExt;
     use core::result::Result::{Ok, Err};
+    use core::num::WidenStrict;
 
     fn bsearch_range_value_table(c: char, is_cjk: bool, r: &'static [(char, char, u8, u8)]) -> u8 {
         use core::cmp::Ordering::{Equal, Less, Greater};
@@ -4382,7 +4383,7 @@ pub mod charwidth {
             cu if cu < 0x20 => None,    // control sequences have no width
             cu if cu < 0x7F => Some(1), // ASCII
             cu if cu < 0xA0 => None,    // more control sequences
-            _ => Some(bsearch_range_value_table(c, is_cjk, charwidth_table) as usize)
+            _ => Some(bsearch_range_value_table(c, is_cjk, charwidth_table).widen_strict())
         }
     }
 

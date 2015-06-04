@@ -12,6 +12,7 @@
 #![allow(deprecated)]
 
 use super::Wrapping;
+use num::WidenWeak;
 
 use ops::*;
 
@@ -298,47 +299,47 @@ impl OverflowingOps for usize {
     fn overflowing_add(self, rhs: usize) -> (usize, bool) {
         unsafe {
             let res = u64_add_with_overflow(self as u64, rhs as u64);
-            (res.0 as usize, res.1)
+            (res.0.widen_weak(), res.1)
         }
     }
     #[inline(always)]
     fn overflowing_sub(self, rhs: usize) -> (usize, bool) {
         unsafe {
             let res = u64_sub_with_overflow(self as u64, rhs as u64);
-            (res.0 as usize, res.1)
+            (res.0.widen_weak(), res.1)
         }
     }
     #[inline(always)]
     fn overflowing_mul(self, rhs: usize) -> (usize, bool) {
         unsafe {
             let res = u64_mul_with_overflow(self as u64, rhs as u64);
-            (res.0 as usize, res.1)
+            (res.0.widen_weak(), res.1)
         }
     }
     #[inline(always)]
     fn overflowing_div(self, rhs: usize) -> (usize, bool) {
         let (r, f) = (self as u64).overflowing_div(rhs as u64);
-        (r as usize, f)
+        (r.widen_weak(), f)
     }
     #[inline(always)]
     fn overflowing_rem(self, rhs: usize) -> (usize, bool) {
         let (r, f) = (self as u64).overflowing_rem(rhs as u64);
-        (r as usize, f)
+        (r.widen_weak(), f)
     }
     #[inline(always)]
     fn overflowing_neg(self) -> (usize, bool) {
         let (r, f) = (self as u64).overflowing_neg();
-        (r as usize, f)
+        (r.widen_weak(), f)
     }
     #[inline(always)]
     fn overflowing_shl(self, rhs: u32) -> (usize, bool) {
         let (r, f) = (self as u64).overflowing_shl(rhs);
-        (r as usize, f)
+        (r.widen_weak(), f)
     }
     #[inline(always)]
     fn overflowing_shr(self, rhs: u32) -> (usize, bool) {
         let (r, f) = (self as u64).overflowing_shr(rhs);
-        (r as usize, f)
+        (r.widen_weak(), f)
     }
 }
 
@@ -348,47 +349,47 @@ impl OverflowingOps for usize {
     fn overflowing_add(self, rhs: usize) -> (usize, bool) {
         unsafe {
             let res = u32_add_with_overflow(self as u32, rhs as u32);
-            (res.0 as usize, res.1)
+            (res.0, res.1)
         }
     }
     #[inline(always)]
     fn overflowing_sub(self, rhs: usize) -> (usize, bool) {
         unsafe {
             let res = u32_sub_with_overflow(self as u32, rhs as u32);
-            (res.0 as usize, res.1)
+            (res.0, res.1)
         }
     }
     #[inline(always)]
     fn overflowing_mul(self, rhs: usize) -> (usize, bool) {
         unsafe {
             let res = u32_mul_with_overflow(self as u32, rhs as u32);
-            (res.0 as usize, res.1)
+            (res.0, res.1)
         }
     }
     #[inline(always)]
     fn overflowing_div(self, rhs: usize) -> (usize, bool) {
         let (r, f) = (self as u32).overflowing_div(rhs as u32);
-        (r as usize, f)
+        (r, f)
     }
     #[inline(always)]
     fn overflowing_rem(self, rhs: usize) -> (usize, bool) {
         let (r, f) = (self as u32).overflowing_rem(rhs as u32);
-        (r as usize, f)
+        (r, f)
     }
     #[inline(always)]
     fn overflowing_neg(self) -> (usize, bool) {
         let (r, f) = (self as u32).overflowing_neg();
-        (r as usize, f)
+        (r, f)
     }
     #[inline(always)]
     fn overflowing_shl(self, rhs: u32) -> (usize, bool) {
         let (r, f) = (self as u32).overflowing_shl(rhs);
-        (r as usize, f)
+        (r, f)
     }
     #[inline(always)]
     fn overflowing_shr(self, rhs: u32) -> (usize, bool) {
         let (r, f) = (self as u32).overflowing_shr(rhs);
-        (r as usize, f)
+        (r, f)
     }
 }
 

@@ -15,7 +15,7 @@ enum foo { large, small, }
 
 impl PartialEq for foo {
     fn eq(&self, other: &foo) -> bool {
-        ((*self) as usize) == ((*other) as usize)
+        ((*self)) == ((*other))
     }
     fn ne(&self, other: &foo) -> bool { !(*self).eq(other) }
 }

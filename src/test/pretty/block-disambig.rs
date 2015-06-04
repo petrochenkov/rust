@@ -37,7 +37,7 @@ fn test6() -> bool { { } (true || false) && true }
 fn test7() -> usize {
     let regs = &0;
     match true { true => { } _ => { } }
-    (*regs < 2) as usize
+    (*regs < 2)
 }
 
 fn test8() -> isize {

@@ -35,7 +35,7 @@ fn align(off: usize, ty: Type, align_fn: TyAlignFn) -> usize {
 
 fn general_ty_align(ty: Type) -> usize {
     match ty.kind() {
-        Integer => ((ty.int_width() as usize) + 7) / 8,
+        Integer => ((ty.int_width()) + 7) / 8,
         Pointer => 4,
         Float => 4,
         Double => 8,
@@ -69,7 +69,7 @@ fn general_ty_align(ty: Type) -> usize {
 //    /iPhoneOSABIReference/Articles/ARMv6FunctionCallingConventions.html
 fn ios_ty_align(ty: Type) -> usize {
     match ty.kind() {
-        Integer => cmp::min(4, ((ty.int_width() as usize) + 7) / 8),
+        Integer => cmp::min(4, ((ty.int_width()) + 7) / 8),
         Pointer => 4,
         Float => 4,
         Double => 4,
@@ -96,7 +96,7 @@ fn ios_ty_align(ty: Type) -> usize {
 
 fn ty_size(ty: Type, align_fn: TyAlignFn) -> usize {
     match ty.kind() {
-        Integer => ((ty.int_width() as usize) + 7) / 8,
+        Integer => ((ty.int_width()) + 7) / 8,
         Pointer => 4,
         Float => 4,
         Double => 8,

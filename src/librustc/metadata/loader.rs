@@ -766,12 +766,12 @@ fn get_metadata_section_imp(target: &Target, filename: &Path)
             let mut name_buf = ptr::null();
             let name_len = llvm::LLVMRustGetSectionName(si.llsi, &mut name_buf);
             let name = slice::from_raw_parts(name_buf as *const u8,
-                                             name_len as usize).to_vec();
+                                             name_len).to_vec();
             let name = String::from_utf8(name).unwrap();
             debug!("get_metadata_section: name {}", name);
             if read_meta_section_name(target) == name {
                 let cbuf = llvm::LLVMGetSectionContents(si.llsi);
-                let csz = llvm::LLVMGetSectionSize(si.llsi) as usize;
+                let csz = llvm::LLVMGetSectionSize(si.llsi);
                 let cvbuf: *const u8 = cbuf as *const u8;
                 let vlen = encoder::metadata_encoding_version.len();
                 debug!("checking {} bytes of metadata-version stamp",

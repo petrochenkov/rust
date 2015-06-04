@@ -297,7 +297,7 @@ fn percentile_of_sorted(sorted_samples: &[f64], pct: f64) -> f64 {
     let rank = (pct / hundred) * length;
     let lrank = rank.floor();
     let d = rank - lrank;
-    let n = lrank as usize;
+    let n = lrank;
     let lo = sorted_samples[n];
     let hi = sorted_samples[n+1];
     lo + (hi - lo) * d

@@ -26,7 +26,7 @@ enum mood { happy, sad, }
 
 impl PartialEq for mood {
     fn eq(&self, other: &mood) -> bool {
-        ((*self) as usize) == ((*other) as usize)
+        ((*self)) == ((*other))
     }
     fn ne(&self, other: &mood) -> bool { !(*self).eq(other) }
 }

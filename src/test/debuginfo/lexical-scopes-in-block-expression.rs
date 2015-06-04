@@ -502,7 +502,7 @@ fn main() {
         zzz(); // #break
         sentinel();
 
-        val as usize
+        val
     }];
 
     zzz(); // #break

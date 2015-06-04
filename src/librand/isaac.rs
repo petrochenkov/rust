@@ -16,6 +16,7 @@ use core::prelude::*;
 use core::slice;
 use core::iter::repeat;
 use core::num::Wrapping as w;
+use core::num::{WidenWeak, WidenStrict};
 
 use {Rng, SeedableRng, Rand};
 
@@ -136,7 +137,7 @@ impl IsaacRng {
         const MIDPOINT: usize = RAND_SIZE_USIZE / 2;
 
         macro_rules! ind {
-            ($x:expr) => (self.mem[($x >> 2).0 as usize & (RAND_SIZE_USIZE - 1)] )
+            ($x:expr) => (self.mem[($x >> 2).0.widen_strict2(0usize) & (RAND_SIZE_USIZE - 1)] )
         }
 
         let r = [(0, MIDPOINT), (MIDPOINT, 0)];
@@ -213,7 +214,7 @@ impl Rng for IsaacRng {
         // (the % is cheaply telling the optimiser that we're always
         // in bounds, without unsafe. NB. this is a power of two, so
         // it optimises to a bitwise mask).
-        self.rsl[(self.cnt % RAND_SIZE) as usize].0
+        self.rsl[(self.cnt % RAND_SIZE).widen_strict2(0usize)].0
     }
 }
 
@@ -375,7 +376,7 @@ impl Isaac64Rng {
         const MP_VEC: [(usize, usize); 2] = [(0,MIDPOINT), (MIDPOINT, 0)];
         macro_rules! ind {
             ($x:expr) => {
-                *self.mem.get_unchecked((($x >> 3).0 as usize) & (RAND_SIZE_64 - 1))
+                *self.mem.get_unchecked((($x >> 3).0.widen_weak2(0usize)) & (RAND_SIZE_64 - 1))
             }
         }
 
@@ -456,7 +457,7 @@ impl Rng for Isaac64Rng {
         // See corresponding location in IsaacRng.next_u32 for
         // explanation.
         debug_assert!(self.cnt < RAND_SIZE_64);
-        self.rsl[(self.cnt % RAND_SIZE_64) as usize].0
+        self.rsl[(self.cnt % RAND_SIZE_64)].0
     }
 }
 

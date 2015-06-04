@@ -19,10 +19,10 @@ pub fn main() {
     let (tx, rx) = channel::<usize>();
 
     let x: Box<isize> = box 1;
-    let x_in_parent = &(*x) as *const isize as usize;
+    let x_in_parent = &(*x) as *const isize;
 
     let t = thread::spawn(move || {
-        let x_in_child = &(*x) as *const isize as usize;
+        let x_in_child = &(*x) as *const isize;
         tx.send(x_in_child).unwrap();
     });
 

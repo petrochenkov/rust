@@ -1142,7 +1142,7 @@ macro_rules! uint_impl {
         pub fn next_power_of_two(self) -> Self {
             let bits = size_of::<Self>() * 8;
             let one: Self = Self::one();
-            one << ((bits - self.wrapping_sub(one).leading_zeros() as usize) % bits)
+            one << ((bits - self.wrapping_sub(one).leading_zeros().widen_strict2(0usize)) % bits)
         }
 
         /// Returns the smallest power of two greater than or equal to `n`. If

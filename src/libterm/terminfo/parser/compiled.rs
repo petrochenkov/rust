@@ -186,34 +186,34 @@ pub fn parse(file: &mut Read, longnames: bool)
     let magic = try!(read_le_u16(file));
     if magic != 0x011A {
         return Err(format!("invalid magic number: expected {:x}, found {:x}",
-                           0x011A_usize, magic as usize));
+                           0x011A_usize, magic));
     }
 
-    let names_bytes          = try!(read_le_u16(file)) as isize;
-    let bools_bytes          = try!(read_le_u16(file)) as isize;
-    let numbers_count        = try!(read_le_u16(file)) as isize;
-    let string_offsets_count = try!(read_le_u16(file)) as isize;
-    let string_table_bytes   = try!(read_le_u16(file)) as isize;
+    let names_bytes          = try!(read_le_u16(file)) as usize;
+    let bools_bytes          = try!(read_le_u16(file)) as usize;
+    let numbers_count        = try!(read_le_u16(file)) as usize;
+    let string_offsets_count = try!(read_le_u16(file)) as usize;
+    let string_table_bytes   = try!(read_le_u16(file)) as usize;
 
     assert!(names_bytes          > 0);
 
-    if (bools_bytes as usize) > boolnames.len() {
+    if (bools_bytes) > boolnames.len() {
         return Err("incompatible file: more booleans than \
                     expected".to_string());
     }
 
-    if (numbers_count as usize) > numnames.len() {
+    if (numbers_count) > numnames.len() {
         return Err("incompatible file: more numbers than \
                     expected".to_string());
     }
 
-    if (string_offsets_count as usize) > stringnames.len() {
+    if (string_offsets_count) > stringnames.len() {
         return Err("incompatible file: more string offsets than \
                     expected".to_string());
     }
 
     // don't read NUL
-    let bytes = try!(read_exact(file, names_bytes as usize - 1));
+    let bytes = try!(read_exact(file, names_bytes - 1));
     let names_str = match String::from_utf8(bytes) {
         Ok(s)  => s,
         Err(_) => return Err("input not utf-8".to_string()),
@@ -230,7 +230,7 @@ pub fn parse(file: &mut Read, longnames: bool)
         for i in 0..bools_bytes {
             let b = try!(read_byte(file));
             if b == 1 {
-                bools_map.insert(bnames[i as usize].to_string(), true);
+                bools_map.insert(bnames[i].to_string(), true);
             }
         }
     }
@@ -244,7 +244,7 @@ pub fn parse(file: &mut Read, longnames: bool)
         for i in 0..numbers_count {
             let n = try!(read_le_u16(file));
             if n != 0xFFFF {
-                numbers_map.insert(nnames[i as usize].to_string(), n);
+                numbers_map.insert(nnames[i].to_string(), n);
             }
         }
     }
@@ -257,9 +257,9 @@ pub fn parse(file: &mut Read, longnames: bool)
             string_offsets.push(try!(read_le_u16(file)));
         }
 
-        let string_table = try!(read_exact(file, string_table_bytes as usize));
+        let string_table = try!(read_exact(file, string_table_bytes));
 
-        if string_table.len() != string_table_bytes as usize {
+        if string_table.len() != string_table_bytes {
             return Err("error: hit EOF before end of string \
                         table".to_string());
         }
@@ -285,13 +285,13 @@ pub fn parse(file: &mut Read, longnames: bool)
 
 
             // Find the offset of the NUL we want to go to
-            let nulpos = string_table[offset as usize .. string_table_bytes as usize]
+            let nulpos = string_table[offset.widen_strict() .. string_table_bytes]
                 .iter().position(|&b| b == 0);
             match nulpos {
                 Some(len) => {
                     string_map.insert(name.to_string(),
-                                      string_table[offset as usize ..
-                                                   (offset as usize + len)].to_vec())
+                                      string_table[offset.widen_strict() ..
+                                                   (offset.widen_strict2(0usize) + len)].to_vec())
                 },
                 None => {
                     return Err("invalid file: missing NUL in \

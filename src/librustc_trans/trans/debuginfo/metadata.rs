@@ -1126,7 +1126,7 @@ impl<'tcx> StructMemberDescriptionFactory<'tcx> {
         }
 
         let field_size = if self.is_simd {
-            machine::llsize_of_alloc(cx, type_of::type_of(cx, self.fields[0].mt.ty)) as usize
+            machine::llsize_of_alloc(cx, type_of::type_of(cx, self.fields[0].mt.ty))
         } else {
             0xdeadbeef
         };
@@ -1352,7 +1352,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
                 // DWARF representation of enums uniform.
 
                 // First create a description of the artificial wrapper struct:
-                let non_null_variant = &(*self.variants)[non_null_variant_index as usize];
+                let non_null_variant = &(*self.variants)[non_null_variant_index];
                 let non_null_variant_name = token::get_name(non_null_variant.name);
 
                 // The llvm type and metadata of the pointer
@@ -1397,7 +1397,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
 
                 // Encode the information about the null variant in the union
                 // member's name.
-                let null_variant_index = (1 - non_null_variant_index) as usize;
+                let null_variant_index = (1 - non_null_variant_index);
                 let null_variant_name = token::get_name((*self.variants)[null_variant_index].name);
                 let union_member_name = format!("RUST$ENCODED$ENUM${}${}",
                                                 0,
@@ -1423,7 +1423,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
                     describe_enum_variant(cx,
                                           self.enum_type,
                                           struct_def,
-                                          &*(*self.variants)[nndiscr as usize],
+                                          &*(*self.variants)[nndiscr],
                                           OptimizedDiscriminant,
                                           self.containing_scope,
                                           self.span);
@@ -1438,7 +1438,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
 
                 // Encode the information about the null variant in the union
                 // member's name.
-                let null_variant_index = (1 - nndiscr) as usize;
+                let null_variant_index = (1 - nndiscr);
                 let null_variant_name = token::get_name((*self.variants)[null_variant_index].name);
                 let discrfield = discrfield.iter()
                                            .skip(1)

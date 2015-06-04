@@ -42,8 +42,8 @@ impl ToHex for [u8] {
     fn to_hex(&self) -> String {
         let mut v = Vec::with_capacity(self.len() * 2);
         for &byte in self {
-            v.push(CHARS[(byte >> 4) as usize]);
-            v.push(CHARS[(byte & 0xf) as usize]);
+            v.push(CHARS[(byte >> 4).widen_strict2(0usize)]);
+            v.push(CHARS[(byte & 0xf).widen_strict2(0usize)]);
         }
 
         unsafe {
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     pub fn test_to_hex_all_bytes() {
         for i in 0..256 {
-            assert_eq!([i as u8].to_hex(), format!("{:02x}", i as usize));
+            assert_eq!([i as u8].to_hex(), format!("{:02x}", i));
         }
     }
 
@@ -194,10 +194,10 @@ mod tests {
     pub fn test_from_hex_all_bytes() {
         for i in 0..256 {
             let ii: &[u8] = &[i as u8];
-            assert_eq!(format!("{:02x}", i as usize).from_hex()
+            assert_eq!(format!("{:02x}", i).from_hex()
                                                    .unwrap(),
                        ii);
-            assert_eq!(format!("{:02X}", i as usize).from_hex()
+            assert_eq!(format!("{:02X}", i).from_hex()
                                                    .unwrap(),
                        ii);
         }

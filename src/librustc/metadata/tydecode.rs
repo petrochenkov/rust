@@ -612,14 +612,14 @@ fn parse_uint(st: &mut PState) -> usize {
         if cur < '0' || cur > '9' { return n; }
         st.pos = st.pos + 1;
         n *= 10;
-        n += (cur as usize) - ('0' as usize);
+        n += (cur) - ('0');
     };
 }
 
 fn parse_u32(st: &mut PState) -> u32 {
     let n = parse_uint(st);
     let m = n as u32;
-    assert_eq!(m as usize, n);
+    assert_eq!(m, n);
     m
 }
 
@@ -635,8 +635,8 @@ fn parse_hex(st: &mut PState) -> usize {
         st.pos = st.pos + 1;
         n *= 16;
         if '0' <= cur && cur <= '9' {
-            n += (cur as usize) - ('0' as usize);
-        } else { n += 10 + (cur as usize) - ('a' as usize); }
+            n += (cur) - ('0');
+        } else { n += 10 + (cur) - ('a'); }
     };
 }
 

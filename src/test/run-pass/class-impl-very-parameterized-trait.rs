@@ -16,7 +16,7 @@ enum cat_type { tuxedo, tabby, tortoiseshell }
 
 impl cmp::PartialEq for cat_type {
     fn eq(&self, other: &cat_type) -> bool {
-        ((*self) as usize) == ((*other) as usize)
+        ((*self)) == ((*other))
     }
     fn ne(&self, other: &cat_type) -> bool { !(*self).eq(other) }
 }
@@ -46,7 +46,7 @@ impl<T> cat<T> {
             return false;
         }
     }
-    fn len(&self) -> usize { self.meows as usize }
+    fn len(&self) -> usize { self.meows }
     fn is_empty(&self) -> bool { self.meows == 0 }
     fn clear(&mut self) {}
     fn contains_key(&self, k: &isize) -> bool { *k <= self.meows }

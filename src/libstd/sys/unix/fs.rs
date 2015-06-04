@@ -140,7 +140,7 @@ impl Iterator for ReadDir {
         }
 
         let mut buf: Vec<u8> = Vec::with_capacity(unsafe {
-            rust_dirent_t_size() as usize
+            rust_dirent_t_size()
         });
         let ptr = buf.as_mut_ptr() as *mut libc::dirent_t;
 
@@ -465,12 +465,12 @@ pub fn readlink(p: &Path) -> io::Result<PathBuf> {
     if len < 0 {
         len = 1024; // FIXME: read PATH_MAX from C ffi?
     }
-    let mut buf: Vec<u8> = Vec::with_capacity(len as usize);
+    let mut buf: Vec<u8> = Vec::with_capacity(len);
     unsafe {
         let n = try!(cvt({
             libc::readlink(p, buf.as_ptr() as *mut c_char, len as size_t)
         }));
-        buf.set_len(n as usize);
+        buf.set_len(n);
     }
     Ok(PathBuf::from(OsString::from_vec(buf)))
 }

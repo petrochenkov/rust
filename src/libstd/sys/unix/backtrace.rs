@@ -124,7 +124,7 @@ pub fn write(w: &mut Write) -> io::Result<()> {
     // 100 lines should be enough
     const SIZE: usize = 100;
     let mut buf: [*mut libc::c_void; SIZE] = unsafe {mem::zeroed()};
-    let cnt = unsafe { backtrace(buf.as_mut_ptr(), SIZE as libc::c_int) as usize};
+    let cnt = unsafe { backtrace(buf.as_mut_ptr(), SIZE as libc::c_int)};
 
     // skipping the first one as it is write itself
     let iter = (1..cnt).map(|i| {
@@ -177,7 +177,7 @@ pub fn write(w: &mut Write) -> io::Result<()> {
         if !ip.is_null() && ip_before_insn == 0 {
             // this is a non-signaling frame, so `ip` refers to the address
             // after the calling instruction. account for that.
-            ip = (ip as usize - 1) as *mut _;
+            ip = (ip - 1) as *mut _;
         }
 
         // dladdr() on osx gets whiny when we use FindEnclosingFunction, and

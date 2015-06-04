@@ -174,7 +174,7 @@ impl Name {
 
     pub fn usize(&self) -> usize {
         let Name(nm) = *self;
-        nm as usize
+        nm.widen_weak()
     }
 
     pub fn ident(&self) -> Ident {

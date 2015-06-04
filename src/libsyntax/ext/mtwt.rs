@@ -185,7 +185,7 @@ fn resolve_internal(id: Ident,
     }
 
     let resolved = {
-        let result = (*table.table.borrow())[id.ctxt as usize];
+        let result = (*table.table.borrow())[id.ctxt.widen_weak2(0usize)];
         match result {
             EmptyCtxt => id.name,
             // ignore marks here:
@@ -229,7 +229,7 @@ fn marksof_internal(ctxt: SyntaxContext,
     let mut result = Vec::new();
     let mut loopvar = ctxt;
     loop {
-        let table_entry = (*table.table.borrow())[loopvar as usize];
+        let table_entry = (*table.table.borrow())[loopvar.widen_weak2(0usize)];
         match table_entry {
             EmptyCtxt => {
                 return result;
@@ -256,7 +256,7 @@ fn marksof_internal(ctxt: SyntaxContext,
 /// FAILS when outside is not a mark.
 pub fn outer_mark(ctxt: SyntaxContext) -> Mrk {
     with_sctable(|sctable| {
-        match (*sctable.table.borrow())[ctxt as usize] {
+        match (*sctable.table.borrow())[ctxt.widen_weak2(0usize)] {
             Mark(mrk, _) => mrk,
             _ => panic!("can't retrieve outer mark when outside is not a mark")
         }
@@ -328,7 +328,7 @@ mod tests {
         let mut result = Vec::new();
         loop {
             let table = table.table.borrow();
-            match (*table)[sc as usize] {
+            match (*table)[sc] {
                 EmptyCtxt => {return result;},
                 Mark(mrk,tail) => {
                     result.push(M(mrk));

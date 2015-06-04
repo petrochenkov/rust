@@ -255,7 +255,7 @@ in a non-constant integer which lead to this error. Example:
 
 ```
 const X: u32 = 1;
-const Y: usize = &X as *const u32 as usize;
+const Y: usize = &X as *const u32;
 println!("{}", Y);
 ```
 "##,

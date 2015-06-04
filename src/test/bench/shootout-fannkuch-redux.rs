@@ -80,7 +80,7 @@ struct Perm {
 impl Perm {
     fn new(n: u32) -> Perm {
         let mut fact = [1; 16];
-        for i in 1..n as usize + 1 {
+        for i in 1..n + 1 {
             fact[i] = fact[i - 1] * i as u32;
         }
         Perm {
@@ -99,7 +99,7 @@ impl Perm {
             *place = i as i32 + 1;
         }
 
-        for i in (1..self.n as usize).rev() {
+        for i in (1..self.n).rev() {
             let d = idx / self.fact[i] as i32;
             self.cnt[i] = d;
             idx %= self.fact[i] as i32;
@@ -107,7 +107,7 @@ impl Perm {
                 *place = (*val) as u8
             }
 
-            let d = d as usize;
+            let d = d;
             for j in 0..i + 1 {
                 self.perm.p[j] = if j + d <= i {pp[j + d]} else {pp[j+d-i-1]} as i32;
             }
@@ -117,7 +117,7 @@ impl Perm {
     }
 
     fn count(&self) -> u32 { self.permcount }
-    fn max(&self) -> u32 { self.fact[self.n as usize] }
+    fn max(&self) -> u32 { self.fact[self.n] }
 
     fn next(&mut self) -> P {
         next_permutation(&mut self.perm.p, &mut self.cnt);
@@ -142,7 +142,7 @@ fn work(mut perm: Perm, n: usize, max: usize) -> (i32, i32) {
         let mut flips = 0;
 
         while p.p[0] != 1 {
-            let k = p.p[0] as usize;
+            let k = p.p[0];
             reverse(&mut p.p, k);
             flips += 1;
         }
@@ -167,7 +167,7 @@ fn fannkuch(n: i32) -> (i32, i32) {
         let max = cmp::min(j+k, perm.max());
 
         futures.push(thread::spawn(move|| {
-            work(perm, j as usize, max as usize)
+            work(perm, j, max)
         }))
     }
 

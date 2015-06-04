@@ -24,6 +24,7 @@ use option::Option::{Some, None};
 use ptr::{self, Unique};
 use rt::heap::{allocate, deallocate, EMPTY};
 use collections::hash_state::HashState;
+use core::num::WidenWeak;
 
 const EMPTY_BUCKET: u64 = 0;
 
@@ -224,7 +225,7 @@ impl<K, V, M> Bucket<K, V, M> {
 
 impl<K, V, M: Deref<Target=RawTable<K, V>>> Bucket<K, V, M> {
     pub fn new(table: M, hash: SafeHash) -> Bucket<K, V, M> {
-        Bucket::at_index(table, hash.inspect() as usize)
+        Bucket::at_index(table, hash.inspect().widen_weak())
     }
 
     pub fn at_index(table: M, ib_index: usize) -> Bucket<K, V, M> {
@@ -378,7 +379,7 @@ impl<K, V, M: Deref<Target=RawTable<K, V>>> FullBucket<K, V, M> {
         // Calculates the distance one has to travel when going from
         // `hash mod capacity` onwards to `idx mod capacity`, wrapping around
         // if the destination is not reached before the end of the table.
-        (self.idx.wrapping_sub(self.hash().inspect() as usize)) & (self.table.capacity() - 1)
+        (self.idx.wrapping_sub(self.hash().inspect().widen_weak())) & (self.table.capacity() - 1)
     }
 
     #[inline]

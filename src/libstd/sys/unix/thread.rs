@@ -55,7 +55,7 @@ impl Thread {
                 // Round up to the nearest page and try again.
                 let page_size = os::page_size();
                 let stack_size = (stack_size + page_size - 1) &
-                                 (-(page_size as isize - 1) as usize - 1);
+                                 (-(page_size as isize - 1) - 1);
                 let stack_size = stack_size as libc::size_t;
                 assert_eq!(pthread_attr_setstacksize(&mut attr, stack_size), 0);
             }
@@ -219,9 +219,9 @@ pub mod guard {
         // stackaddr < stackaddr + stacksize, so if stackaddr is not
         // page-aligned, calculate the fix such that stackaddr <
         // new_page_aligned_stackaddr < stackaddr + stacksize
-        let remainder = (stackaddr as usize) % psize;
+        let remainder = (stackaddr) % psize;
         if remainder != 0 {
-            stackaddr = ((stackaddr as usize) + psize - remainder)
+            stackaddr = ((stackaddr) + psize - remainder)
                 as *mut libc::c_void;
         }
 
@@ -241,7 +241,7 @@ pub mod guard {
 
         let offset = if cfg!(target_os = "linux") {2} else {1};
 
-        GUARD_PAGE = stackaddr as usize + offset * psize;
+        GUARD_PAGE = stackaddr + offset * psize;
     }
 
     pub unsafe fn main() -> usize {
@@ -255,7 +255,7 @@ pub mod guard {
             fn pthread_get_stacksize_np(thread: pthread_t) -> libc::size_t;
         }
         (pthread_get_stackaddr_np(pthread_self()) as libc::size_t -
-         pthread_get_stacksize_np(pthread_self())) as usize
+         pthread_get_stacksize_np(pthread_self()))
     }
 
     #[cfg(any(target_os = "openbsd", target_os = "bitrig"))]
@@ -278,10 +278,10 @@ pub mod guard {
         let extra = if cfg!(target_os = "bitrig") {3} else {1} * os::page_size();
         if pthread_main_np() == 1 {
             // main thread
-            current_stack.ss_sp as usize - current_stack.ss_size as usize + extra
+            current_stack.ss_sp - current_stack.ss_size + extra
         } else {
             // new thread
-            current_stack.ss_sp as usize - current_stack.ss_size as usize
+            current_stack.ss_sp - current_stack.ss_size
         }
     }
 
@@ -299,7 +299,7 @@ pub mod guard {
         assert_eq!(pthread_attr_getstack(&attr, &mut stackaddr, &mut size), 0);
         assert_eq!(pthread_attr_destroy(&mut attr), 0);
 
-        stackaddr as usize + guardsize as usize
+        stackaddr + guardsize
     }
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -349,8 +349,8 @@ fn min_stack_size(attr: *const libc::pthread_attr_t) -> usize {
     });
 
     match unsafe { __pthread_get_minstack } {
-        None => PTHREAD_STACK_MIN as usize,
-        Some(f) => unsafe { f(attr) as usize },
+        None => PTHREAD_STACK_MIN,
+        Some(f) => unsafe { f(attr) },
     }
 }
 
@@ -358,7 +358,7 @@ fn min_stack_size(attr: *const libc::pthread_attr_t) -> usize {
 // platforms.
 #[cfg(not(target_os = "linux"))]
 fn min_stack_size(_: *const libc::pthread_attr_t) -> usize {
-    PTHREAD_STACK_MIN as usize
+    PTHREAD_STACK_MIN
 }
 
 extern {

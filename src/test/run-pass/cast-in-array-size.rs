@@ -15,8 +15,8 @@
 const SIZE: isize = 25;
 
 fn main() {
-    let _a: [bool; 1 as usize];
-    let _b: [isize; SIZE as usize] = [1; SIZE as usize];
-    let _c: [bool; '\n' as usize] = [true; '\n' as usize];
-    let _d: [bool; true as usize] = [true; true as usize];
+    let _a: [bool; 1];
+    let _b: [isize; SIZE] = [1; SIZE];
+    let _c: [bool; '\n'] = [true; '\n'];
+    let _d: [bool; true] = [true; true];
 }

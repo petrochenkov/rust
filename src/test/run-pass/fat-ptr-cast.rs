@@ -32,18 +32,18 @@ fn main() {
     // Test conversion to an address (usize).
     let a: *const [i32; 3] = &[1, 2, 3];
     let b: *const [i32] = a;
-    assert!(a as usize == b as *const () as usize);
+    assert!(a == b as *const ());
 
     // And conversion to a void pointer/address for trait objects too.
     let a: *mut Foo = &mut Bar;
     let b = a as *mut ();
-    let c = a as *const () as usize;
+    let c = a as *const ();
     let d = unsafe {
         let r: raw::TraitObject = mem::transmute(a);
         r.data
     };
 
     assert!(b == d);
-    assert!(c == d as usize);
+    assert!(c == d);
 
 }

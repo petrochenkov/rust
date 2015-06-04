@@ -17,9 +17,9 @@ fn main() {
     let p = a as *const [i32];
     let q = a.as_ptr();
 
-    a as usize; //~ ERROR illegal cast
-    b as usize; //~ ERROR non-scalar cast
-    p as usize; //~ ERROR illegal cast; cast through a raw pointer
+    a; //~ ERROR illegal cast
+    b; //~ ERROR non-scalar cast
+    p; //~ ERROR illegal cast; cast through a raw pointer
 
     // #22955
     q as *const [i32]; //~ ERROR illegal cast

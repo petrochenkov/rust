@@ -15,7 +15,7 @@ extern crate libc;
 pub fn main() {
   let f = 1_usize as *const libc::FILE;
   println!("{:?}", f as isize);
-  println!("{:?}", f as usize);
+  println!("{:?}", f);
   println!("{:?}", f as i8);
   println!("{:?}", f as i16);
   println!("{:?}", f as i32);
@@ -26,7 +26,7 @@ pub fn main() {
   println!("{:?}", f as u64);
 
   println!("{:?}", 1 as isize);
-  println!("{:?}", 1 as usize);
+  println!("{:?}", 1);
   println!("{:?}", 1 as *const libc::FILE);
   println!("{:?}", 1 as i8);
   println!("{:?}", 1 as i16);
@@ -40,7 +40,7 @@ pub fn main() {
   println!("{:?}", 1 as f64);
 
   println!("{:?}", 1_usize as isize);
-  println!("{:?}", 1_usize as usize);
+  println!("{:?}", 1_usize);
   println!("{:?}", 1_usize as *const libc::FILE);
   println!("{:?}", 1_usize as i8);
   println!("{:?}", 1_usize as i16);
@@ -54,7 +54,7 @@ pub fn main() {
   println!("{:?}", 1_usize as f64);
 
   println!("{:?}", 1i8 as isize);
-  println!("{:?}", 1i8 as usize);
+  println!("{:?}", 1i8);
   println!("{:?}", 1i8 as *const libc::FILE);
   println!("{:?}", 1i8 as i8);
   println!("{:?}", 1i8 as i16);
@@ -68,7 +68,7 @@ pub fn main() {
   println!("{:?}", 1i8 as f64);
 
   println!("{:?}", 1u8 as isize);
-  println!("{:?}", 1u8 as usize);
+  println!("{:?}", 1u8);
   println!("{:?}", 1u8 as *const libc::FILE);
   println!("{:?}", 1u8 as i8);
   println!("{:?}", 1u8 as i16);
@@ -82,7 +82,7 @@ pub fn main() {
   println!("{:?}", 1u8 as f64);
 
   println!("{:?}", 1i16 as isize);
-  println!("{:?}", 1i16 as usize);
+  println!("{:?}", 1i16);
   println!("{:?}", 1i16 as *const libc::FILE);
   println!("{:?}", 1i16 as i8);
   println!("{:?}", 1i16 as i16);
@@ -96,7 +96,7 @@ pub fn main() {
   println!("{:?}", 1i16 as f64);
 
   println!("{:?}", 1u16 as isize);
-  println!("{:?}", 1u16 as usize);
+  println!("{:?}", 1u16);
   println!("{:?}", 1u16 as *const libc::FILE);
   println!("{:?}", 1u16 as i8);
   println!("{:?}", 1u16 as i16);
@@ -110,7 +110,7 @@ pub fn main() {
   println!("{:?}", 1u16 as f64);
 
   println!("{:?}", 1i32 as isize);
-  println!("{:?}", 1i32 as usize);
+  println!("{:?}", 1i32);
   println!("{:?}", 1i32 as *const libc::FILE);
   println!("{:?}", 1i32 as i8);
   println!("{:?}", 1i32 as i16);
@@ -124,7 +124,7 @@ pub fn main() {
   println!("{:?}", 1i32 as f64);
 
   println!("{:?}", 1u32 as isize);
-  println!("{:?}", 1u32 as usize);
+  println!("{:?}", 1u32);
   println!("{:?}", 1u32 as *const libc::FILE);
   println!("{:?}", 1u32 as i8);
   println!("{:?}", 1u32 as i16);
@@ -138,7 +138,7 @@ pub fn main() {
   println!("{:?}", 1u32 as f64);
 
   println!("{:?}", 1i64 as isize);
-  println!("{:?}", 1i64 as usize);
+  println!("{:?}", 1i64);
   println!("{:?}", 1i64 as *const libc::FILE);
   println!("{:?}", 1i64 as i8);
   println!("{:?}", 1i64 as i16);
@@ -152,7 +152,7 @@ pub fn main() {
   println!("{:?}", 1i64 as f64);
 
   println!("{:?}", 1u64 as isize);
-  println!("{:?}", 1u64 as usize);
+  println!("{:?}", 1u64);
   println!("{:?}", 1u64 as *const libc::FILE);
   println!("{:?}", 1u64 as i8);
   println!("{:?}", 1u64 as i16);
@@ -166,7 +166,7 @@ pub fn main() {
   println!("{:?}", 1u64 as f64);
 
   println!("{:?}", 1u64 as isize);
-  println!("{:?}", 1u64 as usize);
+  println!("{:?}", 1u64);
   println!("{:?}", 1u64 as *const libc::FILE);
   println!("{:?}", 1u64 as i8);
   println!("{:?}", 1u64 as i16);
@@ -180,7 +180,7 @@ pub fn main() {
   println!("{:?}", 1u64 as f64);
 
   println!("{:?}", true as isize);
-  println!("{:?}", true as usize);
+  println!("{:?}", true);
   println!("{:?}", true as i8);
   println!("{:?}", true as i16);
   println!("{:?}", true as i32);
@@ -191,7 +191,7 @@ pub fn main() {
   println!("{:?}", true as u64);
 
   println!("{:?}", 1f32 as isize);
-  println!("{:?}", 1f32 as usize);
+  println!("{:?}", 1f32);
   println!("{:?}", 1f32 as i8);
   println!("{:?}", 1f32 as i16);
   println!("{:?}", 1f32 as i32);
@@ -204,7 +204,7 @@ pub fn main() {
   println!("{:?}", 1f32 as f64);
 
   println!("{:?}", 1f64 as isize);
-  println!("{:?}", 1f64 as usize);
+  println!("{:?}", 1f64);
   println!("{:?}", 1f64 as i8);
   println!("{:?}", 1f64 as i16);
   println!("{:?}", 1f64 as i32);

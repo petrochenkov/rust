@@ -422,7 +422,7 @@ impl<'a, 'tcx, O:DataFlowOperator> DataFlowContext<'a, 'tcx, O> {
                         // whether the bit_index is greater than the
                         // actual value the user specified and stop
                         // iterating if so.
-                        let bit_index = base_index + offset as usize;
+                        let bit_index = base_index + offset;
                         if bit_index >= self.bits_per_id {
                             return true;
                         } else if !f(bit_index) {

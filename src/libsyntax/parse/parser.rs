@@ -912,7 +912,7 @@ impl<'a> Parser<'a> {
             self.reader.real_token()
         } else {
             // Avoid token copies with `replace`.
-            let buffer_start = self.buffer_start as usize;
+            let buffer_start = self.buffer_start;
             let next_index = (buffer_start + 1) & 3;
             self.buffer_start = next_index as isize;
 
@@ -920,7 +920,7 @@ impl<'a> Parser<'a> {
                 tok: token::Underscore,
                 sp: self.span,
             };
-            mem::replace(&mut self.buffer[buffer_start], placeholder)
+            mem::replace(&mut self.buffer[buffer_start.as_unsigned()], placeholder)
         };
         self.span = next.sp;
         self.token = next.tok;
@@ -957,10 +957,10 @@ impl<'a> Parser<'a> {
     {
         let dist = distance as isize;
         while self.buffer_length() < dist {
-            self.buffer[self.buffer_end as usize] = self.reader.real_token();
+            self.buffer[self.buffer_end.as_unsigned()] = self.reader.real_token();
             self.buffer_end = (self.buffer_end + 1) & 3;
         }
-        f(&self.buffer[((self.buffer_start + dist - 1) & 3) as usize].tok)
+        f(&self.buffer[((self.buffer_start + dist - 1) & 3).as_unsigned()].tok)
     }
     pub fn fatal(&self, m: &str) -> diagnostic::FatalError {
         self.sess.span_diagnostic.span_fatal(self.span, m)
@@ -2329,7 +2329,7 @@ impl<'a> Parser<'a> {
                         };
                         self.fileline_help(last_span,
                             &format!("try parenthesizing the first index; e.g., `(foo.{}){}`",
-                                    float.trunc() as usize,
+                                    float.trunc(),
                                     &float.fract().to_string()[1..]));
                     }
                     self.abort_if_errors();

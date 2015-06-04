@@ -675,7 +675,7 @@ pub fn space(p: &mut Printer) -> io::Result<()> {
 }
 
 pub fn hardbreak(p: &mut Printer) -> io::Result<()> {
-    spaces(p, SIZE_INFINITY as usize)
+    spaces(p, SIZE_INFINITY.as_unsigned())
 }
 
 pub fn hardbreak_tok_offset(off: isize) -> Token {

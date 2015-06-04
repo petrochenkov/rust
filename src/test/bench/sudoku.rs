@@ -71,7 +71,7 @@ impl Sudoku {
             if comps.len() == 3 {
                 let row = comps[0].parse::<u8>().unwrap();
                 let col = comps[1].parse::<u8>().unwrap();
-                g[row as usize][col as usize] = comps[2].parse().unwrap();
+                g[row][col] = comps[2].parse().unwrap();
             }
             else {
                 panic!("Invalid sudoku file");
@@ -82,9 +82,9 @@ impl Sudoku {
 
     pub fn write(&self, writer: &mut Write) {
         for row in 0u8..9u8 {
-            write!(writer, "{}", self.grid[row as usize][0]);
+            write!(writer, "{}", self.grid[row][0]);
             for col in 1u8..9u8 {
-                write!(writer, " {}", self.grid[row as usize][col as usize]);
+                write!(writer, " {}", self.grid[row][col]);
             }
             write!(writer, "\n");
          }
@@ -95,7 +95,7 @@ impl Sudoku {
         let mut work: Vec<(u8, u8)> = Vec::new(); /* queue of uncolored fields */
         for row in 0..9 {
             for col in 0..9 {
-                let color = self.grid[row as usize][col as usize];
+                let color = self.grid[row][col];
                 if color == 0 {
                     work.push((row, col));
                 }
@@ -107,7 +107,7 @@ impl Sudoku {
         while ptr < end {
             let (row, col) = work[ptr];
             // is there another color to try?
-            let the_color = self.grid[row as usize][col as usize] +
+            let the_color = self.grid[row][col] +
                                 (1 as u8);
             if self.next_color(row, col, the_color) {
                 //  yes: advance work list
@@ -130,10 +130,10 @@ impl Sudoku {
 
             // find first remaining color that is available
             let next = avail.next();
-            self.grid[row as usize][col as usize] = next;
+            self.grid[row][col] = next;
             return 0 != next;
         }
-        self.grid[row as usize][col as usize] = 0;
+        self.grid[row][col] = 0;
         return false;
     }
 
@@ -141,9 +141,9 @@ impl Sudoku {
     fn drop_colors(&mut self, avail: &mut Colors, row: u8, col: u8) {
         for idx in 0..9 {
             /* check same column fields */
-            avail.remove(self.grid[idx as usize][col as usize]);
+            avail.remove(self.grid[idx][col]);
             /* check same row fields */
-            avail.remove(self.grid[row as usize][idx as usize]);
+            avail.remove(self.grid[row][idx]);
         }
 
         // check same block fields
@@ -151,7 +151,7 @@ impl Sudoku {
         let col0 = (col / 3) * 3;
         for alt_row in row0..row0 + 3 {
             for alt_col in col0..col0 + 3 {
-                avail.remove(self.grid[alt_row as usize][alt_col as usize]);
+                avail.remove(self.grid[alt_row][alt_col]);
             }
         }
     }
@@ -165,7 +165,7 @@ static HEADS: u16 = (1 << 10) - 1; /* bits 9..0 */
 impl Colors {
     fn new(start_color: u8) -> Colors {
         // Sets bits 9..start_color
-        let tails = !0 << start_color as usize;
+        let tails = !0 << start_color;
         return Colors(HEADS & tails);
     }
 
@@ -182,7 +182,7 @@ impl Colors {
     fn remove(&mut self, color: u8) {
         if color != 0 {
             let Colors(val) = *self;
-            let mask = !(1 << color as usize);
+            let mask = !(1 << color);
             *self    = Colors(val & mask);
         }
     }

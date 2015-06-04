@@ -22,7 +22,7 @@ fn main() {
 
     let x = vec!(1_usize,2_usize,3_usize);
 
-    let base = x.as_ptr() as usize;
+    let base = x.as_ptr();
     let idx = base / mem::size_of::<usize>();
     println!("ov1 base = 0x{:x}", base);
     println!("ov1 idx = 0x{:x}", idx);

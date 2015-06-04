@@ -1638,7 +1638,7 @@ fn encode_index<T, F>(rbml_w: &mut Encoder, index: Vec<entry<T>>, mut write_fn: 
     for elt in index {
         let mut s = SipHasher::new();
         elt.val.hash(&mut s);
-        let h = s.finish() as usize;
+        let h = s.finish();
         (&mut buckets[h % 256]).push(elt);
     }
 
@@ -2045,7 +2045,7 @@ pub fn encode_metadata(parms: EncodeParams, krate: &ast::Crate) -> Vec<u8> {
 
     // RBML compacts the encoded bytes whenever appropriate,
     // so there are some garbages left after the end of the data.
-    let metalen = wr.seek(SeekFrom::Current(0)).unwrap() as usize;
+    let metalen = wr.seek(SeekFrom::Current(0)).unwrap();
     let mut v = wr.into_inner();
     v.truncate(metalen);
     assert_eq!(v.len(), metalen);

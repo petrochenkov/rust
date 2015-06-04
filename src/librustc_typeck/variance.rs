@@ -956,7 +956,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
             }
 
             ty::ty_param(ref data) => {
-                let def_id = generics.types.get(data.space, data.idx as usize).def_id;
+                let def_id = generics.types.get(data.space, data.idx).def_id;
                 assert_eq!(def_id.krate, ast::LOCAL_CRATE);
                 match self.terms_cx.inferred_map.get(&def_id.node) {
                     Some(&index) => {
@@ -1006,9 +1006,9 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
         for p in type_param_defs {
             let variance_decl =
                 self.declared_variance(p.def_id, def_id, TypeParam,
-                                       p.space, p.index as usize);
+                                       p.space, p.index);
             let variance_i = self.xform(variance, variance_decl);
-            let substs_ty = *substs.types.get(p.space, p.index as usize);
+            let substs_ty = *substs.types.get(p.space, p.index);
             debug!("add_constraints_from_substs: variance_decl={:?} variance_i={:?}",
                    variance_decl, variance_i);
             self.add_constraints_from_ty(generics, substs_ty, variance_i);
@@ -1017,9 +1017,9 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
         for p in region_param_defs {
             let variance_decl =
                 self.declared_variance(p.def_id, def_id,
-                                       RegionParam, p.space, p.index as usize);
+                                       RegionParam, p.space, p.index);
             let variance_i = self.xform(variance, variance_decl);
-            let substs_r = *substs.regions().get(p.space, p.index as usize);
+            let substs_r = *substs.regions().get(p.space, p.index);
             self.add_constraints_from_region(generics, substs_r, variance_i);
         }
     }

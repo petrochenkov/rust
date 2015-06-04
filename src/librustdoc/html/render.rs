@@ -505,7 +505,7 @@ fn build_index(krate: &clean::Crate, cache: &mut Cache) -> io::Result<String> {
             try!(write!(&mut w, ","));
         }
         try!(write!(&mut w, r#"[{},"{}","{}",{}"#,
-                    item.ty as usize, item.name, path,
+                    item.ty, item.name, path,
                     item.desc.to_json().to_string()));
         match item.parent {
             Some(nodeid) => {
@@ -529,7 +529,7 @@ fn build_index(krate: &clean::Crate, cache: &mut Cache) -> io::Result<String> {
             try!(write!(&mut w, ","));
         }
         try!(write!(&mut w, r#"[{},"{}"]"#,
-                    short as usize, *fqp.last().unwrap()));
+                    short, *fqp.last().unwrap()));
     }
 
     try!(write!(&mut w, "]}};"));

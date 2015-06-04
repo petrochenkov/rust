@@ -384,7 +384,7 @@ impl<'a> Id<'a> {
             is_letter_or_underscore(c) || in_range('0', c, '9')
         }
         fn in_range(low: char, c: char, high: char) -> bool {
-            low as usize <= c as usize && c as usize <= high as usize
+            low <= c && c <= high
         }
     }
 

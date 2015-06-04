@@ -24,7 +24,7 @@ enum color {
 
 impl PartialEq for color {
     fn eq(&self, other: &color) -> bool {
-        ((*self) as usize) == ((*other) as usize)
+        ((*self)) == ((*other))
     }
     fn ne(&self, other: &color) -> bool { !(*self).eq(other) }
 }

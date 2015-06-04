@@ -169,20 +169,20 @@ impl Table {
         let index = key.hash() % (TABLE_SIZE as u64);
 
         {
-            if self.items[index as usize].is_none() {
+            if self.items[index].is_none() {
                 let mut entry: Box<_> = box Entry {
                     code: key,
                     count: 0,
                     next: None,
                 };
                 c.f(&mut *entry);
-                self.items[index as usize] = Some(entry);
+                self.items[index] = Some(entry);
                 return;
             }
         }
 
         {
-            let entry = self.items[index as usize].as_mut().unwrap();
+            let entry = self.items[index].as_mut().unwrap();
             if entry.code == key {
                 c.f(&mut **entry);
                 return;
@@ -237,7 +237,7 @@ fn pack_symbol(c: u8) -> u8 {
 }
 
 fn unpack_symbol(c: u8) -> u8 {
-    TABLE[c as usize]
+    TABLE[c]
 }
 
 fn generate_frequencies(mut input: &[u8], frame: usize) -> Table {

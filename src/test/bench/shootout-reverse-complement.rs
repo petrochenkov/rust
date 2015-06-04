@@ -92,12 +92,12 @@ impl Tables {
 
     /// Retrieves the complement for `i`.
     fn cpl8(&self, i: u8) -> u8 {
-        self.table8[i as usize]
+        self.table8[i]
     }
 
     /// Retrieves the complement for `i`.
     fn cpl16(&self, i: u16) -> u16 {
-        self.table16[i as usize]
+        self.table16[i]
     }
 }
 
@@ -110,7 +110,7 @@ fn memchr(h: &[u8], n: u8) -> Option<usize> {
     if res.is_null() {
         None
     } else {
-        Some(res as usize - h.as_ptr() as usize)
+        Some(res - h.as_ptr())
     }
 }
 

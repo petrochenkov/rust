@@ -44,7 +44,7 @@ pub fn getsockopt<T: Copy>(sock: &Socket, opt: c_int,
         try!(cvt(c::getsockopt(*sock.as_inner(), opt, val,
                                &mut slot as *mut _ as *mut _,
                                &mut len)));
-        assert_eq!(len as usize, mem::size_of::<T>());
+        assert_eq!(len.as_unsigned().widen_strict2(0usize), mem::size_of::<T>());
         Ok(slot)
     }
 }
@@ -56,7 +56,7 @@ fn sockname<F>(f: F) -> io::Result<SocketAddr>
         let mut storage: libc::sockaddr_storage = mem::zeroed();
         let mut len = mem::size_of_val(&storage) as socklen_t;
         try!(cvt(f(&mut storage as *mut _ as *mut _, &mut len)));
-        sockaddr_to_addr(&storage, len as usize)
+        sockaddr_to_addr(&storage, len.as_unsigned().widen_strict())
     }
 }
 
@@ -64,13 +64,13 @@ fn sockaddr_to_addr(storage: &libc::sockaddr_storage,
                     len: usize) -> io::Result<SocketAddr> {
     match storage.ss_family as libc::c_int {
         libc::AF_INET => {
-            assert!(len as usize >= mem::size_of::<libc::sockaddr_in>());
+            assert!(len >= mem::size_of::<libc::sockaddr_in>());
             Ok(SocketAddr::V4(FromInner::from_inner(unsafe {
                 *(storage as *const _ as *const libc::sockaddr_in)
             })))
         }
         libc::AF_INET6 => {
-            assert!(len as usize >= mem::size_of::<libc::sockaddr_in6>());
+            assert!(len >= mem::size_of::<libc::sockaddr_in6>());
             Ok(SocketAddr::V6(FromInner::from_inner(unsafe {
                 *(storage as *const _ as *const libc::sockaddr_in6)
             })))
@@ -103,7 +103,7 @@ impl Iterator for LookupHost {
         unsafe {
             if self.cur.is_null() { return None }
             let ret = sockaddr_to_addr(mem::transmute((*self.cur).ai_addr),
-                                       (*self.cur).ai_addrlen as usize);
+                                       (*self.cur).ai_addrlen.widen_weak());
             self.cur = (*self.cur).ai_next as *mut libc::addrinfo;
             Some(ret)
         }
@@ -247,7 +247,7 @@ impl TcpStream {
                        buf.len() as wrlen_t,
                        0)
         }));
-        Ok(ret as usize)
+        Ok(ret.as_unsigned().widen_strict())
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
@@ -347,7 +347,7 @@ impl TcpListener {
         let mut len = mem::size_of_val(&storage) as socklen_t;
         let sock = try!(self.inner.accept(&mut storage as *mut _ as *mut _,
                                           &mut len));
-        let addr = try!(sockaddr_to_addr(&storage, len as usize));
+        let addr = try!(sockaddr_to_addr(&storage, len.as_unsigned().widen_strict()));
         Ok((TcpStream { inner: sock, }, addr))
     }
 
@@ -412,7 +412,8 @@ impl UdpSocket {
                            buf.len() as wrlen_t, 0,
                            &mut storage as *mut _ as *mut _, &mut addrlen)
         }));
-        Ok((n as usize, try!(sockaddr_to_addr(&storage, addrlen as usize))))
+        Ok((n.as_unsigned().widen_strict(),
+            try!(sockaddr_to_addr(&storage, addrlen.as_unsigned().widen_strict()))))
     }
 
     pub fn send_to(&self, buf: &[u8], dst: &SocketAddr) -> io::Result<usize> {
@@ -422,7 +423,7 @@ impl UdpSocket {
                          buf.as_ptr() as *const c_void, buf.len() as wrlen_t,
                          0, dstp, dstlen)
         }));
-        Ok(ret as usize)
+        Ok(ret.as_unsigned().widen_strict())
     }
 
     pub fn set_broadcast(&self, on: bool) -> io::Result<()> {

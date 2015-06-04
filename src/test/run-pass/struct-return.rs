@@ -32,10 +32,10 @@ fn test1() {
                  c: 0xcccc_cccc_cccc_cccc,
                  d: 0xdddd_dddd_dddd_dddd };
         let qq = rustrt::rust_dbg_abi_1(q);
-        println!("a: {:x}", qq.a as usize);
-        println!("b: {:x}", qq.b as usize);
-        println!("c: {:x}", qq.c as usize);
-        println!("d: {:x}", qq.d as usize);
+        println!("a: {:x}", qq.a);
+        println!("b: {:x}", qq.b);
+        println!("c: {:x}", qq.c);
+        println!("d: {:x}", qq.d);
         assert_eq!(qq.a, q.c + 1);
         assert_eq!(qq.b, q.d - 1);
         assert_eq!(qq.c, q.a + 1);
@@ -51,7 +51,7 @@ fn test2() {
                  c: 1.0987654321e-15_f64 };
         let ff = rustrt::rust_dbg_abi_2(f);
         println!("a: {}", ff.a as f64);
-        println!("b: {}", ff.b as usize);
+        println!("b: {}", ff.b);
         println!("c: {}", ff.c as f64);
         assert_eq!(ff.a, f.c + 1.0f64);
         assert_eq!(ff.b, 0xff);

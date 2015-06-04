@@ -86,8 +86,8 @@ impl AsciiArt {
         if x >= 0 && x < self.width as isize {
             if y >= 0 && y < self.height as isize {
                 // Note that numeric types don't implicitly convert to each other.
-                let v = y as usize;
-                let h = x as usize;
+                let v = y;
+                let h = x;
 
                 // Vector subscripting will normally copy the element, but &v[i]
                 // will return a reference which is what we need because the

@@ -157,7 +157,7 @@ impl<K:UnifyKey> UnificationTable<K> {
     /// NB. This is a building-block operation and you would probably
     /// prefer to call `probe` below.
     fn get(&mut self, vid: K) -> VarValue<K> {
-        let index = vid.index() as usize;
+        let index = vid.index();
         let mut value: VarValue<K> = self.values.get(index).clone();
         match value.parent(vid) {
             Some(redirect) => {
@@ -176,7 +176,7 @@ impl<K:UnifyKey> UnificationTable<K> {
     }
 
     fn is_root(&self, key: K) -> bool {
-        let index = key.index() as usize;
+        let index = key.index();
         self.values.get(index).parent(key).is_none()
     }
 
@@ -188,7 +188,7 @@ impl<K:UnifyKey> UnificationTable<K> {
         debug!("Updating variable {:?} to {:?}",
                key, new_value);
 
-        let index = key.index() as usize;
+        let index = key.index();
         self.values.set(index, new_value);
     }
 

@@ -142,7 +142,7 @@ fn mask(dy: i32, dx: i32, id: usize, p: &Vec<(i32, i32)>) -> Option<u64> {
         if x < 0 || x > 4 {return None;}
         let y = y + dy;
         if y < 0 || y > 9 {return None;}
-        m |= 1 << (y * 5 + x) as usize;
+        m |= 1 << (y * 5 + x);
     }
     Some(m)
 }
@@ -214,7 +214,7 @@ fn filter_masks(masks: &mut Vec<Vec<Vec<u64>>>) {
 // Gets the identifier of a mask.
 fn get_id(m: u64) -> u8 {
     for id in 0..10 {
-        if m & (1 << (id + 50) as usize) != 0 {return id;}
+        if m & (1 << (id + 50)) != 0 {return id;}
     }
     panic!("{:016x} does not have a valid identifier", m);
 }

@@ -282,7 +282,7 @@ pub unsafe fn get_sp_limit() -> usize {
     #[inline(always)]
     unsafe fn target_get_sp_limit() -> usize {
         use libc::c_void;
-        return get_sp_limit() as usize;
+        return get_sp_limit();
         extern {
             fn get_sp_limit() -> *const c_void;
         }

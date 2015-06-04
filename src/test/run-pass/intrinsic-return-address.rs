@@ -25,7 +25,7 @@ extern "rust-intrinsic" {
 
 fn f(result: &mut usize) -> Point {
     unsafe {
-        *result = return_address() as usize;
+        *result = return_address();
         Point {
             x: 1.0,
             y: 2.0,
@@ -38,6 +38,6 @@ fn f(result: &mut usize) -> Point {
 fn main() {
     let mut intrinsic_reported_address = 0;
     let pt = f(&mut intrinsic_reported_address);
-    let actual_address = &pt as *const Point as usize;
+    let actual_address = &pt as *const Point;
     assert_eq!(intrinsic_reported_address, actual_address);
 }

@@ -130,6 +130,7 @@ functions.
 use prelude::*;
 use i16;
 use num::Float;
+use num::{AsUnsigned, WidenStrict};
 use slice::bytes;
 pub use self::decoder::{decode, DecodableFloat, FullDecoded, Decoded};
 
@@ -287,18 +288,20 @@ fn digits_to_dec_str<'a>(buf: &'a [u8], exp: i16, frac_digits: usize,
 
     if exp <= 0 {
         // the decimal point is before rendered digits: [0.][000...000][1234][____]
-        let minus_exp = -(exp as i32) as usize;
+        let minus_exp = -(exp as i32);
         parts[0] = Part::Copy(b"0.");
-        parts[1] = Part::Zero(minus_exp);
+        parts[1] = Part::Zero(minus_exp.as_unsigned().widen_strict());
         parts[2] = Part::Copy(buf);
-        if frac_digits > buf.len() && frac_digits - buf.len() > minus_exp {
-            parts[3] = Part::Zero((frac_digits - buf.len()) - minus_exp);
+        if frac_digits > buf.len() && frac_digits - buf.len()
+                > minus_exp.as_unsigned().widen_strict() {
+            parts[3] = Part::Zero((frac_digits - buf.len())
+                - minus_exp.as_unsigned().widen_strict2(0usize));
             &parts[..4]
         } else {
             &parts[..3]
         }
     } else {
-        let exp = exp as usize;
+        let exp = exp.as_unsigned().widen_strict2(0usize);
         if exp < buf.len() {
             // the decimal point is inside rendered digits: [12][.][34][____]
             parts[0] = Part::Copy(&buf[..exp]);
@@ -528,7 +531,7 @@ pub fn to_shortest_exp_str<'a, T, F>(mut format_shortest: F, v: T,
 /// 826 bytes of buffer should be sufficient for `f64`. Compare this with
 /// the actual number for the worst case: 770 bytes (when `exp = -1074`).
 fn estimate_max_buf_len(exp: i16) -> usize {
-    21 + ((if exp < 0 { -12 } else { 5 } * exp as i32) as usize >> 4)
+    21 + ((if exp < 0 { -12 } else { 5 } * exp as i32).as_unsigned().widen_strict2(0usize) >> 4)
 }
 
 /// Formats given floating point number into the exponential form with
