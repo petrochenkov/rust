@@ -72,7 +72,7 @@ fn lookup_hash<'a, F>(d: rbml::Doc<'a>, mut eq_fn: F, hash: u64) -> Option<rbml:
 {
     let index = reader::get_doc(d, tag_index);
     let table = reader::get_doc(index, tag_index_table);
-    let hash_pos = table.start + (hash % 256 * 4).widen_(0usize);
+    let hash_pos = table.start + (hash % 256 * 4).truncate_(0usize);
     let pos = u32_from_be_bytes(&d.data[hash_pos..]);
     let tagged_doc = reader::doc_at(d.data, pos.widen()).unwrap();
 
@@ -1498,7 +1498,7 @@ fn doc_generics<'tcx>(base_doc: rbml::Doc,
         let def_id = translated_def_id(cdata, def_id_doc);
 
         let doc = reader::get_doc(rp_doc, tag_region_param_def_space);
-        let space = subst::ParamSpace::from_uint(reader::doc_as_u64(doc).widen());
+        let space = subst::ParamSpace::from_uint(reader::doc_as_u64(doc).truncate());
 
         let doc = reader::get_doc(rp_doc, tag_region_param_def_index);
         let index = reader::doc_as_u64(doc) as u32;

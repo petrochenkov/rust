@@ -57,7 +57,7 @@ mod imp {
                                     MAP_FAILED};
 
     use sys_common::thread_info;
-
+    use core::num::{ConvertSign, Widen};
 
     // This is initialized in init() and only read from after
     static mut PAGE_SIZE: usize = 0;
@@ -82,7 +82,7 @@ mod imp {
         stack::record_sp_limit(0);
 
         let guard = thread_info::stack_guard().unwrap_or(0);
-        let addr = (*info).si_addr;
+        let addr = (*info).si_addr as usize;
 
         if guard == 0 || addr < guard - PAGE_SIZE || addr >= guard {
             term(signum);
@@ -101,7 +101,7 @@ mod imp {
             panic!("failed to get page size");
         }
 
-        PAGE_SIZE = psize;
+        PAGE_SIZE = psize.as_unsigned().widen();
 
         let mut action: sigaction = mem::zeroed();
         action.sa_flags = SA_SIGINFO | SA_ONSTACK;

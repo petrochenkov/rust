@@ -9,7 +9,7 @@
 // except according to those terms.
 
 use core::{isize, usize};
-use core::num::AsUnsigned;
+use core::num::ConvertSign;
 
 #[inline(always)]
 fn check_size_and_alignment(size: usize, align: usize) {

@@ -63,7 +63,7 @@
 use prelude::*;
 
 use mem;
-use num::AsUnsigned;
+use num::ConvertSign;
 
 pub use self::sip::SipHasher;
 

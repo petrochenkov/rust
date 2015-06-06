@@ -14,7 +14,7 @@ use core::prelude::*;
 use core::char;
 use core::isize;
 use core::usize;
-use core::num::Widen;
+use core::num::{Truncate, Widen};
 
 use {Rand,Rng};
 
@@ -63,7 +63,7 @@ impl Rand for usize {
         if usize::BITS == 32 {
             rng.gen::<u32>().widen()
         } else {
-            rng.gen::<u64>().widen()
+            rng.gen::<u64>().truncate()
         }
     }
 }

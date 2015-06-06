@@ -29,7 +29,7 @@ fn align(off: usize, ty: Type) -> usize {
 
 fn ty_align(ty: Type) -> usize {
     match ty.kind() {
-        Integer => (ty.int_width().widen_(0usize) + 7) / 8,
+        Integer => (ty.int_width().truncate_(0usize) + 7) / 8,
         Pointer => 4,
         Float => 4,
         Double => 8,
@@ -56,7 +56,7 @@ fn ty_align(ty: Type) -> usize {
 
 fn ty_size(ty: Type) -> usize {
     match ty.kind() {
-        Integer => (ty.int_width().widen_(0usize) + 7) / 8,
+        Integer => (ty.int_width().truncate_(0usize) + 7) / 8,
         Pointer => 4,
         Float => 4,
         Double => 8,

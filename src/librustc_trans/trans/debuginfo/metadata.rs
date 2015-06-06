@@ -1140,7 +1140,7 @@ impl<'tcx> StructMemberDescriptionFactory<'tcx> {
 
             let offset = if self.is_simd {
                 assert!(field_size != 0xdeadbeef);
-                FixedMemberOffset { bytes: i * field_size.widen_(0usize) }
+                FixedMemberOffset { bytes: i * field_size.truncate_(0usize) }
             } else {
                 ComputedMemberOffset
             };
@@ -1352,7 +1352,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
                 // DWARF representation of enums uniform.
 
                 // First create a description of the artificial wrapper struct:
-                let non_null_variant = &(*self.variants)[non_null_variant_index.widen_(0usize)];
+                let non_null_variant = &(*self.variants)[non_null_variant_index.truncate_(0usize)];
                 let non_null_variant_name = token::get_name(non_null_variant.name);
 
                 // The llvm type and metadata of the pointer
@@ -1399,7 +1399,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
                 // member's name.
                 let null_variant_index = 1 - non_null_variant_index;
                 let null_variant_name = token::get_name((*self.variants)
-                    [null_variant_index.widen_(0usize)].name);
+                    [null_variant_index.truncate_(0usize)].name);
                 let union_member_name = format!("RUST$ENCODED$ENUM${}${}",
                                                 0,
                                                 null_variant_name);
@@ -1424,7 +1424,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
                     describe_enum_variant(cx,
                                           self.enum_type,
                                           struct_def,
-                                          &*(*self.variants)[nndiscr.widen_(0usize)],
+                                          &*(*self.variants)[nndiscr.truncate_(0usize)],
                                           OptimizedDiscriminant,
                                           self.containing_scope,
                                           self.span);
@@ -1441,7 +1441,7 @@ impl<'tcx> EnumMemberDescriptionFactory<'tcx> {
                 // member's name.
                 let null_variant_index = 1 - nndiscr;
                 let null_variant_name = token::get_name((*self.variants)
-                    [null_variant_index.widen_(0usize)].name);
+                    [null_variant_index.truncate_(0usize)].name);
                 let discrfield = discrfield.iter()
                                            .skip(1)
                                            .map(|x| x.to_string())

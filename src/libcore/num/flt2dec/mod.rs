@@ -130,7 +130,7 @@ functions.
 use prelude::*;
 use i16;
 use num::Float;
-use num::{AsUnsigned, Widen};
+use num::{ConvertSign, Widen};
 use slice::bytes;
 pub use self::decoder::{decode, DecodableFloat, FullDecoded, Decoded};
 

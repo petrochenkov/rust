@@ -65,7 +65,7 @@ use default::Default;
 use marker;
 use mem;
 use num::{Zero, One};
-use num::{AsUnsigned, Widen};
+use num::{ConvertSign, Widen};
 use ops::{self, Add, Sub, FnMut, Mul, RangeFrom};
 use option::Option::{self, Some, None};
 use marker::Sized;

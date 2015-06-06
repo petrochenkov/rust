@@ -72,7 +72,7 @@ mod imp {
                     panic!("unexpected getrandom error: {}", err);
                 }
             } else {
-                read += result;
+                read += result.as_unsigned().widen_(0usize);
             }
         }
     }

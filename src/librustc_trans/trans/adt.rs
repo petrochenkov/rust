@@ -173,7 +173,7 @@ pub const DTOR_NEEDED_U64: u64 = repeat_u8_as_u64!(DTOR_NEEDED);
 pub fn dtor_needed_usize(ccx: &CrateContext) -> usize {
     match &ccx.tcx().sess.target.target.target_pointer_width[..] {
         "32" => DTOR_NEEDED_U32.widen(),
-        "64" => DTOR_NEEDED_U64.widen(),
+        "64" => DTOR_NEEDED_U64.truncate(),
         tws => panic!("Unsupported target word size for int: {}", tws),
     }
 }
@@ -185,7 +185,7 @@ pub const DTOR_DONE_U64: u64 = repeat_u8_as_u64!(DTOR_DONE);
 pub fn dtor_done_usize(ccx: &CrateContext) -> usize {
     match &ccx.tcx().sess.target.target.target_pointer_width[..] {
         "32" => DTOR_DONE_U32.widen(),
-        "64" => DTOR_DONE_U64.widen(),
+        "64" => DTOR_DONE_U64.truncate(),
         tws => panic!("Unsupported target word size for int: {}", tws),
     }
 }
@@ -903,7 +903,7 @@ pub fn trans_set_discr<'blk, 'tcx>(bcx: Block<'blk, 'tcx>, r: &Repr<'tcx>,
         General(ity, ref cases, dtor) => {
             if dtor_active(dtor) {
                 let ptr = trans_field_ptr(bcx, r, val, discr,
-                                          cases[discr.widen_(0usize)].fields.len() - 2);
+                                          cases[discr.truncate_(0usize)].fields.len() - 2);
                 Store(bcx, C_u8(bcx.ccx(), DTOR_NEEDED.widen()), ptr);
             }
             Store(bcx, C_integral(ll_inttype(bcx.ccx(), ity), discr as u64, true),
@@ -949,7 +949,8 @@ pub fn num_args(r: &Repr, discr: Disr) -> usize {
             st.fields.len() - (if dtor_active(dtor) { 1 } else { 0 })
         }
         General(_, ref cases, dtor) => {
-            cases[discr.widen_(0usize)].fields.len() - 1 - (if dtor_active(dtor) { 1 } else { 0 })
+            cases[discr.truncate_(0usize)].fields.len() - 1
+                - (if dtor_active(dtor) { 1 } else { 0 })
         }
         RawNullablePointer { nndiscr, ref nullfields, .. } => {
             if discr == nndiscr { 1 } else { nullfields.len() }
@@ -976,7 +977,7 @@ pub fn trans_field_ptr<'blk, 'tcx>(bcx: Block<'blk, 'tcx>, r: &Repr<'tcx>,
             struct_field_ptr(bcx, st, val, ix, false)
         }
         General(_, ref cases, _) => {
-            struct_field_ptr(bcx, &cases[discr.widen_(0usize)], val, ix + 1, true)
+            struct_field_ptr(bcx, &cases[discr.truncate_(0usize)], val, ix + 1, true)
         }
         RawNullablePointer { nndiscr, ref nullfields, .. } |
         StructWrappedNullablePointer { nndiscr, ref nullfields, .. } if discr != nndiscr => {
@@ -1119,7 +1120,7 @@ pub fn trans_const<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>, r: &Repr<'tcx>, discr
             C_integral(ll_inttype(ccx, ity), discr as u64, true)
         }
         General(ity, ref cases, _) => {
-            let case = &cases[discr.widen_(0usize)];
+            let case = &cases[discr.truncate_(0usize)];
             let (max_sz, _) = union_size_and_align(&cases[..]);
             let lldiscr = C_integral(ll_inttype(ccx, ity), discr as u64, true);
             let mut f = vec![lldiscr];

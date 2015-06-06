@@ -394,7 +394,7 @@ pub unsafe fn environ() -> *mut *const *const c_char {
 pub fn env() -> Env {
     return unsafe {
         let mut environ = *environ();
-        if environ == 0 {
+        if environ as usize == 0 {
             panic!("os::env() failure getting env string from OS: {}",
                    io::Error::last_os_error());
         }
@@ -448,7 +448,7 @@ pub fn unsetenv(n: &OsStr) {
 
 pub fn page_size() -> usize {
     unsafe {
-        libc::sysconf(libc::_SC_PAGESIZE)
+        libc::sysconf(libc::_SC_PAGESIZE).as_unsigned().widen()
     }
 }
 
@@ -479,7 +479,7 @@ pub fn home_dir() -> Option<PathBuf> {
         };
         let me = libc::getuid();
         loop {
-            let mut buf = Vec::with_capacity(amt);
+            let mut buf = Vec::with_capacity(amt.as_unsigned().widen());
             let mut passwd: c::passwd = mem::zeroed();
             let mut result = 0 as *mut _;
             match c::getpwuid_r(me, &mut passwd, buf.as_mut_ptr(),

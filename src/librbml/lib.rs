@@ -644,9 +644,9 @@ pub mod reader {
         fn read_uint(&mut self) -> DecodeResult<usize> {
             let v = try!(self._next_int(EsU8, EsU64));
             if v > (::std::usize::MAX as u64) {
-                Err(IntTooBig(v.widen()))
+                Err(IntTooBig(v.truncate()))
             } else {
-                Ok(v.widen())
+                Ok(v.truncate())
             }
         }
 
@@ -658,7 +658,7 @@ pub mod reader {
             let v = try!(self._next_int(EsI8, EsI64)) as i64;
             if v > (isize::MAX as i64) || v < (isize::MIN as i64) {
                 debug!("FIXME \\#6122: Removing this makes this function miscompile");
-                Err(IntTooBig(v.as_unsigned().widen()))
+                Err(IntTooBig(v.as_unsigned().truncate()))
             } else {
                 Ok(v as isize)
             }
@@ -952,7 +952,7 @@ pub mod writer {
             let last_size_pos = self.size_positions.pop().unwrap();
             let cur_pos = try!(self.writer.seek(SeekFrom::Current(0)));
             try!(self.writer.seek(SeekFrom::Start(last_size_pos)));
-            let size = (cur_pos - last_size_pos - 4).widen();
+            let size = (cur_pos - last_size_pos - 4).truncate();
 
             // relax the size encoding for small tags (bigger tags are costly to move).
             // we should never try to move the stable positions, however.
@@ -961,8 +961,8 @@ pub mod writer {
                 // we can't alter the buffer in place, so have a temporary buffer
                 let mut buf = [0u8; RELAX_MAX_SIZE];
                 {
-                    let last_size_pos = last_size_pos.widen_(0usize);
-                    let data = &self.writer.get_ref()[last_size_pos+4..cur_pos.widen()];
+                    let last_size_pos = last_size_pos.truncate_(0usize);
+                    let data = &self.writer.get_ref()[last_size_pos+4..cur_pos.truncate()];
                     bytes::copy_memory(data, &mut buf);
                 }
 

@@ -709,7 +709,7 @@ fn write_rlib_bytecode_object_v1(writer: &mut Write,
         RLIB_BYTECODE_OBJECT_MAGIC.len() +                // magic id
         mem::size_of_val(&RLIB_BYTECODE_OBJECT_VERSION) + // version
         mem::size_of_val(&bc_data_deflated_size) +        // data size field
-        bc_data_deflated_size.widen_(0usize);                    // actual data
+        bc_data_deflated_size.truncate_(0usize);                    // actual data
 
     // If the number of bytes written to the object so far is odd, add a
     // padding byte to make it even. This works around a crash bug in LLDB

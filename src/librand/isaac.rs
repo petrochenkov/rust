@@ -16,7 +16,7 @@ use core::prelude::*;
 use core::slice;
 use core::iter::repeat;
 use core::num::Wrapping as w;
-use core::num::Widen;
+use core::num::{Truncate, Widen};
 
 use {Rng, SeedableRng, Rand};
 
@@ -376,7 +376,7 @@ impl Isaac64Rng {
         const MP_VEC: [(usize, usize); 2] = [(0,MIDPOINT), (MIDPOINT, 0)];
         macro_rules! ind {
             ($x:expr) => {
-                *self.mem.get_unchecked((($x >> 3).0.widen_(0usize)) & (RAND_SIZE_64 - 1))
+                *self.mem.get_unchecked((($x >> 3).0.truncate_(0usize)) & (RAND_SIZE_64 - 1))
             }
         }
 

@@ -1638,7 +1638,7 @@ fn encode_index<T, F>(rbml_w: &mut Encoder, index: Vec<entry<T>>, mut write_fn: 
     for elt in index {
         let mut s = SipHasher::new();
         elt.val.hash(&mut s);
-        let h = s.finish().widen_(0usize);
+        let h = s.finish().truncate_(0usize);
         (&mut buckets[h % 256]).push(elt);
     }
 
@@ -2047,8 +2047,8 @@ pub fn encode_metadata(parms: EncodeParams, krate: &ast::Crate) -> Vec<u8> {
     // so there are some garbages left after the end of the data.
     let metalen = wr.seek(SeekFrom::Current(0)).unwrap();
     let mut v = wr.into_inner();
-    v.truncate(metalen.widen());
-    assert_eq!(v.len(), metalen.widen_(0usize));
+    v.truncate(metalen.truncate());
+    assert_eq!(v.len(), metalen.truncate_(0usize));
 
     // And here we run into yet another obscure archive bug: in which metadata
     // loaded from archives may have trailing garbage bytes. Awhile back one of

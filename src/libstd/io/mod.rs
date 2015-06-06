@@ -25,7 +25,7 @@ use result;
 use string::String;
 use str;
 use vec::Vec;
-use core::num::Widen;
+use core::num::Truncate;
 
 pub use self::buffered::{BufReader, BufWriter, BufStream, LineWriter};
 pub use self::buffered::IntoInnerError;
@@ -699,7 +699,7 @@ impl<T: Read> Read for Take<T> {
             return Ok(0);
         }
 
-        let max = cmp::min(buf.len() as u64, self.limit).widen();
+        let max = cmp::min(buf.len() as u64, self.limit).truncate();
         let n = try!(self.inner.read(&mut buf[..max]));
         self.limit -= n as u64;
         Ok(n)
@@ -710,13 +710,13 @@ impl<T: Read> Read for Take<T> {
 impl<T: BufRead> BufRead for Take<T> {
     fn fill_buf(&mut self) -> Result<&[u8]> {
         let buf = try!(self.inner.fill_buf());
-        let cap = cmp::min(buf.len() as u64, self.limit).widen();
+        let cap = cmp::min(buf.len() as u64, self.limit).truncate();
         Ok(&buf[..cap])
     }
 
     fn consume(&mut self, amt: usize) {
         // Don't let callers reset the limit by passing an overlarge value
-        let amt = cmp::min(amt as u64, self.limit).widen();
+        let amt = cmp::min(amt as u64, self.limit).truncate();
         self.limit -= amt as u64;
         self.inner.consume(amt);
     }

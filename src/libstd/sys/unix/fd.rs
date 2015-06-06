@@ -16,6 +16,7 @@ use mem;
 use sys::c;
 use sys::cvt;
 use sys_common::AsInner;
+use core::num::{ConvertSign, Widen};
 
 pub struct FileDesc {
     fd: c_int,
@@ -41,7 +42,7 @@ impl FileDesc {
                        buf.as_mut_ptr() as *mut c_void,
                        buf.len() as size_t)
         }));
-        Ok(ret)
+        Ok(ret.as_unsigned().widen())
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
@@ -50,7 +51,7 @@ impl FileDesc {
                         buf.as_ptr() as *const c_void,
                         buf.len() as size_t)
         }));
-        Ok(ret)
+        Ok(ret.as_unsigned().widen())
     }
 
     pub fn set_cloexec(&self) {

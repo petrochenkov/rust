@@ -28,7 +28,7 @@ fn align(off: usize, ty: Type) -> usize {
 
 fn ty_align(ty: Type) -> usize {
     match ty.kind() {
-        Integer => ((ty.int_width().widen_(0usize)) + 7) / 8,
+        Integer => ((ty.int_width().truncate_(0usize)) + 7) / 8,
         Pointer => 8,
         Float => 4,
         Double => 8,
@@ -55,7 +55,7 @@ fn ty_align(ty: Type) -> usize {
 
 fn ty_size(ty: Type) -> usize {
     match ty.kind() {
-        Integer => ((ty.int_width().widen_(0usize)) + 7) / 8,
+        Integer => ((ty.int_width().truncate_(0usize)) + 7) / 8,
         Pointer => 8,
         Float => 4,
         Double => 8,
@@ -132,7 +132,7 @@ fn is_homogenous_aggregate_ty(ty: Type) -> Option<(Type, u64)> {
         let (base_ty, members) = (prev_base_ty.unwrap(), members);
 
         // Ensure there is no padding.
-        if ty_size(ty) == ty_size(base_ty) * (members.widen_(0usize)) {
+        if ty_size(ty) == ty_size(base_ty) * (members.truncate_(0usize)) {
             Some((base_ty, members))
         } else {
             None

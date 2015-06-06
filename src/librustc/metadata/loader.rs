@@ -776,7 +776,7 @@ fn get_metadata_section_imp(target: &Target, filename: &Path)
                 let vlen = encoder::metadata_encoding_version.len();
                 debug!("checking {} bytes of metadata-version stamp",
                        vlen);
-                let minsz = cmp::min(vlen, csz.widen());
+                let minsz = cmp::min(vlen, csz.truncate());
                 let buf0 = slice::from_raw_parts(cvbuf, minsz);
                 let version_ok = buf0 == encoder::metadata_encoding_version;
                 if !version_ok {
@@ -786,8 +786,8 @@ fn get_metadata_section_imp(target: &Target, filename: &Path)
 
                 let cvbuf1 = cvbuf.offset(vlen as isize);
                 debug!("inflating {} bytes of compressed metadata",
-                       csz.widen_(0usize) - vlen);
-                let bytes = slice::from_raw_parts(cvbuf1, csz.widen_(0usize) - vlen);
+                       csz.truncate_(0usize) - vlen);
+                let bytes = slice::from_raw_parts(cvbuf1, csz.truncate_(0usize) - vlen);
                 match flate::inflate_bytes(bytes) {
                     Ok(inflated) => return Ok(MetadataVec(inflated)),
                     Err(_) => {}

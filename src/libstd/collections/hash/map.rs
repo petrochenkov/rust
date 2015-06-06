@@ -12,7 +12,7 @@ use self::Entry::*;
 use self::SearchResult::*;
 use self::VacantEntryState::*;
 
-use core::num::AsUnsigned;
+use core::num::ConvertSign;
 use borrow::Borrow;
 use clone::Clone;
 use cmp::{max, Eq, PartialEq};

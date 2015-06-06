@@ -175,7 +175,7 @@ mod select {
     }
 
     pub fn fd_set(set: &mut fd_set, fd: i32) {
-        set.fds_bits[(fd / 32)] |= 1 << ((fd % 32));
+        set.fds_bits[(fd / 32).widen_(0usize)] |= 1 << ((fd % 32).widen_(0usize));
     }
 }
 
@@ -188,6 +188,7 @@ mod select {
 mod select {
     use usize;
     use libc;
+    use core::num::{ConvertSign, Widen};
 
     pub const FD_SETSIZE: usize = 1024;
 
@@ -198,7 +199,7 @@ mod select {
     }
 
     pub fn fd_set(set: &mut fd_set, fd: i32) {
-        let fd = fd;
+        let fd = fd.as_unsigned().widen_(0usize);
         set.fds_bits[fd / usize::BITS] |= 1 << (fd % usize::BITS);
     }
 }

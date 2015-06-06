@@ -91,7 +91,7 @@ use core::iter::Iterator;
 use core::marker::Sized;
 use core::mem::size_of;
 use core::mem;
-use core::num::AsUnsigned;
+use core::num::ConvertSign;
 use core::ops::FnMut;
 use core::option::Option::{self, Some, None};
 use core::ptr;

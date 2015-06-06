@@ -50,4 +50,4 @@
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)] pub use vec::Vec;
 
-pub use num::{Widen, Truncate, AsSigned, AsUnsigned};
+pub use num::{Widen, Truncate, ConvertSign};

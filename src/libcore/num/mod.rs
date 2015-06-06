@@ -1572,17 +1572,19 @@ pub trait Widen<Target>: Sized {
 pub trait Truncate<Target>: Sized {
     #[stable(feature = "rust1", since = "1.0.0")]
     fn truncate(self) -> Target;
+    #[stable(feature = "rust1", since = "1.0.0")]
+    fn truncate_(self, _: Target) -> Target {
+        self.truncate()
+    }
 }
 
-pub trait AsSigned: Sized {
-    type Target;
+pub trait ConvertSign: Sized {
+    type TargetSigned;
+    type TargetUnsigned;
     #[stable(feature = "rust1", since = "1.0.0")]
-    fn as_signed(self) -> Self::Target;
-}
-pub trait AsUnsigned: Sized {
-    type Target;
+    fn as_signed(self) -> Self::TargetSigned;
     #[stable(feature = "rust1", since = "1.0.0")]
-    fn as_unsigned(self) -> Self::Target;
+    fn as_unsigned(self) -> Self::TargetUnsigned;
 }
 
 macro_rules! impl_conv {
@@ -1604,17 +1606,27 @@ macro_rules! impl_conv {
 
 macro_rules! impl_conv_sign {
     ($Signed: ty, $Unsigned: ty) => {
-        impl AsSigned for $Unsigned {
-            type Target = $Signed;
+        impl ConvertSign for $Signed {
+            type TargetSigned = $Signed;
+            type TargetUnsigned = $Unsigned;
             #[inline]
-            fn as_signed(self) -> Self::Target {
+            fn as_signed(self) -> Self::TargetSigned {
                 self as $Signed
             }
-        }
-        impl AsUnsigned for $Signed {
-            type Target = $Unsigned;
             #[inline]
-            fn as_unsigned(self) -> Self::Target {
+            fn as_unsigned(self) -> Self::TargetUnsigned {
+                self as $Unsigned
+            }
+        }
+        impl ConvertSign for $Unsigned {
+            type TargetSigned = $Signed;
+            type TargetUnsigned = $Unsigned;
+            #[inline]
+            fn as_signed(self) -> Self::TargetSigned {
+                self as $Signed
+            }
+            #[inline]
+            fn as_unsigned(self) -> Self::TargetUnsigned {
                 self as $Unsigned
             }
         }

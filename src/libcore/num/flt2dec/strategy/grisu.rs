@@ -18,7 +18,7 @@ Rust adaptation of Grisu3 algorithm described in [1]. It uses about
 
 use prelude::*;
 use num::Float;
-use num::{AsUnsigned, Widen};
+use num::{ConvertSign, Widen};
 
 use num::flt2dec::{Decoded, MAX_SIG_DIGITS, round_up};
 

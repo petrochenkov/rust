@@ -1180,7 +1180,7 @@ pub mod bench {
 
         BenchSamples {
             ns_iter_summ: ns_iter_summ,
-            mb_s: mb_s.widen()
+            mb_s: mb_s.truncate()
         }
     }
 

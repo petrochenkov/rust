@@ -6140,8 +6140,8 @@ pub fn eval_repeat_count(tcx: &ctxt, count_expr: &ast::Expr) -> usize {
     match const_eval::eval_const_expr_partial(tcx, count_expr, Some(tcx.types.usize)) {
         Ok(val) => {
             let found = match val {
-                const_eval::const_uint(count) => return count.widen(),
-                const_eval::const_int(count) if count >= 0 => return count.as_unsigned().widen(),
+                const_eval::const_uint(count) => return count.truncate(),
+                const_eval::const_int(count) if count >= 0 => return count.as_unsigned().truncate(),
                 const_eval::const_int(_) => "negative integer",
                 const_eval::const_float(_) => "float",
                 const_eval::const_str(_) => "string",

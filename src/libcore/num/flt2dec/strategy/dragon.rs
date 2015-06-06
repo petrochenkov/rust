@@ -17,7 +17,7 @@ Almost direct (but slightly optimized) Rust translation of Figure 3 of [1].
 
 use prelude::*;
 use num::Float;
-use num::{AsUnsigned, Widen};
+use num::{ConvertSign, Widen};
 use cmp::Ordering;
 
 use num::flt2dec::{Decoded, MAX_SIG_DIGITS, round_up};

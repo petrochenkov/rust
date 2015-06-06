@@ -55,7 +55,7 @@ impl Thread {
                 // Round up to the nearest page and try again.
                 let page_size = os::page_size();
                 let stack_size = (stack_size + page_size - 1) &
-                                 (-(page_size as isize - 1) - 1);
+                                 ((-(page_size as isize - 1)).as_unsigned() - 1);
                 let stack_size = stack_size as libc::size_t;
                 assert_eq!(pthread_attr_setstacksize(&mut attr, stack_size), 0);
             }
@@ -187,6 +187,7 @@ pub mod guard {
     use ptr;
     use super::{pthread_self, pthread_attr_destroy};
     use sys::os;
+    use core::num::Widen;
 
     // These are initialized in init() and only read from after
     static mut GUARD_PAGE: usize = 0;
@@ -219,9 +220,9 @@ pub mod guard {
         // stackaddr < stackaddr + stacksize, so if stackaddr is not
         // page-aligned, calculate the fix such that stackaddr <
         // new_page_aligned_stackaddr < stackaddr + stacksize
-        let remainder = (stackaddr) % psize;
+        let remainder = (stackaddr as usize) % psize;
         if remainder != 0 {
-            stackaddr = ((stackaddr) + psize - remainder)
+            stackaddr = ((stackaddr as usize) + psize - remainder)
                 as *mut libc::c_void;
         }
 
@@ -241,7 +242,7 @@ pub mod guard {
 
         let offset = if cfg!(target_os = "linux") {2} else {1};
 
-        GUARD_PAGE = stackaddr + offset * psize;
+        GUARD_PAGE = stackaddr as usize + offset * psize;
     }
 
     pub unsafe fn main() -> usize {
@@ -299,7 +300,7 @@ pub mod guard {
         assert_eq!(pthread_attr_getstack(&attr, &mut stackaddr, &mut size), 0);
         assert_eq!(pthread_attr_destroy(&mut attr), 0);
 
-        stackaddr + guardsize
+        stackaddr as usize + guardsize.widen_(0usize)
     }
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -349,8 +350,8 @@ fn min_stack_size(attr: *const libc::pthread_attr_t) -> usize {
     });
 
     match unsafe { __pthread_get_minstack } {
-        None => PTHREAD_STACK_MIN,
-        Some(f) => unsafe { f(attr) },
+        None => PTHREAD_STACK_MIN.widen(),
+        Some(f) => unsafe { f(attr).widen() },
     }
 }
 
@@ -358,7 +359,7 @@ fn min_stack_size(attr: *const libc::pthread_attr_t) -> usize {
 // platforms.
 #[cfg(not(target_os = "linux"))]
 fn min_stack_size(_: *const libc::pthread_attr_t) -> usize {
-    PTHREAD_STACK_MIN
+    PTHREAD_STACK_MIN.widen()
 }
 
 extern {
