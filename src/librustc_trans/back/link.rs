@@ -331,7 +331,7 @@ pub fn mangle_exported_name<'a, 'tcx>(ccx: &CrateContext<'a, 'tcx>, path: PathEl
         "abcdefghijklmnopqrstuvwxyz\
          ABCDEFGHIJKLMNOPQRSTUVWXYZ\
          0123456789";
-    let id = id;
+    let id = id.widen_(0usize);
     let extra1 = id % EXTRA_CHARS.len();
     let id = id / EXTRA_CHARS.len();
     let extra2 = id % EXTRA_CHARS.len();
@@ -709,7 +709,7 @@ fn write_rlib_bytecode_object_v1(writer: &mut Write,
         RLIB_BYTECODE_OBJECT_MAGIC.len() +                // magic id
         mem::size_of_val(&RLIB_BYTECODE_OBJECT_VERSION) + // version
         mem::size_of_val(&bc_data_deflated_size) +        // data size field
-        bc_data_deflated_size;                    // actual data
+        bc_data_deflated_size.widen_(0usize);                    // actual data
 
     // If the number of bytes written to the object so far is odd, add a
     // padding byte to make it even. This works around a crash bug in LLDB
@@ -1100,7 +1100,7 @@ fn add_upstream_rust_crates(cmd: &mut Linker, sess: &Session,
         // We may not pass all crates through to the linker. Some crates may
         // appear statically in an existing dylib, meaning we'll pick up all the
         // symbols from the dylib.
-        let kind = match data[cnum - 1] {
+        let kind = match data[cnum.widen_(0usize) - 1] {
             Some(t) => t,
             None => continue
         };

@@ -172,7 +172,7 @@ fn calculate_type(sess: &session::Session,
             assert!(src.rlib.is_some());
             debug!("adding staticlib: {}", data.name);
             add_library(sess, cnum, cstore::RequireStatic, &mut formats);
-            ret[cnum - 1] = Some(cstore::RequireStatic);
+            ret[cnum.widen_(0usize) - 1] = Some(cstore::RequireStatic);
         }
     });
 

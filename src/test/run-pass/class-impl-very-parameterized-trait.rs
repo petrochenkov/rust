@@ -46,7 +46,7 @@ impl<T> cat<T> {
             return false;
         }
     }
-    fn len(&self) -> usize { self.meows }
+    fn len(&self) -> usize { self.meows.as_unsigned() }
     fn is_empty(&self) -> bool { self.meows == 0 }
     fn clear(&mut self) {}
     fn contains_key(&self, k: &isize) -> bool { *k <= self.meows }

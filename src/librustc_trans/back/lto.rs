@@ -91,7 +91,7 @@ pub fn run(sess: &session::Session, llmod: ModuleRef,
                         let data_size = extract_compressed_bytecode_size_v1(bc_encoded);
                         let compressed_data = &bc_encoded[
                             link::RLIB_BYTECODE_OBJECT_V1_DATA_OFFSET..
-                            (link::RLIB_BYTECODE_OBJECT_V1_DATA_OFFSET + data_size)];
+                            (link::RLIB_BYTECODE_OBJECT_V1_DATA_OFFSET + data_size.widen_(0usize))];
 
                         match flate::inflate_bytes(compressed_data) {
                             Ok(inflated) => inflated,

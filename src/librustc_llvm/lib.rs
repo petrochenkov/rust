@@ -267,7 +267,7 @@ impl AttrBuilder {
     }
 
     pub fn ret<'a, T: AttrHelper + 'static>(&'a mut self, a: T) -> &'a mut AttrBuilder {
-        self.attrs.push((ReturnIndex, box a as Box<AttrHelper+'static>));
+        self.attrs.push((ReturnIndex as usize, box a as Box<AttrHelper+'static>));
         self
     }
 
@@ -2263,7 +2263,7 @@ type RustStringRepr = *mut RefCell<Vec<u8>>;
 pub unsafe extern "C" fn rust_llvm_string_write_impl(sr: RustStringRef,
                                                      ptr: *const c_char,
                                                      size: size_t) {
-    let slice = slice::from_raw_parts(ptr as *const u8, size);
+    let slice = slice::from_raw_parts(ptr as *const u8, size.widen());
 
     let sr: RustStringRepr = mem::transmute(sr);
     (*sr).borrow_mut().push_all(slice);

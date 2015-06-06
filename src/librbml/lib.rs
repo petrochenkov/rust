@@ -272,11 +272,11 @@ pub mod reader {
     }
 
     pub fn tag_at(data: &[u8], start: usize) -> DecodeResult<Res> {
-        let v = data[start];
+        let v = data[start].widen();
         if v < 0xf0 {
             Ok(Res { val: v, next: start + 1 })
         } else if v > 0xf0 {
-            Ok(Res { val: ((v & 0xf) << 8) | data[start + 1], next: start + 2 })
+            Ok(Res { val: ((v & 0xf) << 8) | data[start + 1].widen_(0usize), next: start + 2 })
         } else {
             // every tag starting with byte 0xf0 is an overlong form, which is prohibited.
             Err(InvalidTag(v))
@@ -287,27 +287,27 @@ pub mod reader {
     fn vuint_at_slow(data: &[u8], start: usize) -> DecodeResult<Res> {
         let a = data[start];
         if a & 0x80 != 0 {
-            return Ok(Res {val: (a & 0x7f), next: start + 1});
+            return Ok(Res {val: (a & 0x7f).widen_(0usize), next: start + 1});
         }
         if a & 0x40 != 0 {
-            return Ok(Res {val: ((a & 0x3f)) << 8 |
-                        (data[start + 1]),
+            return Ok(Res {val: (a & 0x3f).widen_(0usize) << 8 |
+                        data[start + 1].widen_(0usize),
                     next: start + 2});
         }
         if a & 0x20 != 0 {
-            return Ok(Res {val: ((a & 0x1f)) << 16 |
-                        (data[start + 1]) << 8 |
-                        (data[start + 2]),
+            return Ok(Res {val: (a & 0x1f).widen_(0usize) << 16 |
+                        data[start + 1].widen_(0usize) << 8 |
+                        data[start + 2].widen_(0usize),
                     next: start + 3});
         }
         if a & 0x10 != 0 {
-            return Ok(Res {val: ((a & 0x0f)) << 24 |
-                        (data[start + 1]) << 16 |
-                        (data[start + 2]) << 8 |
-                        (data[start + 3]),
+            return Ok(Res {val: (a & 0x0f).widen_(0usize) << 24 |
+                        data[start + 1].widen_(0usize) << 16 |
+                        data[start + 2].widen_(0usize) << 8 |
+                        data[start + 3].widen_(0usize),
                     next: start + 4});
         }
-        Err(IntTooBig(a))
+        Err(IntTooBig(a.widen()))
     }
 
     pub fn vuint_at(data: &[u8], start: usize) -> DecodeResult<Res> {
@@ -346,10 +346,10 @@ pub mod reader {
             let ptr = data.as_ptr().offset(start as isize) as *const u32;
             let val = u32::from_be(*ptr);
 
-            let i = (val >> 28);
+            let i = (val >> 28).widen_(0usize);
             let (shift, mask) = SHIFT_MASK_TABLE[i];
             Ok(Res {
-                val: ((val >> shift) & mask),
+                val: ((val >> shift) & mask).widen(),
                 next: start + ((32 - shift) >> 3),
             })
         }
@@ -357,7 +357,7 @@ pub mod reader {
 
     pub fn tag_len_at(data: &[u8], tag: Res) -> DecodeResult<Res> {
         if tag.val < NUM_IMPLICIT_TAGS && TAG_IMPLICIT_LEN[tag.val] >= 0 {
-            Ok(Res { val: TAG_IMPLICIT_LEN[tag.val], next: tag.next })
+            Ok(Res { val: TAG_IMPLICIT_LEN[tag.val].as_unsigned().widen(), next: tag.next })
         } else {
             vuint_at(data, tag.next)
         }
@@ -527,7 +527,7 @@ pub mod reader {
                    r_tag,
                    r_doc.start,
                    r_doc.end);
-            if r_tag != (exp_tag) {
+            if r_tag != exp_tag as usize {
                 return Err(Expected(format!("expected EBML doc with tag {:?} but \
                                              found tag {:?}", exp_tag, r_tag)));
             }
@@ -562,10 +562,10 @@ pub mod reader {
 
             let TaggedDoc { tag: r_tag, doc: r_doc } =
                 try!(doc_at(self.parent.data, self.pos));
-            let r = if r_tag == (EsSub8) {
-                doc_as_u8(r_doc)
-            } else if r_tag == (EsSub32) {
-                doc_as_u32(r_doc)
+            let r = if r_tag == (EsSub8 as usize) {
+                doc_as_u8(r_doc).widen()
+            } else if r_tag == (EsSub32 as usize) {
+                doc_as_u32(r_doc).widen()
             } else {
                 return Err(Expected(format!("expected EBML doc with tag {:?} or {:?} but \
                                              found tag {:?}", EsSub8, EsSub32, r_tag)));
@@ -594,8 +594,8 @@ pub mod reader {
 
             let TaggedDoc { tag: r_tag, doc: r_doc } =
                 try!(doc_at(self.parent.data, self.pos));
-            let r = if first_tag <= r_tag && r_tag <= last_tag {
-                match r_tag - first_tag {
+            let r = if first_tag as usize <= r_tag && r_tag <= last_tag as usize {
+                match r_tag - first_tag as usize {
                     0 => doc_as_u8(r_doc) as u64,
                     1 => doc_as_u16(r_doc) as u64,
                     2 => doc_as_u32(r_doc) as u64,
@@ -644,9 +644,9 @@ pub mod reader {
         fn read_uint(&mut self) -> DecodeResult<usize> {
             let v = try!(self._next_int(EsU8, EsU64));
             if v > (::std::usize::MAX as u64) {
-                Err(IntTooBig(v))
+                Err(IntTooBig(v.widen()))
             } else {
-                Ok(v)
+                Ok(v.widen())
             }
         }
 
@@ -658,7 +658,7 @@ pub mod reader {
             let v = try!(self._next_int(EsI8, EsI64)) as i64;
             if v > (isize::MAX as i64) || v < (isize::MIN as i64) {
                 debug!("FIXME \\#6122: Removing this makes this function miscompile");
-                Err(IntTooBig(v))
+                Err(IntTooBig(v.as_unsigned().widen()))
             } else {
                 Ok(v as isize)
             }
@@ -952,7 +952,7 @@ pub mod writer {
             let last_size_pos = self.size_positions.pop().unwrap();
             let cur_pos = try!(self.writer.seek(SeekFrom::Current(0)));
             try!(self.writer.seek(SeekFrom::Start(last_size_pos)));
-            let size = (cur_pos - last_size_pos - 4);
+            let size = (cur_pos - last_size_pos - 4).widen();
 
             // relax the size encoding for small tags (bigger tags are costly to move).
             // we should never try to move the stable positions, however.
@@ -961,8 +961,8 @@ pub mod writer {
                 // we can't alter the buffer in place, so have a temporary buffer
                 let mut buf = [0u8; RELAX_MAX_SIZE];
                 {
-                    let last_size_pos = last_size_pos;
-                    let data = &self.writer.get_ref()[last_size_pos+4..cur_pos];
+                    let last_size_pos = last_size_pos.widen_(0usize);
+                    let data = &self.writer.get_ref()[last_size_pos+4..cur_pos.widen()];
                     bytes::copy_memory(data, &mut buf);
                 }
 
@@ -1098,10 +1098,10 @@ pub mod writer {
     impl<'a> Encoder<'a> {
         // used internally to emit things like the vector length and so on
         fn _emit_tagged_sub(&mut self, v: usize) -> EncodeResult {
-            if v as u8 == v {
-                self.wr_tagged_raw_u8(EsSub8, v as u8)
-            } else if v as u32 == v {
-                self.wr_tagged_raw_u32(EsSub32, v as u32)
+            if (v as u8).widen_(0usize) == v {
+                self.wr_tagged_raw_u8(EsSub8 as usize, v as u8)
+            } else if (v as u32).widen_(0usize) == v {
+                self.wr_tagged_raw_u32(EsSub32 as usize, v as u32)
             } else {
                 Err(io::Error::new(io::ErrorKind::Other,
                                    &format!("length or variant id too big: {}",
@@ -1112,7 +1112,7 @@ pub mod writer {
         pub fn emit_opaque<F>(&mut self, f: F) -> EncodeResult where
             F: FnOnce(&mut Encoder) -> EncodeResult,
         {
-            try!(self.start_tag(EsOpaque));
+            try!(self.start_tag(EsOpaque as usize));
             try!(f(self));
             self.end_tag()
         }
@@ -1132,25 +1132,25 @@ pub mod writer {
             if v as u32 as u64 == v {
                 self.emit_u32(v as u32)
             } else {
-                self.wr_tagged_raw_u64(EsU64, v)
+                self.wr_tagged_raw_u64(EsU64 as usize, v)
             }
         }
         fn emit_u32(&mut self, v: u32) -> EncodeResult {
             if v as u16 as u32 == v {
                 self.emit_u16(v as u16)
             } else {
-                self.wr_tagged_raw_u32(EsU32, v)
+                self.wr_tagged_raw_u32(EsU32 as usize, v)
             }
         }
         fn emit_u16(&mut self, v: u16) -> EncodeResult {
             if v as u8 as u16 == v {
                 self.emit_u8(v as u8)
             } else {
-                self.wr_tagged_raw_u16(EsU16, v)
+                self.wr_tagged_raw_u16(EsU16 as usize, v)
             }
         }
         fn emit_u8(&mut self, v: u8) -> EncodeResult {
-            self.wr_tagged_raw_u8(EsU8, v)
+            self.wr_tagged_raw_u8(EsU8 as usize, v)
         }
 
         fn emit_int(&mut self, v: isize) -> EncodeResult {
@@ -1160,51 +1160,51 @@ pub mod writer {
             if v as i32 as i64 == v {
                 self.emit_i32(v as i32)
             } else {
-                self.wr_tagged_raw_i64(EsI64, v)
+                self.wr_tagged_raw_i64(EsI64 as usize, v)
             }
         }
         fn emit_i32(&mut self, v: i32) -> EncodeResult {
             if v as i16 as i32 == v {
                 self.emit_i16(v as i16)
             } else {
-                self.wr_tagged_raw_i32(EsI32, v)
+                self.wr_tagged_raw_i32(EsI32 as usize, v)
             }
         }
         fn emit_i16(&mut self, v: i16) -> EncodeResult {
             if v as i8 as i16 == v {
                 self.emit_i8(v as i8)
             } else {
-                self.wr_tagged_raw_i16(EsI16, v)
+                self.wr_tagged_raw_i16(EsI16 as usize, v)
             }
         }
         fn emit_i8(&mut self, v: i8) -> EncodeResult {
-            self.wr_tagged_raw_i8(EsI8, v)
+            self.wr_tagged_raw_i8(EsI8 as usize, v)
         }
 
         fn emit_bool(&mut self, v: bool) -> EncodeResult {
-            self.wr_tagged_raw_u8(EsBool, v as u8)
+            self.wr_tagged_raw_u8(EsBool as usize, v as u8)
         }
 
         fn emit_f64(&mut self, v: f64) -> EncodeResult {
             let bits = unsafe { mem::transmute(v) };
-            self.wr_tagged_raw_u64(EsF64, bits)
+            self.wr_tagged_raw_u64(EsF64 as usize, bits)
         }
         fn emit_f32(&mut self, v: f32) -> EncodeResult {
             let bits = unsafe { mem::transmute(v) };
-            self.wr_tagged_raw_u32(EsF32, bits)
+            self.wr_tagged_raw_u32(EsF32 as usize, bits)
         }
         fn emit_char(&mut self, v: char) -> EncodeResult {
-            self.wr_tagged_raw_u32(EsChar, v as u32)
+            self.wr_tagged_raw_u32(EsChar as usize, v as u32)
         }
 
         fn emit_str(&mut self, v: &str) -> EncodeResult {
-            self.wr_tagged_str(EsStr, v)
+            self.wr_tagged_str(EsStr as usize, v)
         }
 
         fn emit_enum<F>(&mut self, _name: &str, f: F) -> EncodeResult where
             F: FnOnce(&mut Encoder<'a>) -> EncodeResult,
         {
-            try!(self.start_tag(EsEnum));
+            try!(self.start_tag(EsEnum as usize));
             try!(f(self));
             self.end_tag()
         }
@@ -1299,10 +1299,10 @@ pub mod writer {
         {
             if len == 0 {
                 // empty vector optimization
-                return self.wr_tagged_bytes(EsVec, &[]);
+                return self.wr_tagged_bytes(EsVec as usize, &[]);
             }
 
-            try!(self.start_tag(EsVec));
+            try!(self.start_tag(EsVec as usize));
             try!(self._emit_tagged_sub(len));
             try!(f(self));
             self.end_tag()
@@ -1312,7 +1312,7 @@ pub mod writer {
             F: FnOnce(&mut Encoder<'a>) -> EncodeResult,
         {
 
-            try!(self.start_tag(EsVecElt));
+            try!(self.start_tag(EsVecElt as usize));
             try!(f(self));
             self.end_tag()
         }
@@ -1322,10 +1322,10 @@ pub mod writer {
         {
             if len == 0 {
                 // empty map optimization
-                return self.wr_tagged_bytes(EsMap, &[]);
+                return self.wr_tagged_bytes(EsMap as usize, &[]);
             }
 
-            try!(self.start_tag(EsMap));
+            try!(self.start_tag(EsMap as usize));
             try!(self._emit_tagged_sub(len));
             try!(f(self));
             self.end_tag()
@@ -1335,7 +1335,7 @@ pub mod writer {
             F: FnOnce(&mut Encoder<'a>) -> EncodeResult,
         {
 
-            try!(self.start_tag(EsMapKey));
+            try!(self.start_tag(EsMapKey as usize));
             try!(f(self));
             self.end_tag()
         }
@@ -1343,7 +1343,7 @@ pub mod writer {
         fn emit_map_elt_val<F>(&mut self, _idx: usize, f: F) -> EncodeResult where
             F: FnOnce(&mut Encoder<'a>) -> EncodeResult,
         {
-            try!(self.start_tag(EsMapVal));
+            try!(self.start_tag(EsMapVal as usize));
             try!(f(self));
             self.end_tag()
         }

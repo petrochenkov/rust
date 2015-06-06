@@ -858,7 +858,7 @@ fn get_concurrency() -> usize {
                 1
             } else {
                 extern { fn rust_get_num_cpus() -> libc::uintptr_t; }
-                unsafe { rust_get_num_cpus() }
+                unsafe { rust_get_num_cpus().widen() }
             }
         }
     }
@@ -1180,7 +1180,7 @@ pub mod bench {
 
         BenchSamples {
             ns_iter_summ: ns_iter_summ,
-            mb_s: mb_s
+            mb_s: mb_s.widen()
         }
     }
 

@@ -1562,26 +1562,26 @@ impl fmt::Display for ParseFloatError {
 }
 
 pub trait Widen<Target>: Sized {
-    #[stable(feature = "rust1", since = "9.9.9")]
+    #[stable(feature = "rust1", since = "1.0.0")]
     fn widen(self) -> Target;
-    #[stable(feature = "rust1", since = "9.9.9")]
+    #[stable(feature = "rust1", since = "1.0.0")]
     fn widen_(self, _: Target) -> Target {
         self.widen()
     }
 }
 pub trait Truncate<Target>: Sized {
-    #[stable(feature = "rust1", since = "9.9.9")]
+    #[stable(feature = "rust1", since = "1.0.0")]
     fn truncate(self) -> Target;
 }
 
 pub trait AsSigned: Sized {
     type Target;
-    #[stable(feature = "rust1", since = "9.9.9")]
+    #[stable(feature = "rust1", since = "1.0.0")]
     fn as_signed(self) -> Self::Target;
 }
 pub trait AsUnsigned: Sized {
     type Target;
-    #[stable(feature = "rust1", since = "9.9.9")]
+    #[stable(feature = "rust1", since = "1.0.0")]
     fn as_unsigned(self) -> Self::Target;
 }
 

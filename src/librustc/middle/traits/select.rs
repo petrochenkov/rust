@@ -2526,7 +2526,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 // type parameter (for now, to avoid tracking edge cases).
                 let i = if let Some(&ty::ty_param(p)) = fields.last().map(|ty| &ty.sty) {
                     assert!(p.space == TypeSpace);
-                    p.idx
+                    p.idx.widen_(0usize)
                 } else {
                     return Err(Unimplemented);
                 };
@@ -2544,8 +2544,8 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 }
 
                 // Extract T and U from Struct<T> and Struct<U>.
-                let inner_source = *substs_a.types.get(TypeSpace, i);
-                let inner_target = *substs_b.types.get(TypeSpace, i);
+                let inner_source = *substs_a.types.get(TypeSpace, i.widen());
+                let inner_target = *substs_b.types.get(TypeSpace, i.widen());
 
                 // Check that all the source structure with the unsized
                 // type parameter is a subtype of the target.

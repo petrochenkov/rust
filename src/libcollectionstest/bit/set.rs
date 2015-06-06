@@ -467,7 +467,7 @@ mod bench {
         let mut bit_vec = BitSet::new();
         b.iter(|| {
             for _ in 0..100 {
-                bit_vec.insert((r.next_u32()) % u32::BITS);
+                bit_vec.insert((r.next_u32().widen_(0usize)) % u32::BITS);
             }
             black_box(&bit_vec);
         });
@@ -479,7 +479,7 @@ mod bench {
         let mut bit_vec = BitSet::new();
         b.iter(|| {
             for _ in 0..100 {
-                bit_vec.insert((r.next_u32()) % BENCH_BITS);
+                bit_vec.insert((r.next_u32().widen_(0usize)) % BENCH_BITS);
             }
             black_box(&bit_vec);
         });

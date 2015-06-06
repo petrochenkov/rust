@@ -173,7 +173,7 @@ extern {
 // hoedown_buffer helpers
 impl hoedown_buffer {
     fn as_bytes(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.data, self.size) }
+        unsafe { slice::from_raw_parts(self.data, self.size.widen()) }
     }
 }
 

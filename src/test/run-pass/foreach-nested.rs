@@ -14,7 +14,7 @@ fn two<F>(mut it: F) where F: FnMut(isize) { it(0); it(1); }
 
 pub fn main() {
     let mut a: Vec<isize> = vec!(-1, -1, -1, -1);
-    let mut p: isize = 0;
+    let mut p: usize = 0;
     two(|i| {
         two(|j| { a[p] = 10 * i + j; p += 1; })
     });

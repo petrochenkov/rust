@@ -25,7 +25,7 @@ extern "rust-intrinsic" {
 
 fn f(result: &mut usize) -> Point {
     unsafe {
-        *result = return_address();
+        *result = return_address() as usize;
         Point {
             x: 1.0,
             y: 2.0,

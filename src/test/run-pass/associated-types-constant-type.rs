@@ -18,7 +18,7 @@ impl SignedUnsigned for isize {
     type Opposite = usize;
 
     fn convert(self) -> usize {
-        self
+        self.as_unsigned()
     }
 }
 

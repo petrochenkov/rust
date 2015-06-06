@@ -82,6 +82,6 @@ fn event_log() -> usize {
 
 fn event(tag: u8) {
     let old_log = LOG.load(Ordering::SeqCst);
-    let new_log = (old_log << 8) + tag;
+    let new_log = (old_log << 8) + tag.widen_(0usize);
     LOG.store(new_log, Ordering::SeqCst);
 }

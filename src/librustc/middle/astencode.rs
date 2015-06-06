@@ -92,7 +92,7 @@ pub fn encode_inlined_item(ecx: &e::EncodeContext,
     let ii = simplify_ast(ii);
     let id_range = ast_util::compute_id_range_for_inlined_item(&ii);
 
-    rbml_w.start_tag(c::tag_ast);
+    rbml_w.start_tag(c::tag_ast as usize);
     id_range.encode(rbml_w);
     encode_ast(rbml_w, &ii);
     encode_side_tables_for_ii(ecx, rbml_w, &ii);
@@ -359,7 +359,7 @@ impl<D:serialize::Decoder> def_id_decoder_helpers for D
 // but eventually we should add entries to the local codemap as required.
 
 fn encode_ast(rbml_w: &mut Encoder, item: &ast::InlinedItem) {
-    rbml_w.start_tag(c::tag_tree);
+    rbml_w.start_tag(c::tag_tree as usize);
     item.encode(rbml_w);
     rbml_w.end_tag();
 }
@@ -436,7 +436,7 @@ fn simplify_ast(ii: e::InlinedItemRef) -> ast::InlinedItem {
 }
 
 fn decode_ast(par_doc: rbml::Doc) -> ast::InlinedItem {
-    let chi_doc = par_doc.get(c::tag_tree);
+    let chi_doc = par_doc.get(c::tag_tree as usize);
     let mut d = reader::Decoder::new(chi_doc);
     Decodable::decode(&mut d).unwrap()
 }
@@ -1009,7 +1009,7 @@ impl<'a> write_tag_and_id for Encoder<'a> {
               f: F) where
         F: FnOnce(&mut Encoder<'a>),
     {
-        self.start_tag(tag_id);
+        self.start_tag(tag_id as usize);
         f(self);
         self.end_tag();
     }
@@ -1034,7 +1034,7 @@ impl<'a, 'b, 'c, 'tcx> ast_util::IdVisitingOperation for
 fn encode_side_tables_for_ii(ecx: &e::EncodeContext,
                              rbml_w: &mut Encoder,
                              ii: &ast::InlinedItem) {
-    rbml_w.start_tag(c::tag_table);
+    rbml_w.start_tag(c::tag_table as usize);
     ast_util::visit_ids_for_inlined_item(ii, &mut SideTableEncodingIdVisitor {
         ecx: ecx,
         rbml_w: rbml_w
@@ -1177,7 +1177,7 @@ trait doc_decoder_helpers {
 impl<'a> doc_decoder_helpers for rbml::Doc<'a> {
     fn as_int(&self) -> isize { reader::doc_as_u64(*self) as isize }
     fn opt_child(&self, tag: c::astencode_tag) -> Option<rbml::Doc<'a>> {
-        reader::maybe_get_doc(*self, tag)
+        reader::maybe_get_doc(*self, tag as usize)
     }
 }
 
@@ -1626,7 +1626,7 @@ impl<'a, 'tcx> rbml_decoder_decoder_helpers<'tcx> for reader::Decoder<'a> {
 
 fn decode_side_tables(dcx: &DecodeContext,
                       ast_doc: rbml::Doc) {
-    let tbl_doc = ast_doc.get(c::tag_table);
+    let tbl_doc = ast_doc.get(c::tag_table as usize);
     for (tag, entry_doc) in reader::docs(tbl_doc) {
         let mut entry_dsr = reader::Decoder::new(entry_doc);
         let id0: ast::NodeId = Decodable::decode(&mut entry_dsr).unwrap();
@@ -1744,14 +1744,14 @@ fn decode_side_tables(dcx: &DecodeContext,
 
 #[cfg(test)]
 fn encode_item_ast(rbml_w: &mut Encoder, item: &ast::Item) {
-    rbml_w.start_tag(c::tag_tree);
+    rbml_w.start_tag(c::tag_tree as usize);
     (*item).encode(rbml_w);
     rbml_w.end_tag();
 }
 
 #[cfg(test)]
 fn decode_item_ast(par_doc: rbml::Doc) -> ast::Item {
-    let chi_doc = par_doc.get(c::tag_tree);
+    let chi_doc = par_doc.get(c::tag_tree as usize);
     let mut d = reader::Decoder::new(chi_doc);
     Decodable::decode(&mut d).unwrap()
 }

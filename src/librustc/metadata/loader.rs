@@ -766,7 +766,7 @@ fn get_metadata_section_imp(target: &Target, filename: &Path)
             let mut name_buf = ptr::null();
             let name_len = llvm::LLVMRustGetSectionName(si.llsi, &mut name_buf);
             let name = slice::from_raw_parts(name_buf as *const u8,
-                                             name_len).to_vec();
+                                             name_len.as_unsigned().widen()).to_vec();
             let name = String::from_utf8(name).unwrap();
             debug!("get_metadata_section: name {}", name);
             if read_meta_section_name(target) == name {
@@ -776,7 +776,7 @@ fn get_metadata_section_imp(target: &Target, filename: &Path)
                 let vlen = encoder::metadata_encoding_version.len();
                 debug!("checking {} bytes of metadata-version stamp",
                        vlen);
-                let minsz = cmp::min(vlen, csz);
+                let minsz = cmp::min(vlen, csz.widen());
                 let buf0 = slice::from_raw_parts(cvbuf, minsz);
                 let version_ok = buf0 == encoder::metadata_encoding_version;
                 if !version_ok {
@@ -786,8 +786,8 @@ fn get_metadata_section_imp(target: &Target, filename: &Path)
 
                 let cvbuf1 = cvbuf.offset(vlen as isize);
                 debug!("inflating {} bytes of compressed metadata",
-                       csz - vlen);
-                let bytes = slice::from_raw_parts(cvbuf1, csz - vlen);
+                       csz.widen_(0usize) - vlen);
+                let bytes = slice::from_raw_parts(cvbuf1, csz.widen_(0usize) - vlen);
                 match flate::inflate_bytes(bytes) {
                     Ok(inflated) => return Ok(MetadataVec(inflated)),
                     Err(_) => {}

@@ -81,11 +81,11 @@ impl LanguageItems {
     }
 
     pub fn require(&self, it: LangItem) -> Result<ast::DefId, String> {
-        match self.items[it] {
+        match self.items[it as usize] {
             Some(id) => Ok(id),
             None => {
                 Err(format!("requires `{}` lang_item",
-                            LanguageItems::item_name(it)))
+                            LanguageItems::item_name(it as usize)))
             }
         }
     }
@@ -134,7 +134,7 @@ impl LanguageItems {
     $(
         #[allow(dead_code)]
         pub fn $method(&self) -> Option<ast::DefId> {
-            self.items[$variant]
+            self.items[$variant as usize]
         }
     )*
 }
@@ -165,7 +165,7 @@ impl<'a> LanguageItemCollector<'a> {
     pub fn new(session: &'a Session) -> LanguageItemCollector<'a> {
         let mut item_refs = FnvHashMap();
 
-        $( item_refs.insert($name, $variant); )*
+        $( item_refs.insert($name, $variant as usize); )*
 
         LanguageItemCollector {
             session: session,

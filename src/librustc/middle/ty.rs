@@ -1619,7 +1619,7 @@ pub fn region_existential_bound<'tcx>(r: ty::Region) -> ExistentialBounds<'tcx> 
 
 impl CLike for BuiltinBound {
     fn to_usize(&self) -> usize {
-        *self
+        *self as usize
     }
     fn from_usize(v: usize) -> BuiltinBound {
         unsafe { mem::transmute(v) }
@@ -5335,7 +5335,7 @@ pub fn associated_type_parameter_index(cx: &ctxt,
                                        -> usize {
     for type_parameter_def in trait_def.generics.types.iter() {
         if type_parameter_def.def_id == associated_type_id {
-            return type_parameter_def.index
+            return type_parameter_def.index.widen()
         }
     }
     cx.sess.bug("couldn't find associated type parameter index")
@@ -6140,8 +6140,8 @@ pub fn eval_repeat_count(tcx: &ctxt, count_expr: &ast::Expr) -> usize {
     match const_eval::eval_const_expr_partial(tcx, count_expr, Some(tcx.types.usize)) {
         Ok(val) => {
             let found = match val {
-                const_eval::const_uint(count) => return count,
-                const_eval::const_int(count) if count >= 0 => return count,
+                const_eval::const_uint(count) => return count.widen(),
+                const_eval::const_int(count) if count >= 0 => return count.as_unsigned().widen(),
                 const_eval::const_int(_) => "negative integer",
                 const_eval::const_float(_) => "float",
                 const_eval::const_str(_) => "string",

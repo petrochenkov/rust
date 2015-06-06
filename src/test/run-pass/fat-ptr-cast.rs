@@ -32,7 +32,7 @@ fn main() {
     // Test conversion to an address (usize).
     let a: *const [i32; 3] = &[1, 2, 3];
     let b: *const [i32] = a;
-    assert!(a == b as *const ());
+    assert!(a as usize == b as *const () as usize);
 
     // And conversion to a void pointer/address for trait objects too.
     let a: *mut Foo = &mut Bar;

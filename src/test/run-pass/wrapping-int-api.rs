@@ -74,13 +74,13 @@ fn main() {
     match () {
         #[cfg(target_pointer_width = "32")]
         () => {
-            assert_eq!((0xfedc_ba98).wrapping_mul(16),
-                       (0xedcb_a980));
+            assert_eq!((0xfedc_ba98 as usize).wrapping_mul(16),
+                       (0xedcb_a980 as usize));
         }
         #[cfg(target_pointer_width = "64")]
         () => {
-            assert_eq!((0xfedc_ba98_7654_3217).wrapping_mul(16),
-                       (0xedcb_a987_6543_2170));
+            assert_eq!((0xfedc_ba98_7654_3217 as usize).wrapping_mul(16),
+                       (0xedcb_a987_6543_2170 as usize));
         }
     }
 

@@ -28,7 +28,7 @@ fn strlen(str: String) -> usize {
     // C string is terminated with a zero
     let s = CString::new(str).unwrap();
     unsafe {
-        mlibc::my_strlen(s.as_ptr())
+        mlibc::my_strlen(s.as_ptr()) as usize
     }
 }
 

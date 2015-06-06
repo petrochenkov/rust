@@ -351,7 +351,7 @@ fn iter_vec_loop<'blk, 'tcx, F>(bcx: Block<'blk, 'tcx>,
     Br(bcx, loop_bcx.llbb, DebugLoc::None);
 
     let loop_counter = Phi(loop_bcx, bcx.ccx().int_type(),
-                           &[C_uint(bcx.ccx(), 0)], &[bcx.llbb]);
+                           &[C_uint(bcx.ccx(), 0usize)], &[bcx.llbb]);
 
     let bcx = loop_bcx;
 

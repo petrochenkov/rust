@@ -92,7 +92,7 @@ fn classify_ty(ty: Type) -> Vec<RegClass> {
 
     fn ty_align(ty: Type) -> usize {
         match ty.kind() {
-            Integer => ((ty.int_width()) + 7) / 8,
+            Integer => (ty.int_width().widen_(0usize) + 7) / 8,
             Pointer => 8,
             Float => 4,
             Double => 8,
@@ -119,7 +119,7 @@ fn classify_ty(ty: Type) -> Vec<RegClass> {
 
     fn ty_size(ty: Type) -> usize {
         match ty.kind() {
-            Integer => (ty.int_width() + 7) / 8,
+            Integer => (ty.int_width().widen_(0usize) + 7) / 8,
             Pointer => 8,
             Float => 4,
             Double => 8,

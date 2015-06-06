@@ -328,7 +328,7 @@ mod tests {
         let mut result = Vec::new();
         loop {
             let table = table.table.borrow();
-            match (*table)[sc] {
+            match (*table)[sc.widen_(0usize)] {
                 EmptyCtxt => {return result;},
                 Mark(mrk,tail) => {
                     result.push(M(mrk));

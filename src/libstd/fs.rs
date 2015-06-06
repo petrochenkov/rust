@@ -1673,8 +1673,8 @@ mod tests {
             let stem = f.file_stem().unwrap().to_str().unwrap();
             let root = stem.as_bytes()[0] - b'0';
             let name = stem.as_bytes()[1] - b'0';
-            assert!(cur[root] < name);
-            cur[root] = name;
+            assert!(cur[root.widen_(0usize)] < name);
+            cur[root.widen_(0usize)] = name;
         }
 
         check!(fs::remove_dir_all(dir));

@@ -40,7 +40,7 @@ pub fn main() {
     assert_eq!(oo as isize, 0xd6);
 
     fn check_str_eq(a: String, b: String) {
-        let mut i: isize = 0;
+        let mut i: usize = 0;
         for ab in a.bytes() {
             println!("{}", i);
             println!("{}", ab);

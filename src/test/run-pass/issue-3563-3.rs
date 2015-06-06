@@ -94,8 +94,8 @@ impl AsciiArt {
                 // element is:
                 // 1) potentially large
                 // 2) needs to be modified
-                let row = &mut self.lines[v];
-                row[h] = self.fill;
+                let row = &mut self.lines[v.as_unsigned()];
+                row[h.as_unsigned()] = self.fill;
             }
         }
     }

@@ -1600,10 +1600,10 @@ pub fn ast_ty_to_ty<'tcx>(this: &AstConv<'tcx>,
                     match r {
                         const_eval::const_int(i) =>
                             ty::mk_vec(tcx, ast_ty_to_ty(this, rscope, &**ty),
-                                        Some(i)),
+                                        Some(i.as_unsigned().widen())),
                         const_eval::const_uint(i) =>
                             ty::mk_vec(tcx, ast_ty_to_ty(this, rscope, &**ty),
-                                        Some(i)),
+                                        Some(i.widen())),
                         _ => {
                             span_err!(tcx.sess, ast_ty.span, E0249,
                                       "expected constant integer expression \

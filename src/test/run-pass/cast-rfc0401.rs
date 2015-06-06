@@ -47,14 +47,14 @@ fn main()
 
     // numeric-cast
     let l: u64 = 0x8090a0b0c0d0e0f0;
-    let lsz: usize = l;
+    let lsz: usize = l as usize;
     assert_eq!(l as u32, 0xc0d0e0f0);
 
     // numeric-cast
     assert_eq!(l as u8, 0xf0);
     assert_eq!(l as i8,-0x10);
     assert_eq!(l as u32, 0xc0d0e0f0);
-    assert_eq!(l as u32 as u32, l as u32);
+    assert_eq!(l as u32 as usize as u32, l as u32);
     assert_eq!(l as i32,-0x3f2f1f10);
     assert_eq!(l as i32 as isize as i32, l as i32);
     assert_eq!(l as i64,-0x7f6f5f4f3f2f1f10);
@@ -81,7 +81,7 @@ fn main()
 
     // ptr-ptr-cast (thin ptr)
     let w: *const () = p as *const ();
-    assert_eq!(w, lsz);
+    assert_eq!(w as usize, lsz);
 
     // ptr-ptr-cast (fat->thin)
     let u: *const [u8] = unsafe{&*p};
@@ -158,13 +158,13 @@ fn main()
         println!("bar!");
     }
 
-    assert!(foo != bar);
+    assert!(foo as usize != bar as usize);
 
-    assert_eq!(foo as i16, foo as i16);
+    assert_eq!(foo as i16, foo as usize as i16);
 
     // fptr-ptr-cast
 
-    assert_eq!(foo as *const u8, foo);
+    assert_eq!(foo as *const u8 as usize, foo as usize);
     assert!(foo as *const u32 != first);
 }
 fn foo() { }
