@@ -574,7 +574,7 @@ impl<'a, 'b:'a, 'tcx:'b> ImportResolver<'a, 'b, 'tcx> {
                         import_resolution.id = directive.id;
                         import_resolution.is_public = directive.is_public;
 
-                        self.add_export(module_, target, &import_resolution);
+                        self.add_export(module_, target, namespace, &import_resolution);
                         *used_public = name_binding.is_public();
                     }
                     Failed(_) => {
@@ -716,7 +716,7 @@ impl<'a, 'b:'a, 'tcx:'b> ImportResolver<'a, 'b, 'tcx> {
                     dest_import_resolution.id = id;
                     dest_import_resolution.is_public = is_public;
                     dest_import_resolution.target = Some(target.clone());
-                    self.add_export(module_, name, &dest_import_resolution);
+                    self.add_export(module_, name, ns, &dest_import_resolution);
                 }
                 _ => {}
             }
@@ -796,7 +796,7 @@ impl<'a, 'b:'a, 'tcx:'b> ImportResolver<'a, 'b, 'tcx> {
                 dest_import_resolution.target = Some(target);
                 dest_import_resolution.id = id;
                 dest_import_resolution.is_public = is_public;
-                self.add_export(module_, name, &dest_import_resolution);
+                self.add_export(module_, name, ns, &dest_import_resolution);
             }
         } else {
             // FIXME #30159: This is required for backwards compatability.
@@ -809,17 +809,23 @@ impl<'a, 'b:'a, 'tcx:'b> ImportResolver<'a, 'b, 'tcx> {
                                                            (name, ns));
     }
 
-    fn add_export(&mut self, module: Module<'b>, name: Name, resolution: &ImportResolution<'b>) {
+    fn add_export(&mut self,
+                  module: Module<'b>,
+                  name: Name,
+                  ns: Namespace,
+                  resolution: &ImportResolution<'b>) {
         if !resolution.is_public { return }
         let node_id = match module.def_id() {
             Some(def_id) => self.resolver.ast_map.as_local_node_id(def_id).unwrap(),
             None => return,
         };
         let export = match resolution.target.as_ref().unwrap().binding.def() {
+            // A Def::Variant defines both namespaces, so only export it once per name.
+            Some(Def::Variant(..)) if ns != TypeNS => return,
             Some(def) => Export { name: name, def_id: def.def_id() },
             None => return,
         };
-        self.resolver.export_map.entry(node_id).or_insert(Default::default()).insert(export);
+        self.resolver.export_map.entry(node_id).or_insert(Vec::new()).push(export);
     }
 
     /// Checks that imported names and items don't have the same name.
