@@ -14,7 +14,6 @@ use middle::subst::ParamSpace;
 use util::nodemap::NodeMap;
 use syntax::ast;
 use rustc_front::hir;
-use std::collections::HashSet;
 
 #[derive(Clone, Copy, PartialEq, Eq, RustcEncodable, RustcDecodable, Hash, Debug)]
 pub enum Def {
@@ -100,9 +99,9 @@ impl PathResolution {
 pub type DefMap = NodeMap<PathResolution>;
 // This is the replacement export map. It maps a module to all of the exports
 // within.
-pub type ExportMap = NodeMap<HashSet<Export>>;
+pub type ExportMap = NodeMap<Vec<Export>>;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone)]
 pub struct Export {
     pub name: ast::Name,    // The name of the target.
     pub def_id: DefId, // The definition of the target.
