@@ -978,7 +978,6 @@ fn capture_freevar<'a, 'gcx, 'tcx>(cx: &mut Cx<'a, 'gcx, 'tcx>,
         ty::UpvarCapture::ByRef(upvar_borrow) => {
             let borrow_kind = match upvar_borrow.kind {
                 ty::BorrowKind::ImmBorrow => BorrowKind::Shared,
-                ty::BorrowKind::UniqueImmBorrow => BorrowKind::Unique,
                 ty::BorrowKind::MutBorrow => BorrowKind::Mut,
             };
             Expr {

@@ -1205,7 +1205,7 @@ impl<'a, 'gcx, 'tcx> Delegate<'tcx> for MutationChecker<'a, 'gcx> {
                     .span_label(span, &format!("borrowed mutably in pattern guard"))
                     .emit();
             }
-            ty::ImmBorrow | ty::UniqueImmBorrow => {}
+            ty::ImmBorrow => {}
         }
     }
     fn decl_without_init(&mut self, _: NodeId, _: Span) {}

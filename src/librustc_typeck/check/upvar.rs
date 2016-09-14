@@ -16,7 +16,7 @@
 //! "escalating" the kind as needed. The borrow kind proceeds according to
 //! the following lattice:
 //!
-//!     ty::ImmBorrow -> ty::UniqueImmBorrow -> ty::MutBorrow
+//!     ty::ImmBorrow -> ty::MutBorrow
 //!
 //! So, for example, if we see an assignment `x = 5` to an upvar `x`, we
 //! will promote its borrow kind to mutable borrow. If we see an `&mut x`
@@ -369,7 +369,7 @@ impl<'a, 'gcx, 'tcx> AdjustBorrowKind<'a, 'gcx, 'tcx> {
 
             Categorization::Deref(base, _, mc::BorrowedPtr(..)) |
             Categorization::Deref(base, _, mc::Implicit(..)) => {
-                if !self.try_adjust_upvar_deref(&cmt.note, ty::UniqueImmBorrow) {
+                if !self.try_adjust_upvar_deref(&cmt.note, ty::MutBorrow) {
                     // for a borrowed pointer to be unique, its
                     // base must be unique
                     self.adjust_upvar_borrow_kind_for_unique(base);
@@ -392,7 +392,6 @@ impl<'a, 'gcx, 'tcx> AdjustBorrowKind<'a, 'gcx, 'tcx> {
     {
         assert!(match borrow_kind {
             ty::MutBorrow => true,
-            ty::UniqueImmBorrow => true,
 
             // imm borrows never require adjusting any kinds, so we don't wind up here
             ty::ImmBorrow => false,
@@ -448,15 +447,11 @@ impl<'a, 'gcx, 'tcx> AdjustBorrowKind<'a, 'gcx, 'tcx> {
             ty::UpvarCapture::ByRef(ref mut upvar_borrow) => {
                 match (upvar_borrow.kind, kind) {
                     // Take RHS:
-                    (ty::ImmBorrow, ty::UniqueImmBorrow) |
-                    (ty::ImmBorrow, ty::MutBorrow) |
-                    (ty::UniqueImmBorrow, ty::MutBorrow) => {
+                    (ty::ImmBorrow, ty::MutBorrow) => {
                         upvar_borrow.kind = kind;
                     }
                     // Take LHS:
                     (ty::ImmBorrow, ty::ImmBorrow) |
-                    (ty::UniqueImmBorrow, ty::ImmBorrow) |
-                    (ty::UniqueImmBorrow, ty::UniqueImmBorrow) |
                     (ty::MutBorrow, _) => {
                     }
                 }
@@ -545,9 +540,6 @@ impl<'a, 'gcx, 'tcx> euv::Delegate<'tcx> for AdjustBorrowKind<'a, 'gcx, 'tcx> {
 
         match bk {
             ty::ImmBorrow => { }
-            ty::UniqueImmBorrow => {
-                self.adjust_upvar_borrow_kind_for_unique(cmt);
-            }
             ty::MutBorrow => {
                 self.adjust_upvar_borrow_kind_for_mut(cmt);
             }

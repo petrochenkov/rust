@@ -162,7 +162,7 @@ impl<'a, 'tcx> RestrictionsContext<'a, 'tcx> {
 
                         match bk {
                             ty::ImmBorrow => RestrictionResult::Safe,
-                            ty::MutBorrow | ty::UniqueImmBorrow => {
+                            ty::MutBorrow => {
                                 // R-Deref-Mut-Borrowed
                                 //
                                 // The referent can be aliased after the

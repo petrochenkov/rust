@@ -1379,8 +1379,8 @@ impl<'a, 'gcx, 'tcx> RegionCtxt<'a, 'gcx, 'tcx> {
         let new_borrow_kind = match borrow_kind {
             ty::ImmBorrow =>
                 ty::ImmBorrow,
-            ty::MutBorrow | ty::UniqueImmBorrow =>
-                ty::UniqueImmBorrow
+            ty::MutBorrow =>
+                ty::MutBorrow,
         };
 
         // Decide whether we need to recurse and link any regions within
@@ -1424,7 +1424,7 @@ impl<'a, 'gcx, 'tcx> RegionCtxt<'a, 'gcx, 'tcx> {
                 return None;
             }
 
-            ty::MutBorrow | ty::UniqueImmBorrow => {
+            ty::MutBorrow => {
                 // The reference being reborrowed is either an `&mut T` or
                 // `&uniq T`. This is the case where recursion is needed.
                 return Some((ref_cmt, new_borrow_kind));

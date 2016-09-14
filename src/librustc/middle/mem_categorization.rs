@@ -242,7 +242,6 @@ impl MutabilityCategory {
     pub fn from_borrow_kind(borrow_kind: ty::BorrowKind) -> MutabilityCategory {
         let ret = match borrow_kind {
             ty::ImmBorrow => McImmutable,
-            ty::UniqueImmBorrow => McImmutable,
             ty::MutBorrow => McDeclared,
         };
         debug!("MutabilityCategory::{}({:?}) => {:?}",
@@ -1234,8 +1233,6 @@ impl<'tcx> cmt_<'tcx> {
         match self.cat {
             Categorization::Deref(ref b, _, BorrowedPtr(ty::MutBorrow, _)) |
             Categorization::Deref(ref b, _, Implicit(ty::MutBorrow, _)) |
-            Categorization::Deref(ref b, _, BorrowedPtr(ty::UniqueImmBorrow, _)) |
-            Categorization::Deref(ref b, _, Implicit(ty::UniqueImmBorrow, _)) |
             Categorization::Downcast(ref b, _) |
             Categorization::Interior(ref b, _) => {
                 // Aliasability depends on base cmt
@@ -1410,8 +1407,6 @@ pub fn ptr_sigil(ptr: PointerKind) -> &'static str {
         Implicit(ty::ImmBorrow, _) => "&",
         BorrowedPtr(ty::MutBorrow, _) |
         Implicit(ty::MutBorrow, _) => "&mut",
-        BorrowedPtr(ty::UniqueImmBorrow, _) |
-        Implicit(ty::UniqueImmBorrow, _) => "&unique",
         UnsafePtr(_) => "*",
     }
 }
@@ -1427,10 +1422,6 @@ impl<'tcx> fmt::Debug for PointerKind<'tcx> {
             BorrowedPtr(ty::MutBorrow, ref r) |
             Implicit(ty::MutBorrow, ref r) => {
                 write!(f, "&{:?} mut", r)
-            }
-            BorrowedPtr(ty::UniqueImmBorrow, ref r) |
-            Implicit(ty::UniqueImmBorrow, ref r) => {
-                write!(f, "&{:?} uniq", r)
             }
             UnsafePtr(_) => write!(f, "*")
         }

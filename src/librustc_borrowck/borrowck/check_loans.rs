@@ -491,57 +491,6 @@ impl<'a, 'tcx> CheckLoanCtxt<'a, 'tcx> {
                     err
                 }
 
-                (ty::UniqueImmBorrow, ty::UniqueImmBorrow) => {
-                    let mut err = struct_span_err!(self.bccx, new_loan.span, E0524,
-                                     "two closures require unique access to `{}` \
-                                      at the same time",
-                                     nl);
-                    err.span_label(
-                            old_loan.span,
-                            &format!("first closure is constructed here"));
-                    err.span_label(
-                            new_loan.span,
-                            &format!("second closure is constructed here"));
-                    err.span_label(
-                            previous_end_span,
-                            &format!("borrow from first closure ends here"));
-                    err
-                }
-
-                (ty::UniqueImmBorrow, _) => {
-                    let mut err = struct_span_err!(self.bccx, new_loan.span, E0500,
-                                                   "closure requires unique access to `{}` \
-                                                   but {} is already borrowed{}",
-                                                   nl, ol_pronoun, old_loan_msg);
-                    err.span_label(
-                            new_loan.span,
-                            &format!("closure construction occurs here{}", new_loan_msg));
-                    err.span_label(
-                            old_loan.span,
-                            &format!("borrow occurs here{}", old_loan_msg));
-                    err.span_label(
-                            previous_end_span,
-                            &format!("borrow ends here"));
-                    err
-                }
-
-                (_, ty::UniqueImmBorrow) => {
-                    let mut err = struct_span_err!(self.bccx, new_loan.span, E0501,
-                                                   "cannot borrow `{}`{} as {} because \
-                                                   previous closure requires unique access",
-                                                   nl, new_loan_msg, new_loan.kind.to_user_str());
-                    err.span_label(
-                            new_loan.span,
-                            &format!("borrow occurs here{}", new_loan_msg));
-                    err.span_label(
-                            old_loan.span,
-                            &format!("closure construction occurs here{}", old_loan_msg));
-                    err.span_label(
-                            previous_end_span,
-                            &format!("borrow from closure ends here"));
-                    err
-                }
-
                 (..) => {
                     let mut err = struct_span_err!(self.bccx, new_loan.span, E0502,
                                                    "cannot borrow `{}`{} as {} because \

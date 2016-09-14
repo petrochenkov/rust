@@ -821,7 +821,6 @@ impl<'tcx> LvalueContext<'tcx> {
             LvalueContext::Drop => true,
             LvalueContext::Inspect |
             LvalueContext::Borrow { kind: BorrowKind::Shared, .. } |
-            LvalueContext::Borrow { kind: BorrowKind::Unique, .. } |
             LvalueContext::Projection(Mutability::Not) | LvalueContext::Consume |
             LvalueContext::StorageLive | LvalueContext::StorageDead => false,
         }
@@ -831,7 +830,6 @@ impl<'tcx> LvalueContext<'tcx> {
     pub fn is_nonmutating_use(&self) -> bool {
         match *self {
             LvalueContext::Inspect | LvalueContext::Borrow { kind: BorrowKind::Shared, .. } |
-            LvalueContext::Borrow { kind: BorrowKind::Unique, .. } |
             LvalueContext::Projection(Mutability::Not) | LvalueContext::Consume => true,
             LvalueContext::Borrow { kind: BorrowKind::Mut, .. } | LvalueContext::Store |
             LvalueContext::Call | LvalueContext::Projection(Mutability::Mut) |

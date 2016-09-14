@@ -197,7 +197,6 @@ fn check_aliasability<'a, 'tcx>(bccx: &BorrowckCtxt<'a, 'tcx>,
                         mc::AliasableReason::UnaliasableImmutable);
             Err(())
         }
-        (mc::Aliasability::FreelyAliasable(alias_cause), ty::UniqueImmBorrow) |
         (mc::Aliasability::FreelyAliasable(alias_cause), ty::MutBorrow) => {
             bccx.report_aliasability_violation(
                         borrow_span,
@@ -221,7 +220,7 @@ fn check_mutability<'a, 'tcx>(bccx: &BorrowckCtxt<'a, 'tcx>,
     debug!("check_mutability(cause={:?} cmt={:?} req_kind={:?}",
            cause, cmt, req_kind);
     match req_kind {
-        ty::UniqueImmBorrow | ty::ImmBorrow => {
+        ty::ImmBorrow => {
             match cmt.mutbl {
                 // I am intentionally leaving this here to help
                 // refactoring if, in the future, we should add new

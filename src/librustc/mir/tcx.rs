@@ -238,11 +238,6 @@ impl BorrowKind {
         match self {
             BorrowKind::Mut => hir::MutMutable,
             BorrowKind::Shared => hir::MutImmutable,
-
-            // We have no type corresponding to a unique imm borrow, so
-            // use `&mut`. It gives all the capabilities of an `&uniq`
-            // and hence is a safe "over approximation".
-            BorrowKind::Unique => hir::MutMutable,
         }
     }
 }
