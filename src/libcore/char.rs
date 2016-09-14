@@ -740,7 +740,7 @@ impl<I: Iterator<Item = u8>> Iterator for DecodeUtf8<I> {
     type Item = Result<char, InvalidSequence>;
     #[inline]
 
-    fn next(&mut self) -> Option<Result<char, InvalidSequence>> {
+    fn next(mut self: &mut Self) -> Option<Result<char, InvalidSequence>> {
         self.0.next().map(|first_byte| {
             // Emit InvalidSequence according to
             // Unicode §5.22 Best Practice for U+FFFD Substitution

@@ -185,7 +185,7 @@ fn read_byte(r: &mut io::Read) -> io::Result<u8> {
 
 /// Parse a compiled terminfo entry, using long capability names if `longnames`
 /// is true
-pub fn parse(file: &mut io::Read, longnames: bool) -> Result<TermInfo, String> {
+pub fn parse(mut file: &mut io::Read, longnames: bool) -> Result<TermInfo, String> {
     macro_rules! t( ($e:expr) => (
         match $e {
             Ok(e) => e,

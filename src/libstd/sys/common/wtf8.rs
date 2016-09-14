@@ -733,7 +733,7 @@ impl<'a> Iterator for EncodeWide<'a> {
     type Item = u16;
 
     #[inline]
-    fn next(&mut self) -> Option<u16> {
+    fn next(mut self: &mut Self) -> Option<u16> {
         if self.extra != 0 {
             let tmp = self.extra;
             self.extra = 0;

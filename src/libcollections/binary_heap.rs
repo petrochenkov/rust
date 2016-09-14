@@ -493,7 +493,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// assert_eq!(heap.pop(), None);
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn pop(&mut self) -> Option<T> {
+    pub fn pop(mut self: &mut Self) -> Option<T> {
         self.data.pop().map(|mut item| {
             if !self.is_empty() {
                 swap(&mut item, &mut self.data[0]);

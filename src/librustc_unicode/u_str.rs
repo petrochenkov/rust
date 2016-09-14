@@ -150,7 +150,7 @@ impl<I> Iterator for Utf16Encoder<I>
     type Item = u16;
 
     #[inline]
-    fn next(&mut self) -> Option<u16> {
+    fn next(mut self: &mut Self) -> Option<u16> {
         if self.extra != 0 {
             let tmp = self.extra;
             self.extra = 0;

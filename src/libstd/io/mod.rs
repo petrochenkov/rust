@@ -548,7 +548,7 @@ pub trait Read {
     /// # }
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    fn read_to_string(&mut self, buf: &mut String) -> Result<usize> {
+    fn read_to_string(mut self: &mut Self, buf: &mut String) -> Result<usize> {
         // Note that we do *not* call `.read_to_end()` here. We are passing
         // `&mut Vec<u8>` (the raw contents of `buf`) into the `read_to_end`
         // method to fill it up. An arbitrary implementation could overwrite the
@@ -1347,7 +1347,7 @@ pub trait BufRead: Read {
     /// }
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    fn read_line(&mut self, buf: &mut String) -> Result<usize> {
+    fn read_line(mut self: &mut Self, buf: &mut String) -> Result<usize> {
         // Note that we are not calling the `.read_until` method here, but
         // rather our hardcoded implementation. For more details as to why, see
         // the comments in `read_to_end`.

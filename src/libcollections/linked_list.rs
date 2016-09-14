@@ -111,7 +111,7 @@ impl<T> LinkedList<T> {
 
     /// Removes and returns the node at the front of the list.
     #[inline]
-    fn pop_front_node(&mut self) -> Option<Box<Node<T>>> {
+    fn pop_front_node(mut self: &mut Self) -> Option<Box<Node<T>>> {
         self.head.map(|node| unsafe {
             let node = Box::from_raw(*node);
             self.head = node.next;
@@ -146,7 +146,7 @@ impl<T> LinkedList<T> {
 
     /// Removes and returns the node at the back of the list.
     #[inline]
-    fn pop_back_node(&mut self) -> Option<Box<Node<T>>> {
+    fn pop_back_node(mut self: &mut Self) -> Option<Box<Node<T>>> {
         self.tail.map(|node| unsafe {
             let node = Box::from_raw(*node);
             self.tail = node.prev;
@@ -716,7 +716,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a T> {
+    fn next(mut self: &mut Self) -> Option<&'a T> {
         if self.len == 0 {
             None
         } else {
@@ -738,7 +738,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
     #[inline]
-    fn next_back(&mut self) -> Option<&'a T> {
+    fn next_back(mut self: &mut Self) -> Option<&'a T> {
         if self.len == 0 {
             None
         } else {
@@ -763,7 +763,7 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     #[inline]
-    fn next(&mut self) -> Option<&'a mut T> {
+    fn next(mut self: &mut Self) -> Option<&'a mut T> {
         if self.len == 0 {
             None
         } else {
@@ -785,7 +785,7 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
     #[inline]
-    fn next_back(&mut self) -> Option<&'a mut T> {
+    fn next_back(mut self: &mut Self) -> Option<&'a mut T> {
         if self.len == 0 {
             None
         } else {

@@ -95,7 +95,7 @@ impl<T> Packet<T> {
     // threads in select().
     //
     // This can only be called at channel-creation time
-    pub fn inherit_blocker(&mut self,
+    pub fn inherit_blocker(mut self: &mut Self,
                            token: Option<SignalToken>,
                            guard: MutexGuard<()>) {
         token.map(|token| {

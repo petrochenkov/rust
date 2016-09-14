@@ -471,7 +471,7 @@ impl<W: Write> Write for BufWriter<W> {
             Write::write(&mut self.buf, buf)
         }
     }
-    fn flush(&mut self) -> io::Result<()> {
+    fn flush(mut self: &mut Self) -> io::Result<()> {
         self.flush_buf().and_then(|()| self.get_mut().flush())
     }
 }
@@ -491,7 +491,7 @@ impl<W: Write + Seek> Seek for BufWriter<W> {
     /// Seek to the offset, in bytes, in the underlying writer.
     ///
     /// Seeking always writes out the internal buffer before seeking.
-    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+    fn seek(mut self: &mut Self, pos: SeekFrom) -> io::Result<u64> {
         self.flush_buf().and_then(|_| self.get_mut().seek(pos))
     }
 }

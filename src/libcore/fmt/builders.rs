@@ -75,7 +75,7 @@ pub fn debug_struct_new<'a, 'b>(fmt: &'a mut fmt::Formatter<'b>,
 impl<'a, 'b: 'a> DebugStruct<'a, 'b> {
     /// Adds a new field to the generated struct output.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn field(&mut self, name: &str, value: &fmt::Debug) -> &mut DebugStruct<'a, 'b> {
+    pub fn field(mut self: &mut Self, name: &str, value: &fmt::Debug) -> &mut DebugStruct<'a, 'b> {
         self.result = self.result.and_then(|_| {
             let prefix = if self.has_fields {
                 ","
@@ -98,7 +98,7 @@ impl<'a, 'b: 'a> DebugStruct<'a, 'b> {
 
     /// Finishes output and returns any error encountered.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn finish(&mut self) -> fmt::Result {
+    pub fn finish(mut self: &mut Self) -> fmt::Result {
         if self.has_fields {
             self.result = self.result.and_then(|_| {
                 if self.is_pretty() {
@@ -142,7 +142,7 @@ pub fn debug_tuple_new<'a, 'b>(fmt: &'a mut fmt::Formatter<'b>, name: &str) -> D
 impl<'a, 'b: 'a> DebugTuple<'a, 'b> {
     /// Adds a new field to the generated tuple struct output.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn field(&mut self, value: &fmt::Debug) -> &mut DebugTuple<'a, 'b> {
+    pub fn field(mut self: &mut Self, value: &fmt::Debug) -> &mut DebugTuple<'a, 'b> {
         self.result = self.result.and_then(|_| {
             let (prefix, space) = if self.fields > 0 {
                 (",", " ")
@@ -164,7 +164,7 @@ impl<'a, 'b: 'a> DebugTuple<'a, 'b> {
 
     /// Finishes output and returns any error encountered.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn finish(&mut self) -> fmt::Result {
+    pub fn finish(mut self: &mut Self) -> fmt::Result {
         if self.fields > 0 {
             self.result = self.result.and_then(|_| {
                 if self.is_pretty() {
@@ -191,7 +191,7 @@ struct DebugInner<'a, 'b: 'a> {
 }
 
 impl<'a, 'b: 'a> DebugInner<'a, 'b> {
-    fn entry(&mut self, entry: &fmt::Debug) {
+    fn entry(mut self: &mut Self, entry: &fmt::Debug) {
         self.result = self.result.and_then(|_| {
             if self.is_pretty() {
                 let mut writer = PadAdapter::new(self.fmt);
@@ -214,7 +214,7 @@ impl<'a, 'b: 'a> DebugInner<'a, 'b> {
         self.has_fields = true;
     }
 
-    pub fn finish(&mut self) {
+    pub fn finish(mut self: &mut Self) {
         let prefix = if self.is_pretty() && self.has_fields {
             "\n"
         } else {
@@ -271,7 +271,7 @@ impl<'a, 'b: 'a> DebugSet<'a, 'b> {
 
     /// Finishes output and returns any error encountered.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn finish(&mut self) -> fmt::Result {
+    pub fn finish(mut self: &mut Self) -> fmt::Result {
         self.inner.finish();
         self.inner.result.and_then(|_| self.inner.fmt.write_str("}"))
     }
@@ -320,7 +320,7 @@ impl<'a, 'b: 'a> DebugList<'a, 'b> {
 
     /// Finishes output and returns any error encountered.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn finish(&mut self) -> fmt::Result {
+    pub fn finish(mut self: &mut Self) -> fmt::Result {
         self.inner.finish();
         self.inner.result.and_then(|_| self.inner.fmt.write_str("]"))
     }
@@ -350,7 +350,7 @@ pub fn debug_map_new<'a, 'b>(fmt: &'a mut fmt::Formatter<'b>) -> DebugMap<'a, 'b
 impl<'a, 'b: 'a> DebugMap<'a, 'b> {
     /// Adds a new entry to the map output.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn entry(&mut self, key: &fmt::Debug, value: &fmt::Debug) -> &mut DebugMap<'a, 'b> {
+    pub fn entry(mut self: &mut Self, key: &fmt::Debug, value: &fmt::Debug) -> &mut DebugMap<'a, 'b> {
         self.result = self.result.and_then(|_| {
             if self.is_pretty() {
                 let mut writer = PadAdapter::new(self.fmt);
@@ -390,7 +390,7 @@ impl<'a, 'b: 'a> DebugMap<'a, 'b> {
 
     /// Finishes output and returns any error encountered.
     #[stable(feature = "debug_builders", since = "1.2.0")]
-    pub fn finish(&mut self) -> fmt::Result {
+    pub fn finish(mut self: &mut Self) -> fmt::Result {
         let prefix = if self.is_pretty() && self.has_fields {
             "\n"
         } else {

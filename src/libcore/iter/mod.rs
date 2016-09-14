@@ -703,7 +703,7 @@ impl<A, B> ZipImpl<A, B> for Zip<A, B>
     }
 
     #[inline]
-    default fn next(&mut self) -> Option<(A::Item, B::Item)> {
+    default fn next(mut self: &mut Self) -> Option<(A::Item, B::Item)> {
         self.a.next().and_then(|x| {
             self.b.next().and_then(|y| {
                 Some((x, y))
@@ -1080,7 +1080,7 @@ impl<I> Iterator for Enumerate<I> where I: Iterator {
     /// Might panic if the index of the element overflows a `usize`.
     #[inline]
     #[rustc_inherit_overflow_checks]
-    fn next(&mut self) -> Option<(usize, <I as Iterator>::Item)> {
+    fn next(mut self: &mut Self) -> Option<(usize, <I as Iterator>::Item)> {
         self.iter.next().map(|a| {
             let ret = (self.count, a);
             // Possible undefined overflow.
@@ -1096,7 +1096,7 @@ impl<I> Iterator for Enumerate<I> where I: Iterator {
 
     #[inline]
     #[rustc_inherit_overflow_checks]
-    fn nth(&mut self, n: usize) -> Option<(usize, I::Item)> {
+    fn nth(mut self: &mut Self, n: usize) -> Option<(usize, I::Item)> {
         self.iter.nth(n).map(|a| {
             let i = self.count + n;
             self.count = i + 1;
@@ -1348,7 +1348,7 @@ impl<I: Iterator, P> Iterator for TakeWhile<I, P>
     type Item = I::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<I::Item> {
+    fn next(mut self: &mut Self) -> Option<I::Item> {
         if self.flag {
             None
         } else {
@@ -1566,7 +1566,7 @@ impl<B, I, St, F> Iterator for Scan<I, St, F> where
     type Item = B;
 
     #[inline]
-    fn next(&mut self) -> Option<B> {
+    fn next(mut self: &mut Self) -> Option<B> {
         self.iter.next().and_then(|a| (self.f)(&mut self.state, a))
     }
 

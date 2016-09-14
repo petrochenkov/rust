@@ -906,7 +906,7 @@ unsafe impl<'a, K: Send, V: Send> Send for Drain<'a, K, V> {}
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = (&'a K, &'a V);
 
-    fn next(&mut self) -> Option<(&'a K, &'a V)> {
+    fn next(mut self: &mut Self) -> Option<(&'a K, &'a V)> {
         self.iter.next().map(|bucket| {
             self.elems_left -= 1;
             unsafe { (&*bucket.key, &*bucket.val) }
@@ -926,7 +926,7 @@ impl<'a, K, V> ExactSizeIterator for Iter<'a, K, V> {
 impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     type Item = (&'a K, &'a mut V);
 
-    fn next(&mut self) -> Option<(&'a K, &'a mut V)> {
+    fn next(mut self: &mut Self) -> Option<(&'a K, &'a mut V)> {
         self.iter.next().map(|bucket| {
             self.elems_left -= 1;
             unsafe { (&*bucket.key, &mut *(bucket.val as *mut V)) }
@@ -946,7 +946,7 @@ impl<'a, K, V> ExactSizeIterator for IterMut<'a, K, V> {
 impl<K, V> Iterator for IntoIter<K, V> {
     type Item = (SafeHash, K, V);
 
-    fn next(&mut self) -> Option<(SafeHash, K, V)> {
+    fn next(mut self: &mut Self) -> Option<(SafeHash, K, V)> {
         self.iter.next().map(|bucket| {
             self.table.size -= 1;
             unsafe {

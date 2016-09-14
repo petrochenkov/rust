@@ -1154,7 +1154,7 @@ impl<'a, T, P> Iterator for Split<'a, T, P> where P: FnMut(&T) -> bool {
     type Item = &'a [T];
 
     #[inline]
-    fn next(&mut self) -> Option<&'a [T]> {
+    fn next(mut self: &mut Self) -> Option<&'a [T]> {
         if self.finished { return None; }
 
         match self.v.iter().position(|x| (self.pred)(x)) {
@@ -1180,7 +1180,7 @@ impl<'a, T, P> Iterator for Split<'a, T, P> where P: FnMut(&T) -> bool {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, T, P> DoubleEndedIterator for Split<'a, T, P> where P: FnMut(&T) -> bool {
     #[inline]
-    fn next_back(&mut self) -> Option<&'a [T]> {
+    fn next_back(mut self: &mut Self) -> Option<&'a [T]> {
         if self.finished { return None; }
 
         match self.v.iter().rposition(|x| (self.pred)(x)) {
@@ -1240,11 +1240,11 @@ impl<'a, T, P> Iterator for SplitMut<'a, T, P> where P: FnMut(&T) -> bool {
     type Item = &'a mut [T];
 
     #[inline]
-    fn next(&mut self) -> Option<&'a mut [T]> {
+    fn next(mut self: &mut Self) -> Option<&'a mut [T]> {
         if self.finished { return None; }
 
         let idx_opt = { // work around borrowck limitations
-            let pred = &mut self.pred;
+            let mut pred = &mut self.pred;
             self.v.iter().position(|x| (*pred)(x))
         };
         match idx_opt {
@@ -1275,11 +1275,11 @@ impl<'a, T, P> DoubleEndedIterator for SplitMut<'a, T, P> where
     P: FnMut(&T) -> bool,
 {
     #[inline]
-    fn next_back(&mut self) -> Option<&'a mut [T]> {
+    fn next_back(mut self: &mut Self) -> Option<&'a mut [T]> {
         if self.finished { return None; }
 
         let idx_opt = { // work around borrowck limitations
-            let pred = &mut self.pred;
+            let mut pred = &mut self.pred;
             self.v.iter().rposition(|x| (*pred)(x))
         };
         match idx_opt {
