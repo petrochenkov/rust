@@ -2181,9 +2181,41 @@ impl<'a> LoweringContext<'a> {
                 hir::ExprInlineAsm(P(hir_asm), outputs, inputs)
             }
             ExprKind::Struct(ref path, ref fields, ref maybe_expr) => {
-                hir::ExprStruct(self.lower_qpath(e.id, &None, path, ParamMode::Optional),
-                                fields.iter().map(|x| self.lower_field(x)).collect(),
-                                maybe_expr.as_ref().map(|x| P(self.lower_expr(x))))
+                match *maybe_expr {
+                    Some(ref base) => {
+                        // let _base = BASE;
+                        let base_span = base.span;
+                        let base = self.lower_expr(base);
+                        let base_name = self.str_to_ident("_base");
+                        let qpath = self.lower_qpath(e.id, &None, path, ParamMode::Optional);
+                        let (mut base_stmt, node_id) = self.stmt_let(base_span, true, base_name, P(base));
+                        if let hir::StmtDecl(ref mut decl, ..) = base_stmt.node {
+                             if let hir::DeclLocal(ref mut local) = decl.node {
+                                 let new_id = self.next_id().node_id;
+                                 local.ty = Some(self.ty_path(new_id, path.span, qpath));
+                             }
+                        }
+
+                        let mut stmts = Vec::new();
+                        stmts.push(base_stmt);
+                        for field in fields {
+                            // _base.field = FIELD_EXPR;
+                            let hir_field = self.lower_field(field);
+                            let base_expr = self.expr_ident(base_span, base_name, node_id);
+                            let lhs = self.expr(field.span, hir::ExprField(P(base_expr.clone()), hir_field.name), ThinVec::new());
+                            let rhs = hir_field.expr;
+                            let assign = self.expr(field.span, hir::ExprAssign(P(lhs), rhs), ThinVec::new());
+                            stmts.push(respan(field.span, hir::StmtSemi(P(assign), self.next_id().node_id)));
+                        }
+                        // { ...; _base }
+                        let base_expr = self.expr_ident(base_span, base_name, node_id);
+                        hir::ExprBlock(P(self.block_all(e.span, stmts.into(), Some(P(base_expr)))))
+                    }
+                    None => {
+                        hir::ExprStruct(self.lower_qpath(e.id, &None, path, ParamMode::Optional),
+                                        fields.iter().map(|x| self.lower_field(x)).collect(), None)
+                    }
+                }
             }
             ExprKind::Paren(ref ex) => {
                 let mut ex = self.lower_expr(ex);
