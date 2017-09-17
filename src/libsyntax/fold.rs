@@ -1282,11 +1282,13 @@ pub fn noop_fold_expr<T: Folder>(Expr {id, node, span, attrs}: Expr, folder: &mu
             ),
             ExprKind::Ret(e) => ExprKind::Ret(e.map(|x| folder.fold_expr(x))),
             ExprKind::InlineAsm(asm) => ExprKind::InlineAsm(asm.map(|asm| {
+                let InlineAsm { asm, asm_str_style, outputs, inputs, clobbers,
+                                volatile, alignstack, dialect, ctxt } = asm;
                 InlineAsm {
-                    inputs: asm.inputs.move_map(|(c, input)| {
+                    inputs: inputs.move_map(|(c, input)| {
                         (c, folder.fold_expr(input))
                     }),
-                    outputs: asm.outputs.move_map(|out| {
+                    outputs: outputs.move_map(|out| {
                         InlineAsmOutput {
                             constraint: out.constraint,
                             expr: folder.fold_expr(out.expr),
@@ -1294,7 +1296,7 @@ pub fn noop_fold_expr<T: Folder>(Expr {id, node, span, attrs}: Expr, folder: &mu
                             is_indirect: out.is_indirect,
                         }
                     }),
-                    ..asm
+                    asm, asm_str_style, clobbers, volatile, alignstack, dialect, ctxt
                 }
             })),
             ExprKind::Mac(mac) => ExprKind::Mac(folder.fold_mac(mac)),

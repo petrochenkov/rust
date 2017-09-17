@@ -1139,7 +1139,7 @@ impl<'a, K: fmt::Debug> fmt::Debug for Drain<'a, K> {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, T, S> Clone for Intersection<'a, T, S> {
     fn clone(&self) -> Intersection<'a, T, S> {
-        Intersection { iter: self.iter.clone(), ..*self }
+        Intersection { iter: self.iter.clone(), other: self.other }
     }
 }
 
@@ -1189,7 +1189,7 @@ impl<'a, T, S> FusedIterator for Intersection<'a, T, S>
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, T, S> Clone for Difference<'a, T, S> {
     fn clone(&self) -> Difference<'a, T, S> {
-        Difference { iter: self.iter.clone(), ..*self }
+        Difference { iter: self.iter.clone(), other: self.other }
     }
 }
 

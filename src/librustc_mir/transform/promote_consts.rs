@@ -270,7 +270,7 @@ impl<'a, 'tcx> Promoter<'a, 'tcx> {
                             cleanup: None,
                             destination: Some((Lvalue::Local(new_temp), new_target))
                         },
-                        ..terminator
+                        source_info: terminator.source_info,
                     };
                 }
                 ref kind => {

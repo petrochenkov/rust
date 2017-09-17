@@ -666,7 +666,9 @@ impl<'a, 'b:'a> ImportResolver<'a, 'b> {
                     used: Cell::new(false),
                     legacy_self_import: true,
                 },
-                ..*binding
+                expansion: binding.expansion,
+                span: binding.span,
+                vis: binding.vis,
             });
             let _ = this.try_define(directive.parent, ident, ns, binding);
         });
@@ -883,7 +885,10 @@ impl<'a, 'b:'a> ImportResolver<'a, 'b> {
                         _ => continue,
                     };
                     resolution.binding = Some(self.arenas.alloc_name_binding(NameBinding {
-                        kind: NameBindingKind::Ambiguity { b1: b1, b2: b2, legacy: true }, ..*b1
+                        kind: NameBindingKind::Ambiguity { b1: b1, b2: b2, legacy: true },
+                        expansion: b1.expansion,
+                        span: b1.span,
+                        vis: b1.vis,
                     }));
                 }
                 _ => {}

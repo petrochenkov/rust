@@ -358,7 +358,14 @@ impl<'a> CrateLoader<'a> {
                     rejected_via_version: vec![],
                     rejected_via_filename: vec![],
                     is_proc_macro: Some(true),
-                    ..locate_ctxt
+                    sess: locate_ctxt.sess,
+                    span: locate_ctxt.span,
+                    ident: locate_ctxt.ident,
+                    crate_name: locate_ctxt.crate_name,
+                    hash: locate_ctxt.hash,
+                    root: locate_ctxt.root,
+                    should_match_name: locate_ctxt.should_match_name,
+                    metadata_loader: locate_ctxt.metadata_loader,
                 };
 
                 self.load(&mut proc_macro_locator)

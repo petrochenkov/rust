@@ -466,7 +466,7 @@ impl<'b, 'tcx> ElaborateDropsCtxt<'b, 'tcx> {
             statements: vec![assign.clone()],
             terminator: Some(Terminator {
                 kind: TerminatorKind::Goto { target: unwind },
-                ..*terminator
+                source_info: terminator.source_info,
             }),
             is_cleanup: true
         });
@@ -475,7 +475,7 @@ impl<'b, 'tcx> ElaborateDropsCtxt<'b, 'tcx> {
             statements: vec![assign],
             terminator: Some(Terminator {
                 kind: TerminatorKind::Goto { target: target },
-                ..*terminator
+                source_info: terminator.source_info,
             }),
             is_cleanup: false,
         });

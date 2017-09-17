@@ -84,7 +84,12 @@ impl<'a, T: 'a + fmt::Debug> fmt::Debug for Iter<'a, T> {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, T> Clone for Iter<'a, T> {
     fn clone(&self) -> Self {
-        Iter { ..*self }
+        Iter {
+            head: self.head,
+            tail: self.tail,
+            len: self.len,
+            marker: self.marker,
+        }
     }
 }
 

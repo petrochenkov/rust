@@ -509,7 +509,7 @@ impl<'a, 'tcx> PatternContext<'a, 'tcx> {
             }
             _ => {
                 (orig_prefix, Some(Pattern {
-                    kind: box kind, ..orig_slice
+                    kind: box kind, ty: orig_slice.ty, span: orig_slice.span
                 }), orig_suffix)
             }
         }

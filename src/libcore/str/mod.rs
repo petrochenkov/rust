@@ -1010,7 +1010,13 @@ macro_rules! generate_pattern_iterators {
 
 derive_pattern_clone!{
     clone SplitInternal
-    with |s| SplitInternal { matcher: s.matcher.clone(), ..*s }
+    with |s| SplitInternal {
+        start: s.start,
+        end: s.end,
+        matcher: s.matcher.clone(),
+        allow_trailing_empty: s.allow_trailing_empty,
+        finished: s.finished,
+    }
 }
 
 struct SplitInternal<'a, P: Pattern<'a>> {
@@ -1129,7 +1135,7 @@ generate_pattern_iterators! {
 
 derive_pattern_clone!{
     clone SplitNInternal
-    with |s| SplitNInternal { iter: s.iter.clone(), ..*s }
+    with |s| SplitNInternal { iter: s.iter.clone(), count: s.count }
 }
 
 struct SplitNInternal<'a, P: Pattern<'a>> {
