@@ -798,6 +798,10 @@ pub fn walk_expr<'a, V: Visitor<'a>>(visitor: &mut V, expression: &'a Expr) {
         ExprKind::Catch(ref body) => {
             visitor.visit_block(body)
         }
+        ExprKind::Is(ref expr, ref pat) => {
+            visitor.visit_expr(expr);
+            visitor.visit_pat(pat);
+        }
     }
 
     visitor.visit_expr_post(expression)

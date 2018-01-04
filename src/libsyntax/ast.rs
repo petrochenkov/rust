@@ -1176,6 +1176,9 @@ pub enum ExprKind {
 
     /// A `yield`, with an optional value to be yielded
     Yield(Option<P<Expr>>),
+
+    /// Non-exhaustive pattern-matching expression `expr is pat`.
+    Is(P<Expr>, P<Pat>),
 }
 
 /// The explicit Self type in a "qualified path". The actual

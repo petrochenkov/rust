@@ -2945,6 +2945,10 @@ impl<'a> Parser<'a> {
                     }
                 };
                 continue
+            } else if op == AssocOp::Is {
+                let pat = self.parse_pat()?;
+                lhs = self.mk_expr(lhs_span.to(pat.span), ExprKind::Is(lhs, pat), ThinVec::new());
+                continue
             } else if op == AssocOp::DotDot || op == AssocOp::DotDotEq {
                 // If we didn’t have to handle `x..`/`x..=`, it would be pretty easy to
                 // generalise it to the Fixity::None code.
@@ -3027,7 +3031,8 @@ impl<'a> Parser<'a> {
                     let aopexpr = self.mk_assign_op(codemap::respan(cur_op_span, aop), lhs, rhs);
                     self.mk_expr(span, aopexpr, ThinVec::new())
                 }
-                AssocOp::As | AssocOp::Colon | AssocOp::DotDot | AssocOp::DotDotEq => {
+                AssocOp::As | AssocOp::Is | AssocOp::Colon |
+                AssocOp::DotDot | AssocOp::DotDotEq => {
                     self.bug("AssocOp should have been handled by special case")
                 }
             };

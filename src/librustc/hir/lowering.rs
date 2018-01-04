@@ -3292,6 +3292,8 @@ impl<'a> LoweringContext<'a> {
                                hir::MatchSource::TryDesugar)
             }
 
+            ExprKind::Is(..) => hir::ExprLit(P(respan(e.span, LitKind::Bool(false)))),
+
             ExprKind::Mac(_) => panic!("Shouldn't exist here"),
         };
 
