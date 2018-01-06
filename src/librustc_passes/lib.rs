@@ -19,6 +19,7 @@
        html_root_url = "https://doc.rust-lang.org/nightly/")]
 #![deny(warnings)]
 
+#![feature(match_default_bindings)]
 #![feature(rustc_diagnostic_macros)]
 
 #[macro_use]
@@ -39,6 +40,7 @@ mod diagnostics;
 
 pub mod ast_validation;
 pub mod consts;
+pub mod desugar_is;
 pub mod hir_stats;
 pub mod loops;
 mod mir_stats;

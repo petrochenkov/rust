@@ -1,26 +1,11 @@
-error[E0425]: cannot find value `x` in this scope
-  --> $DIR/is.rs:14:8
+error[E0282]: type annotations needed
+  --> $DIR/is.rs:13:23
    |
-14 |        x > 10 { //~ ERROR cannot find value `x` in this scope
-   |        ^ not found in this scope
+13 |     if my_opt is Some(x) && //~ ERROR type annotations needed
+   |                       ^
+   |                       |
+   |                       cannot infer type for `_`
+   |                       consider giving `x` a type
 
-error[E0425]: cannot find value `x` in this scope
-  --> $DIR/is.rs:15:26
-   |
-15 |         println!("{:?}", x); //~ ERROR cannot find value `x` in this scope
-   |                          ^ not found in this scope
-
-error[E0425]: cannot find value `x` in this scope
-  --> $DIR/is.rs:20:11
-   |
-20 |           x > 10 { //~ ERROR cannot find value `x` in this scope
-   |           ^ not found in this scope
-
-error[E0425]: cannot find value `x` in this scope
-  --> $DIR/is.rs:21:26
-   |
-21 |         println!("{:?}", x); //~ ERROR cannot find value `x` in this scope
-   |                          ^ not found in this scope
-
-error: aborting due to 4 previous errors
+error: aborting due to previous error
 

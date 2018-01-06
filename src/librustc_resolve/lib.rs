@@ -373,6 +373,7 @@ enum PatternSource {
     WhileLet,
     Let,
     For,
+    Is,
     FnParam,
 }
 
@@ -384,6 +385,7 @@ impl PatternSource {
             PatternSource::WhileLet => "while let binding",
             PatternSource::Let => "let binding",
             PatternSource::For => "for binding",
+            PatternSource::Is => "is binding",
             PatternSource::FnParam => "function parameter",
         }
     }
@@ -1493,6 +1495,20 @@ impl<'a> Resolver<'a> {
             PathResult::Failed(span, msg, _) => {
                 error_callback(self, span, ResolutionError::FailedToResolve(&msg));
             }
+        }
+    }
+
+    fn get_resolution(&mut self, id: NodeId) -> Option<PathResolution> {
+        self.def_map.get(&id).cloned()
+    }
+
+    fn definitions(&mut self) -> &mut Definitions {
+        &mut self.definitions
+    }
+
+    fn remap_binding_id(&mut self, old_id: NodeId, new_id: NodeId) {
+        for (_, resolution) in &mut self.def_map {
+            resolution.remap_binding_id(old_id, new_id);
         }
     }
 }
@@ -3549,6 +3565,10 @@ impl<'a> Resolver<'a> {
                 self.current_type_ascription.push(type_expr.span);
                 visit::walk_expr(self, expr);
                 self.current_type_ascription.pop();
+            }
+            ExprKind::Is(ref expr, ref pat) => {
+                self.visit_expr(expr);
+                self.resolve_pattern(pat, PatternSource::Is, &mut FxHashMap());
             }
             _ => {
                 visit::walk_expr(self, expr);

@@ -156,6 +156,10 @@ pub trait Resolver {
     /// it based on `is_value`.
     fn resolve_str_path(&mut self, span: Span, crate_root: Option<&str>,
                 components: &[&str], is_value: bool) -> hir::Path;
+
+    /// Node ids of bindings in `is` expressions can change during desugaring,
+    /// update definition map after these changes.
+    fn remap_binding_id(&mut self, old_id: NodeId, new_id: NodeId);
 }
 
 #[derive(Clone, Copy, Debug)]

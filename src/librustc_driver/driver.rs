@@ -37,6 +37,7 @@ use rustc_privacy;
 use rustc_plugin::registry::Registry;
 use rustc_plugin as plugin;
 use rustc_passes::{self, ast_validation, loops, consts, static_recursion, hir_stats};
+use rustc_passes::desugar_is;
 use rustc_const_eval::{self, check_match};
 use super::Compilation;
 
@@ -873,6 +874,10 @@ pub fn phase_2_configure_and_expand_inner<'a, F>(sess: &'a Session,
         resolver.resolve_crate(&krate);
         Ok(())
     })?;
+
+    krate = time(time_passes, "desugaring `is` expressions", || {
+        desugar_is::fold_crate(sess, &mut resolver, krate)
+    });
 
     if resolver.found_unresolved_macro {
         sess.parse_sess.span_diagnostic.abort_if_errors();

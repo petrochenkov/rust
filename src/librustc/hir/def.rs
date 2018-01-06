@@ -114,6 +114,14 @@ impl PathResolution {
             self.base_def.kind_name()
         }
     }
+
+    pub fn remap_binding_id(&mut self, old_id: ast::NodeId, new_id: ast::NodeId) {
+        self.base_def = match self.base_def {
+            Def::Local(id) if id == old_id => Def::Local(new_id),
+            Def::Upvar(id, index, expr_id) if id == old_id => Def::Upvar(new_id, index, expr_id),
+            _ => return,
+        };
+    }
 }
 
 /// Definition mapping

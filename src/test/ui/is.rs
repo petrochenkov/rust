@@ -10,20 +10,24 @@
 
 fn main() {
     let my_opt = Some(15);
-    if my_opt is Some(x) &&
-       x > 10 { //~ ERROR cannot find value `x` in this scope
-        println!("{:?}", x); //~ ERROR cannot find value `x` in this scope
+    if my_opt is Some(x) && //~ ERROR type annotations needed
+       x > 10 {
+        println!("{:?}", x);
     }
 
     let iter = my_opt.into_iter();
-    while iter.next() is Some(x) &&
-          x > 10 { //~ ERROR cannot find value `x` in this scope
-        println!("{:?}", x); //~ ERROR cannot find value `x` in this scope
-    }
-
-    let y = '6';
-    let is_digit = y is '0' ... '9' && y > '5';
-    if is_digit {
+    while iter.next() is Some(y) &&
+          y > 10 {
         println!("{:?}", y);
     }
+
+    let z = '6';
+    let is_digit = z is '0' ... '9' && z > '5';
+    if is_digit {
+        println!("{:?}", z);
+    }
+
+    let _ = x;
+    let _ = y;
+    let _ = z;
 }
