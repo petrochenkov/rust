@@ -8,17 +8,19 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![warn(unused)]
+
 fn main() {
     let my_opt = Some(15);
-    if my_opt is Some(x) && //~ ERROR type annotations needed
-       x > 10 {
-        println!("{:?}", x);
+    if my_opt is Some(x) &&
+       x > 10 { //~ ERROR use of possibly uninitialized variable: `x`
+        println!("{:?}", x); //~ ERROR use of possibly uninitialized variable: `x`
     }
 
-    let iter = my_opt.into_iter();
-    while iter.next() is Some(y) &&
-          y > 10 {
-        println!("{:?}", y);
+    let mut iter = my_opt.into_iter();
+    while iter.next() is Some(mut y) &&
+          y > 10 { //~ ERROR use of possibly uninitialized variable: `y`
+        println!("{:?}", y); //~ ERROR use of possibly uninitialized variable: `y`
     }
 
     let z = '6';
@@ -27,6 +29,10 @@ fn main() {
         println!("{:?}", z);
     }
 
+    let _ = my_opt is Some(a); //~ WARN variable `a` is assigned to, but never used
+                               //~^ WARN value assigned to `a` is never read
+
+    // Variables bound in `is` live until the end of the block in this configuration
     let _ = x;
     let _ = y;
     let _ = z;

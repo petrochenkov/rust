@@ -1502,13 +1502,20 @@ impl<'a> Resolver<'a> {
         self.def_map.get(&id).cloned()
     }
 
+    fn set_resolution(&mut self, id: NodeId, resolution: PathResolution) {
+        self.record_def(id, resolution)
+    }
+
     fn definitions(&mut self) -> &mut Definitions {
         &mut self.definitions
     }
 
     fn remap_binding_id(&mut self, old_id: NodeId, new_id: NodeId) {
-        for (_, resolution) in &mut self.def_map {
-            resolution.remap_binding_id(old_id, new_id);
+        for (&id, resolution) in &mut self.def_map {
+            // We need to remap uses of the old id, but not its definition.
+            if id != old_id {
+                resolution.remap_binding_id(old_id, new_id);
+            }
         }
     }
 }

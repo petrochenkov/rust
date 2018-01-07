@@ -148,6 +148,9 @@ pub trait Resolver {
     /// Obtain the resolution for a node id
     fn get_resolution(&mut self, id: NodeId) -> Option<PathResolution>;
 
+    /// Set resolution for a node id
+    fn set_resolution(&mut self, id: NodeId, resolution: PathResolution);
+
     /// We must keep the set of definitions up to date as we add nodes that weren't in the AST.
     /// This should only return `None` during testing.
     fn definitions(&mut self) -> &mut Definitions;

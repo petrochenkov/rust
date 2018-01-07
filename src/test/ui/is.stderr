@@ -1,11 +1,53 @@
-error[E0282]: type annotations needed
-  --> $DIR/is.rs:13:23
+warning: variable `a` is assigned to, but never used
+  --> $DIR/is.rs:32:28
    |
-13 |     if my_opt is Some(x) && //~ ERROR type annotations needed
-   |                       ^
-   |                       |
-   |                       cannot infer type for `_`
-   |                       consider giving `x` a type
+32 |     let _ = my_opt is Some(a); //~ WARN variable `a` is assigned to, but never used
+   |                            ^
+   |
+note: lint level defined here
+  --> $DIR/is.rs:11:9
+   |
+11 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unused_variables)] implied by #[warn(unused)]
+   = note: to avoid this warning, consider using `_a` instead
 
-error: aborting due to previous error
+warning: value assigned to `a` is never read
+  --> $DIR/is.rs:32:13
+   |
+32 |     let _ = my_opt is Some(a); //~ WARN variable `a` is assigned to, but never used
+   |             ^^^^^^^^^^^^^^^^^
+   |
+note: lint level defined here
+  --> $DIR/is.rs:11:9
+   |
+11 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unused_assignments)] implied by #[warn(unused)]
+
+error[E0381]: use of possibly uninitialized variable: `x`
+  --> $DIR/is.rs:16:8
+   |
+16 |        x > 10 { //~ ERROR use of possibly uninitialized variable: `x`
+   |        ^ use of possibly uninitialized `x`
+
+error[E0381]: use of possibly uninitialized variable: `x`
+  --> $DIR/is.rs:17:26
+   |
+17 |         println!("{:?}", x); //~ ERROR use of possibly uninitialized variable: `x`
+   |                          ^ use of possibly uninitialized `x`
+
+error[E0381]: use of possibly uninitialized variable: `y`
+  --> $DIR/is.rs:22:11
+   |
+22 |           y > 10 { //~ ERROR use of possibly uninitialized variable: `y`
+   |           ^ use of possibly uninitialized `y`
+
+error[E0381]: use of possibly uninitialized variable: `y`
+  --> $DIR/is.rs:23:26
+   |
+23 |         println!("{:?}", y); //~ ERROR use of possibly uninitialized variable: `y`
+   |                          ^ use of possibly uninitialized `y`
+
+error: aborting due to 4 previous errors
 
