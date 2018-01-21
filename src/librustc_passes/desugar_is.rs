@@ -13,7 +13,7 @@ use rustc::hir::lowering::Resolver;
 use rustc::session::Session;
 use rustc::util::nodemap::FxHashMap;
 use syntax::ast::*;
-use syntax::codemap::respan;
+use syntax::codemap::{respan, Spanned};
 use syntax::fold::{self, Folder};
 use syntax::visit::{self, Visitor};
 use syntax::ptr::P;
@@ -117,6 +117,18 @@ impl<'a> Folder for LargeDesugarIs<'a> {
         let orig_rename_bindings = replace(&mut self.rename_bindings, false);
         let expr = match expr.node {
             ExprKind::Paren(inner_expr) => self.fold_expr(inner_expr),
+            ExprKind::Binary(Spanned { node: BinOpKind::And, span }, lhs_expr, rhs_expr) => {
+                // (expr1 && expr2) && expr3 => expr1 && (expr2 && expr3), recursively
+                let lhs_expr = self.fold_expr(lhs_expr).into_inner();
+                let node = match lhs_expr.node {
+                    ExprKind::Binary(Spanned { node: BinOpKind::And, span: span2 }, lhs_expr2, rhs_expr2) => {
+                        let expr_and = Expr { node: ExprKind::Binary(respan(span, BinOpKind::And), rhs_expr2, rhs_expr), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
+                        ExprKind::Binary(respan(span2, BinOpKind::And), lhs_expr2, self.fold_expr(P(expr_and)))
+                    }
+                    _ => ExprKind::Binary(respan(span, BinOpKind::And), P(lhs_expr), self.fold_expr(rhs_expr))
+                };
+                P(Expr { node, span: expr.span, id: expr.id, attrs: expr.attrs })
+            }
             ExprKind::While(inner_expr, block, label) => {
                 // 'label: while cond {
                 //    stmts
