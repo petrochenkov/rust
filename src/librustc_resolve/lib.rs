@@ -3514,7 +3514,7 @@ impl<'a> Resolver<'a> {
                 optional_else.as_ref().map(|expr| self.visit_expr(expr));
             }
 
-            ExprKind::Loop(ref block, label) => self.resolve_labeled_block(label, expr.id, &block),
+            ExprKind::Loop(ref block, label, _) => self.resolve_labeled_block(label, expr.id, &block),
 
             ExprKind::While(ref subexpression, ref block, label) => {
                 self.with_resolved_label(label, expr.id, |this| {

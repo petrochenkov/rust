@@ -3348,7 +3348,7 @@ impl<'a> Parser<'a> {
         let (iattrs, body) = self.parse_inner_attrs_and_block()?;
         attrs.extend(iattrs);
         let span = span_lo.to(body.span);
-        Ok(self.mk_expr(span, ExprKind::Loop(body, opt_label), attrs))
+        Ok(self.mk_expr(span, ExprKind::Loop(body, opt_label, false), attrs))
     }
 
     /// Parse a `do catch {...}` expression (`do catch` token already eaten)

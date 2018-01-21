@@ -1105,7 +1105,8 @@ pub enum ExprKind {
     /// Conditionless loop (can be exited with break, continue, or return)
     ///
     /// `'label: loop { block }`
-    Loop(P<Block>, Option<Label>),
+    /// `bool` is true if the loop is transparent (can't be targeted by unlabeled continue/break)
+    Loop(P<Block>, Option<Label>, bool),
     /// A `match` block.
     Match(P<Expr>, Vec<Arm>),
     /// A closure (for example, `move |a, b, c| a + b + c`)

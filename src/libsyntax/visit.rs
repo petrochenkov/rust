@@ -723,7 +723,7 @@ pub fn walk_expr<'a, V: Visitor<'a>>(visitor: &mut V, expression: &'a Expr) {
             visitor.visit_expr(subexpression);
             visitor.visit_block(block);
         }
-        ExprKind::Loop(ref block, ref opt_label) => {
+        ExprKind::Loop(ref block, ref opt_label, _) => {
             walk_list!(visitor, visit_label, opt_label);
             visitor.visit_block(block);
         }

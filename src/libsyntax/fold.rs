@@ -1233,9 +1233,10 @@ pub fn noop_fold_expr<T: Folder>(Expr {id, node, span, attrs}: Expr, folder: &mu
                             folder.fold_block(body),
                             opt_label.map(|label| folder.fold_label(label)))
             }
-            ExprKind::Loop(body, opt_label) => {
+            ExprKind::Loop(body, opt_label, is_transparent) => {
                 ExprKind::Loop(folder.fold_block(body),
-                               opt_label.map(|label| folder.fold_label(label)))
+                               opt_label.map(|label| folder.fold_label(label)),
+                               is_transparent)
             }
             ExprKind::Match(expr, arms) => {
                 ExprKind::Match(folder.fold_expr(expr),

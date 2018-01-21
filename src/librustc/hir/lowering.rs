@@ -699,6 +699,11 @@ impl<'a> LoweringContext<'a> {
     }
 
     fn with_loop_scope<T, F>(&mut self, loop_id: NodeId, f: F) -> T
+        where F: FnOnce(&mut LoweringContext) -> T {
+        self.with_loop_scope_common(loop_id, false, f)
+    }
+
+    fn with_loop_scope_common<T, F>(&mut self, loop_id: NodeId, is_transparent: bool, f: F) -> T
         where F: FnOnce(&mut LoweringContext) -> T
     {
         // We're no longer in the base loop's condition; we're in another loop.
@@ -706,13 +711,17 @@ impl<'a> LoweringContext<'a> {
         self.is_in_loop_condition = false;
 
         let len = self.loop_scopes.len();
-        self.loop_scopes.push(loop_id);
+        if !is_transparent {
+            self.loop_scopes.push(loop_id);
+        }
 
         let result = f(self);
-        assert_eq!(len + 1, self.loop_scopes.len(),
+        assert_eq!(len + !is_transparent as usize, self.loop_scopes.len(),
             "Loop scopes should be added and removed in stack order");
 
-        self.loop_scopes.pop().unwrap();
+        if !is_transparent {
+            self.loop_scopes.pop().unwrap();
+        }
 
         self.is_in_loop_condition = was_in_loop_condition;
 
@@ -2765,8 +2774,8 @@ impl<'a> LoweringContext<'a> {
                         this.lower_block(body, false),
                         this.lower_label(opt_label)))
             }
-            ExprKind::Loop(ref body, opt_label) => {
-                self.with_loop_scope(e.id, |this|
+            ExprKind::Loop(ref body, opt_label, is_transparent) => {
+                self.with_loop_scope_common(e.id, is_transparent, |this|
                     hir::ExprLoop(this.lower_block(body, false),
                                   this.lower_label(opt_label),
                                   hir::LoopSource::Loop))

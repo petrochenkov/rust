@@ -901,7 +901,7 @@ impl<'a> AstBuilder for ExtCtxt<'a> {
     }
 
     fn expr_loop(&self, span: Span, block: P<ast::Block>) -> P<ast::Expr> {
-        self.expr(span, ast::ExprKind::Loop(block, None))
+        self.expr(span, ast::ExprKind::Loop(block, None, false))
     }
 
     fn lambda_fn_decl(&self,

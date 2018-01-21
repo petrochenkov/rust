@@ -752,7 +752,7 @@ impl<'a> fold::Folder for ReplaceBodyWithLoop<'a> {
 
             let empty_block = expr_to_block(BlockCheckMode::Default, false, None, self.sess);
             let loop_expr = P(ast::Expr {
-                node: ast::ExprKind::Loop(empty_block, None),
+                node: ast::ExprKind::Loop(empty_block, None, false),
                 id: self.sess.next_node_id(),
                 span: syntax_pos::DUMMY_SP,
                 attrs: ast::ThinVec::new(),
