@@ -1790,10 +1790,10 @@ impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
 
             debug!("warn_if_unreachable: id={:?} span={:?} kind={}", id, span, kind);
 
-            self.tcx().lint_node(
-                lint::builtin::UNREACHABLE_CODE,
-                id, span,
-                &format!("unreachable {}", kind));
+            // self.tcx().lint_node(
+            //     lint::builtin::UNREACHABLE_CODE,
+            //     id, span,
+            //     &format!("unreachable {}", kind));
         }
     }
 

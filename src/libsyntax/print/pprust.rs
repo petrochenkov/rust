@@ -1778,9 +1778,11 @@ impl<'a> State<'a> {
                         self.s.word(" else ")?;
                         self.print_block(b)
                     }
-                    // BLEAH, constraints would be great here
+                    // non-block "final else" from some desugaring
                     _ => {
-                        panic!("print_if saw if with weird alternative");
+                        self.s.word(" else { ")?;
+                        self.print_expr(_else)?;
+                        self.s.word(" }")
                     }
                 }
             }

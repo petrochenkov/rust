@@ -29,8 +29,8 @@ fn main() {
         println!("{:?}", z);
     }
 
-    let _ = my_opt is Some(a); //~ WARN variable `a` is assigned to, but never used
-                               //~^ WARN value assigned to `a` is never read
+    // let _ = my_opt is Some(a); // WARN variable `a` is assigned to, but never used
+                               // WARN value assigned to `a` is never read
 
     // Variables bound in `is` live until the end of the block in this configuration
     let _ = x;

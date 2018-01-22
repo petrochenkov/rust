@@ -992,7 +992,7 @@ impl Expr {
             ExprKind::Binary(op, ..) => ExprPrecedence::Binary(op.node),
             ExprKind::Unary(..) => ExprPrecedence::Unary,
             ExprKind::Lit(_) => ExprPrecedence::Lit,
-            ExprKind::Type(..) | ExprKind::Cast(..) => ExprPrecedence::Cast,
+            ExprKind::Type(..) | ExprKind::Cast(..) | ExprKind::Is(..) => ExprPrecedence::Cast,
             ExprKind::If(..) => ExprPrecedence::If,
             ExprKind::IfLet(..) => ExprPrecedence::IfLet,
             ExprKind::While(..) => ExprPrecedence::While,

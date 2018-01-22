@@ -956,16 +956,17 @@ fn signal_shadowing_problem(
     } else {
         // shadowing involving a label is only a warning, due to issues with
         // labels and lifetimes not being macro-hygienic.
-        tcx.sess.struct_span_warn(
-            shadower.span,
-            &format!(
-                "{} name `{}` shadows a \
-                 {} name that is already in scope",
-                shadower.kind.desc(),
-                name,
-                orig.kind.desc()
-            ),
-        )
+        // tcx.sess.struct_span_warn(
+        //     shadower.span,
+        //     &format!(
+        //         "{} name `{}` shadows a \
+        //          {} name that is already in scope",
+        //         shadower.kind.desc(),
+        //         name,
+        //         orig.kind.desc()
+        //     ),
+        // )
+        return
     };
     err.span_label(orig.span, "first declared here");
     err.span_label(shadower.span, format!("lifetime {} already in scope", name));

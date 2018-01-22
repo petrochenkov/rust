@@ -1433,6 +1433,19 @@ impl<'a> hir::lowering::Resolver for Resolver<'a> {
         self.def_map.get(&id).cloned()
     }
 
+    fn set_resolution(&mut self, id: NodeId, resolution: PathResolution) {
+        self.record_def(id, resolution)
+    }
+
+    fn remap_binding_id(&mut self, old_id: NodeId, new_id: NodeId) {
+        for (&id, resolution) in &mut self.def_map {
+            // We need to remap uses of the old id, but not its definition.
+            if id != old_id {
+                resolution.remap_binding_id(old_id, new_id);
+            }
+        }
+    }
+
     fn definitions(&mut self) -> &mut Definitions {
         &mut self.definitions
     }
@@ -1494,27 +1507,6 @@ impl<'a> Resolver<'a> {
             PathResult::Indeterminate => unreachable!(),
             PathResult::Failed(span, msg, _) => {
                 error_callback(self, span, ResolutionError::FailedToResolve(&msg));
-            }
-        }
-    }
-
-    fn get_resolution(&mut self, id: NodeId) -> Option<PathResolution> {
-        self.def_map.get(&id).cloned()
-    }
-
-    fn set_resolution(&mut self, id: NodeId, resolution: PathResolution) {
-        self.record_def(id, resolution)
-    }
-
-    fn definitions(&mut self) -> &mut Definitions {
-        &mut self.definitions
-    }
-
-    fn remap_binding_id(&mut self, old_id: NodeId, new_id: NodeId) {
-        for (&id, resolution) in &mut self.def_map {
-            // We need to remap uses of the old id, but not its definition.
-            if id != old_id {
-                resolution.remap_binding_id(old_id, new_id);
             }
         }
     }
