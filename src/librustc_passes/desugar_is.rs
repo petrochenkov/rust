@@ -47,6 +47,35 @@ struct MicroDesugarIs<'a, 'b: 'a> {
     small: &'a mut SmallDesugarIs<'b>,
 }
 
+struct CaninicalizeCondition<'a> {
+    session: &'a Session,
+}
+
+impl<'a> Folder for CaninicalizeCondition<'a> {
+    fn fold_expr(&mut self, expr: P<Expr>) -> P<Expr> {
+        let expr = expr.into_inner();
+        match expr.node {
+            ExprKind::Paren(inner_expr) => {
+                // (epxr) => expr
+                self.fold_expr(inner_expr)
+            }
+            ExprKind::Binary(Spanned { node: BinOpKind::And, span }, lhs_expr, rhs_expr) => {
+                // (expr1 && expr2) && expr3 => expr1 && (expr2 && expr3), recursively
+                let lhs_expr = self.fold_expr(lhs_expr).into_inner();
+                let node = match lhs_expr.node {
+                    ExprKind::Binary(Spanned { node: BinOpKind::And, span: span2 }, lhs_expr2, rhs_expr2) => {
+                        let expr_and = Expr { node: ExprKind::Binary(respan(span, BinOpKind::And), rhs_expr2, rhs_expr), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
+                        ExprKind::Binary(respan(span2, BinOpKind::And), lhs_expr2, self.fold_expr(P(expr_and)))
+                    }
+                    _ => ExprKind::Binary(respan(span, BinOpKind::And), P(lhs_expr), self.fold_expr(rhs_expr))
+                };
+                P(Expr { node, span: expr.span, id: expr.id, attrs: expr.attrs })
+            }
+            _ => P(expr),
+        }
+    }
+}
+
 fn add_underscores(mut ident: Ident) -> Ident {
     if ident.name != keywords::Invalid.name() {
         ident.name = Symbol::intern(&(String::from("__") + &ident.name.as_str()));
@@ -116,19 +145,6 @@ impl<'a> Folder for LargeDesugarIs<'a> {
         let expr = expr.into_inner();
         let orig_rename_bindings = replace(&mut self.rename_bindings, false);
         let expr = match expr.node {
-            ExprKind::Paren(inner_expr) => self.fold_expr(inner_expr),
-            ExprKind::Binary(Spanned { node: BinOpKind::And, span }, lhs_expr, rhs_expr) => {
-                // (expr1 && expr2) && expr3 => expr1 && (expr2 && expr3), recursively
-                let lhs_expr = self.fold_expr(lhs_expr).into_inner();
-                let node = match lhs_expr.node {
-                    ExprKind::Binary(Spanned { node: BinOpKind::And, span: span2 }, lhs_expr2, rhs_expr2) => {
-                        let expr_and = Expr { node: ExprKind::Binary(respan(span, BinOpKind::And), rhs_expr2, rhs_expr), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
-                        ExprKind::Binary(respan(span2, BinOpKind::And), lhs_expr2, self.fold_expr(P(expr_and)))
-                    }
-                    _ => ExprKind::Binary(respan(span, BinOpKind::And), P(lhs_expr), self.fold_expr(rhs_expr))
-                };
-                P(Expr { node, span: expr.span, id: expr.id, attrs: expr.attrs })
-            }
             ExprKind::While(inner_expr, block, label) => {
                 // 'label: while cond {
                 //    stmts
@@ -165,10 +181,7 @@ impl<'a> Folder for LargeDesugarIs<'a> {
                 //     }
                 //     break '__end stmts2
                 // }
-                let canon_cond = self.fold_expr(cond).into_inner();
-                let block = self.fold_block(block);
-                let opt_else = opt_else.map(|e| self.fold_expr(e));
-
+                let canon_cond = CaninicalizeCondition { session: self.session }.fold_expr(cond).into_inner();
                 let lit_true = ExprKind::Lit(P(respan(expr.span, LitKind::Bool(true))));
                 let expr_true = Expr { node: lit_true, span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
                 let pat_true = Pat { node: PatKind::Lit(P(expr_true)), span: expr.span, id: self.session.next_node_id() };
@@ -222,8 +235,8 @@ impl<'a> Folder for LargeDesugarIs<'a> {
                 let canon_lhs_pat = self.fold_pat(canon_lhs_pat);
                 self.rename_bindings = orig_rename_bindings;
 
-                let stmt_inner = Stmt { node: StmtKind::Expr(P(inner)), span: expr.span, id: self.session.next_node_id() };
-                let mut stmts = vec![stmt_inner];
+                let stmt_inner = Stmt { node: StmtKind::Expr(self.fold_expr(P(inner))), span: expr.span, id: self.session.next_node_id() };
+                let mut stmts = Vec::new();
                 for binding in bindings {
                     let path_lhs = Path::from_ident(expr.span, binding.ident.node);
                     let path_rhs = Path::from_ident(expr.span, add_underscores(binding.ident.node));
@@ -235,6 +248,7 @@ impl<'a> Folder for LargeDesugarIs<'a> {
                     let stmt_assign = Stmt { node: StmtKind::Semi(P(expr_assign)), span: expr.span, id: self.session.next_node_id() };
                     stmts.push(stmt_assign);
                 }
+                stmts.push(stmt_inner);
                 let block_inner = Block { stmts, rules: BlockCheckMode::Default, recovered: false, span: expr.span, id: self.session.next_node_id() };
                 let inner = Expr { node: ExprKind::Block(P(block_inner)), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
 
@@ -246,7 +260,7 @@ impl<'a> Folder for LargeDesugarIs<'a> {
                 let pat_wild = Pat { node: PatKind::Wild, span: expr.span, id: self.session.next_node_id() };
                 let arm_inner = Arm { pats: vec![canon_lhs_pat], guard: None, body: P(inner), attrs: Vec::new() };
                 let arm_break = Arm { pats: vec![P(pat_wild)], guard: None, body: P(break_else2), attrs: Vec::new() };
-                let inner_match = Expr { node: ExprKind::Match(canon_lhs_expr, vec![arm_inner, arm_break]), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
+                let inner_match = Expr { node: ExprKind::Match(self.fold_expr(canon_lhs_expr), vec![arm_inner, arm_break]), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
 
                 // break '__end match { ... }
                 let break_end1 = Expr { node: ExprKind::Break(end_label, Some(P(inner_match))), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
@@ -263,6 +277,7 @@ impl<'a> Folder for LargeDesugarIs<'a> {
                 let stmt_else_loop = Stmt { node: StmtKind::Semi(P(else_loop)), span: expr.span, id: self.session.next_node_id() };
 
                 // break '__end stmts2
+                let opt_else = opt_else.map(|e| self.fold_expr(e));
                 let break_end2 = Expr { node: ExprKind::Break(end_label, opt_else), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
                 let break_end2_id = break_end2.id;
                 let stmt_break_end = Stmt { node: StmtKind::Expr(P(break_end2)), span: expr.span, id: self.session.next_node_id() };
@@ -274,67 +289,20 @@ impl<'a> Folder for LargeDesugarIs<'a> {
                 self.resolver.set_resolution(break_end2_id, PathResolution::new(Def::Label(end_loop.id)));
                 P(end_loop)
             }
-            // ExprKind::Is(inner_expr, pat) => {
-            //     // EXPR is PAT(binding1, binding2, ...)
-            //     // =>
-            //     // match EXPR {
-            //     //     PAT(__binding1, __binding2, ...) => {
-            //     //         binding1 = __binding1;
-            //     //         binding2 = __binding2;
-            //     //         ...
-            //     //         true
-            //     //     }
-            //     //     _ => false
-            //     // }
-
-            //     let bindings = {
-            //         let mut small_desugar_is = SmallDesugarIs {
-            //             resolver: self.resolver,
-            //             bindings: Vec::new(),
-            //         };
-            //         MicroDesugarIs { small: &mut small_desugar_is }.visit_pat(&pat);
-            //         small_desugar_is.bindings
-            //     };
-
-            //     // binding1 = __binding1; binding2 = __binding2; ...
-            //     let mut stmts = Vec::new();
-            //     for binding in bindings {
-            //         let path_lhs = Path::from_ident(expr.span, binding.ident.node);
-            //         let path_rhs = Path::from_ident(expr.span, add_underscores(binding.ident.node));
-            //         let expr_lhs = Expr { node: ExprKind::Path(None, path_lhs), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
-            //         let expr_rhs = Expr { node: ExprKind::Path(None, path_rhs), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
-            //         self.resolver.set_resolution(expr_lhs.id, PathResolution::new(Def::Local(self.binding_id_remapping.get(&binding.node_id).cloned().expect("missing NodeId in binding_id_remapping"))));
-            //         self.resolver.set_resolution(expr_rhs.id, PathResolution::new(Def::Local(binding.node_id)));
-            //         let expr_assign = Expr { node: ExprKind::Assign(P(expr_lhs), P(expr_rhs)), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
-            //         let stmt_assign = Stmt { node: StmtKind::Semi(P(expr_assign)), span: expr.span, id: self.session.next_node_id() };
-            //         stmts.push(stmt_assign);
-            //     }
-
-            //     // true
-            //     let lit_true = ExprKind::Lit(P(respan(expr.span, LitKind::Bool(true))));
-            //     let expr_true = Expr { node: lit_true, span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
-            //     let stmt_true = Stmt { node: StmtKind::Expr(P(expr_true)), span: expr.span, id: self.session.next_node_id() };
-            //     stmts.push(stmt_true);
-
-            //     // { STMTS; true }
-            //     let orig_rename_bindings = replace(&mut self.rename_bindings, true);
-            //     let pat = self.fold_pat(pat);
-            //     self.rename_bindings = orig_rename_bindings;
-            //     let block = Block { stmts, rules: BlockCheckMode::Default, recovered: false, span: expr.span, id: self.session.next_node_id() };
-            //     let expr_block = Expr { node: ExprKind::Block(P(block)), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
-            //     let arm_true = Arm { pats: vec![pat], guard: None, body: P(expr_block), attrs: Vec::new() };
-
-            //     // _ => false
-            //     let lit_false = ExprKind::Lit(P(respan(expr.span, LitKind::Bool(false))));
-            //     let expr_false = Expr { node: lit_false, span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
-            //     let pat_wild = Pat { node: PatKind::Wild, span: expr.span, id: self.session.next_node_id() };
-            //     let arm_false = Arm { pats: vec![P(pat_wild)], guard: None, body: P(expr_false), attrs: Vec::new() };
-
-            //     // match
-            //     let node = ExprKind::Match(self.fold_expr(inner_expr), vec![arm_true, arm_false]);
-            //     let expr_match = Expr { node, span: expr.span, id: expr.id, attrs: expr.attrs };
-            //     P(expr_match)
-            // }
+            ExprKind::Binary(Spanned { node: BinOpKind::And, .. }, ..) |
+            ExprKind::Is(..) => {
+                // expr1 && expr2 or expr is pat not in if/while context
+                // expr1 && expr2 => if expr1 && expr2 { true } else { false }
+                // expr is pat => if expr is pat { true } else { false }
+                let lit_true = ExprKind::Lit(P(respan(expr.span, LitKind::Bool(true))));
+                let expr_true = Expr { node: lit_true, span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
+                let stmt_true = Stmt { node: StmtKind::Expr(P(expr_true)), span: expr.span, id: self.session.next_node_id() };
+                let block_true = Block { stmts: vec![stmt_true], rules: BlockCheckMode::Default, recovered: false, span: expr.span, id: self.session.next_node_id() };
+                let lit_false = ExprKind::Lit(P(respan(expr.span, LitKind::Bool(false))));
+                let expr_false = Expr { node: lit_false, span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
+                let expr_if = Expr { span: expr.span, node: ExprKind::If(P(expr), P(block_true), Some(P(expr_false))), id: self.session.next_node_id(), attrs: ThinVec::new() };
+                self.fold_expr(P(expr_if))
+            }
             _ => P(fold::noop_fold_expr(expr, self)),
         };
         self.rename_bindings = orig_rename_bindings;
@@ -360,10 +328,6 @@ impl<'a> Folder for LargeDesugarIs<'a> {
             }
             small_desugar_is.bindings
         };
-
-        // if !bindings.is_empty() {
-        //     self.session.span_warn(stmt.span, &format!("Collected bindings: {:?}", bindings));
-        // }
 
         let orig_binding_id_remapping = replace(&mut self.binding_id_remapping, FxHashMap());
         let let_stmts = bindings.iter().map(|binding| {

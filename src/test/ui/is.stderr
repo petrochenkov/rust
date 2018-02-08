@@ -1,26 +1,27 @@
-error[E0381]: use of possibly uninitialized variable: `x`
-  --> $DIR/is.rs:16:8
+warning: variable `a` is assigned to, but never used
+  --> $DIR/is.rs:34:28
    |
-16 |        x > 10 { //~ ERROR use of possibly uninitialized variable: `x`
-   |        ^ use of possibly uninitialized `x`
-
-error[E0381]: use of possibly uninitialized variable: `x`
-  --> $DIR/is.rs:17:26
+34 |     let _ = my_opt is Some(a); //~ WARN variable `a` is assigned to, but never used
+   |                            ^
    |
-17 |         println!("{:?}", x); //~ ERROR use of possibly uninitialized variable: `x`
-   |                          ^ use of possibly uninitialized `x`
-
-error[E0381]: use of possibly uninitialized variable: `y`
-  --> $DIR/is.rs:22:11
+note: lint level defined here
+  --> $DIR/is.rs:13:9
    |
-22 |           y > 10 { //~ ERROR use of possibly uninitialized variable: `y`
-   |           ^ use of possibly uninitialized `y`
+13 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unused_variables)] implied by #[warn(unused)]
+   = note: consider using `_a` instead
 
-error[E0381]: use of possibly uninitialized variable: `y`
-  --> $DIR/is.rs:23:26
+warning: value assigned to `a` is never read
+  --> $DIR/is.rs:34:13
    |
-23 |         println!("{:?}", y); //~ ERROR use of possibly uninitialized variable: `y`
-   |                          ^ use of possibly uninitialized `y`
-
-error: aborting due to 4 previous errors
+34 |     let _ = my_opt is Some(a); //~ WARN variable `a` is assigned to, but never used
+   |             ^^^^^^^^^^^^^^^^^
+   |
+note: lint level defined here
+  --> $DIR/is.rs:13:9
+   |
+13 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unused_assignments)] implied by #[warn(unused)]
 
