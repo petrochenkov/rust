@@ -31,24 +31,86 @@ struct Binding {
     node_id: NodeId,
 }
 
-struct LargeDesugarIs<'a> {
+fn add_underscores(mut ident: Ident) -> Ident {
+    if ident.name != keywords::Invalid.name() {
+        ident.name = Symbol::intern(&(String::from("__") + &ident.name.as_str()));
+    }
+    ident
+}
+
+struct DesugarIs<'a> {
     session: &'a Session,
     resolver: &'a mut Resolver,
     binding_id_remapping: FxHashMap<NodeId, NodeId>,
-    rename_bindings: bool,
 }
 
-struct SmallDesugarIs<'a> {
+struct CollectPatBindings<'a, 'b: 'a> {
+    parent: &'a mut CollectExprBindings<'b>,
+}
+
+struct CollectExprBindings<'a> {
     resolver: &'a mut Resolver,
     bindings: Vec<Binding>,
 }
 
-struct MicroDesugarIs<'a, 'b: 'a> {
-    small: &'a mut SmallDesugarIs<'b>,
-}
+struct RenamePatBindings;
 
 struct CaninicalizeCondition<'a> {
     session: &'a Session,
+}
+
+impl<'a, 'b, 'ast> Visitor<'ast> for CollectPatBindings<'a, 'b> {
+    fn visit_pat(&mut self, pat: &'ast Pat) {
+        match pat.node {
+            PatKind::Ident(bmode, ident, _) => {
+                match self.parent.resolver.get_resolution(pat.id).expect("no resolution for ident pattern").base_def() {
+                    Def::Local(node_id) => self.parent.bindings.push(Binding {
+                        bmode, ident, node_id, pat_span: pat.span
+                    }),
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+
+        visit::walk_pat(self, pat);
+    }
+
+    // Do not recurse too far
+    fn visit_ty(&mut self, _ty: &'ast Ty) {}
+    fn visit_expr(&mut self, _expr: &'ast Expr) {}
+}
+
+impl<'a, 'ast> Visitor<'ast> for CollectExprBindings<'a> {
+    // Do not recurse into blocks (including `match`) and
+    // "bodies" (including closures and array lengths)
+    fn visit_block(&mut self, _block: &'ast Block) {}
+    fn visit_arm(&mut self, _arm: &'ast Arm) {}
+    fn visit_ty(&mut self, _ty: &'ast Ty) {}
+    fn visit_expr(&mut self, expr: &'ast Expr) {
+        match &expr.node {
+            ExprKind::Closure(..) => {}
+            ExprKind::Repeat(expr, _) => self.visit_expr(expr),
+            ExprKind::Is(expr, pat) => {
+                self.visit_expr(expr);
+                CollectPatBindings { parent: self }.visit_pat(pat);
+            }
+            _ => visit::walk_expr(self, expr),
+        }
+    }
+}
+
+impl Folder for RenamePatBindings {
+    fn fold_pat(&mut self, mut pat: P<Pat>) -> P<Pat> {
+        if let PatKind::Ident(_, ident, _) = &mut pat.node {
+            ident.node = add_underscores(ident.node);
+        }
+        fold::noop_fold_pat(pat, self)
+    }
+
+    // Do not recurse too far
+    fn fold_ty(&mut self, ty: P<Ty>) -> P<Ty> { ty }
+    fn fold_expr(&mut self, expr: P<Expr>) -> P<Expr> { expr }
 }
 
 impl<'a> Folder for CaninicalizeCondition<'a> {
@@ -76,75 +138,10 @@ impl<'a> Folder for CaninicalizeCondition<'a> {
     }
 }
 
-fn add_underscores(mut ident: Ident) -> Ident {
-    if ident.name != keywords::Invalid.name() {
-        ident.name = Symbol::intern(&(String::from("__") + &ident.name.as_str()));
-    }
-    ident
-}
-
-impl<'a, 'b, 'ast> Visitor<'ast> for MicroDesugarIs<'a, 'b> {
-    fn visit_pat(&mut self, pat: &'ast Pat) {
-        match pat.node {
-            PatKind::Ident(bmode, ident, _) => {
-                match self.small.resolver.get_resolution(pat.id).expect("ubulala").base_def() {
-                    Def::Local(node_id) => self.small.bindings.push(Binding {
-                        bmode, ident, node_id, pat_span: pat.span
-                    }),
-                    _ => {}
-                }
-            }
-            _ => {}
-        }
-
-        visit::walk_pat(self, pat);
-    }
-
-    // Do not recurse too far
-    fn visit_ty(&mut self, _ty: &'ast Ty) {}
-    fn visit_expr(&mut self, _expr: &'ast Expr) {}
-}
-
-impl<'a, 'ast> Visitor<'ast> for SmallDesugarIs<'a> {
-    // Do not recurse into blocks (including `match`) and
-    // "bodies" (including closures and array lengths)
-    fn visit_block(&mut self, _block: &'ast Block) {}
-    fn visit_arm(&mut self, _arm: &'ast Arm) {}
-    fn visit_ty(&mut self, _ty: &'ast Ty) {}
-    fn visit_expr(&mut self, expr: &'ast Expr) {
-        match &expr.node {
-            ExprKind::Closure(..) => {}
-            ExprKind::Repeat(expr, _) => self.visit_expr(expr),
-            ExprKind::Is(expr, pat) => {
-                self.visit_expr(expr);
-                MicroDesugarIs { small: self }.visit_pat(pat);
-            }
-            _ => visit::walk_expr(self, expr),
-        }
-    }
-}
-
-impl<'a> Folder for LargeDesugarIs<'a> {
-    fn fold_pat(&mut self, mut pat: P<Pat>) -> P<Pat> {
-        if self.rename_bindings {
-            if let PatKind::Ident(_, ident, _) = &mut pat.node {
-                ident.node = add_underscores(ident.node);
-            }
-        }
-        fold::noop_fold_pat(pat, self)
-    }
-
-    fn fold_ty(&mut self, ty: P<Ty>) -> P<Ty> {
-        let orig_rename_bindings = replace(&mut self.rename_bindings, true);
-        let ty = fold::noop_fold_ty(ty, self);
-        self.rename_bindings = orig_rename_bindings;
-        ty
-    }
-
+impl<'a> Folder for DesugarIs<'a> {
     fn fold_expr(&mut self, expr: P<Expr>) -> P<Expr> {
         let expr = expr.into_inner();
-        let orig_rename_bindings = replace(&mut self.rename_bindings, false);
-        let expr = match expr.node {
+        match expr.node {
             ExprKind::While(inner_expr, block, label) => {
                 // 'label: while cond {
                 //    stmts
@@ -224,16 +221,14 @@ impl<'a> Folder for LargeDesugarIs<'a> {
 
                 // Binding renaming and assignments
                 let bindings = {
-                    let mut small_desugar_is = SmallDesugarIs {
+                    let mut collect_expr_bindings = CollectExprBindings {
                         resolver: self.resolver,
                         bindings: Vec::new(),
                     };
-                    MicroDesugarIs { small: &mut small_desugar_is }.visit_pat(&canon_lhs_pat);
-                    small_desugar_is.bindings
+                    CollectPatBindings { parent: &mut collect_expr_bindings }.visit_pat(&canon_lhs_pat);
+                    collect_expr_bindings.bindings
                 };
-                let orig_rename_bindings = replace(&mut self.rename_bindings, true);
-                let canon_lhs_pat = self.fold_pat(canon_lhs_pat);
-                self.rename_bindings = orig_rename_bindings;
+                let canon_lhs_pat = RenamePatBindings.fold_pat(canon_lhs_pat);
 
                 let stmt_inner = Stmt { node: StmtKind::Expr(self.fold_expr(P(inner))), span: expr.span, id: self.session.next_node_id() };
                 let mut stmts = Vec::new();
@@ -258,7 +253,7 @@ impl<'a> Folder for LargeDesugarIs<'a> {
 
                 // match expr1 { pat1(bindings1) => ..., _ => ... }
                 let pat_wild = Pat { node: PatKind::Wild, span: expr.span, id: self.session.next_node_id() };
-                let arm_inner = Arm { pats: vec![canon_lhs_pat], guard: None, body: P(inner), attrs: Vec::new() };
+                let arm_inner = Arm { pats: vec![self.fold_pat(canon_lhs_pat)], guard: None, body: P(inner), attrs: Vec::new() };
                 let arm_break = Arm { pats: vec![P(pat_wild)], guard: None, body: P(break_else2), attrs: Vec::new() };
                 let inner_match = Expr { node: ExprKind::Match(self.fold_expr(canon_lhs_expr), vec![arm_inner, arm_break]), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
 
@@ -304,29 +299,27 @@ impl<'a> Folder for LargeDesugarIs<'a> {
                 self.fold_expr(P(expr_if))
             }
             _ => P(fold::noop_fold_expr(expr, self)),
-        };
-        self.rename_bindings = orig_rename_bindings;
-        expr
+        }
     }
 
     fn fold_stmt(&mut self, stmt: Stmt) -> SmallVector<Stmt> {
         let bindings = {
-            let mut small_desugar_is = SmallDesugarIs {
+            let mut collect_expr_bindings = CollectExprBindings {
                 resolver: self.resolver,
                 bindings: Vec::new(),
             };
             match &stmt.node {
                 StmtKind::Local(local) => {
                     if let Some(expr) = &local.init {
-                        small_desugar_is.visit_expr(expr);
+                        collect_expr_bindings.visit_expr(expr);
                     }
                 }
                 StmtKind::Expr(expr) | StmtKind::Semi(expr) => {
-                    small_desugar_is.visit_expr(expr);
+                    collect_expr_bindings.visit_expr(expr);
                 }
                 _ => {}
             }
-            small_desugar_is.bindings
+            collect_expr_bindings.bindings
         };
 
         let orig_binding_id_remapping = replace(&mut self.binding_id_remapping, FxHashMap());
@@ -363,6 +356,6 @@ impl<'a> Folder for LargeDesugarIs<'a> {
 }
 
 pub fn fold_crate(session: &Session, resolver: &mut Resolver, krate: Crate) -> Crate {
-    let large_desugar_is = &mut LargeDesugarIs { session, resolver, binding_id_remapping: FxHashMap(), rename_bindings: false };
+    let large_desugar_is = &mut DesugarIs { session, resolver, binding_id_remapping: FxHashMap() };
     large_desugar_is.fold_crate(krate)
 }
