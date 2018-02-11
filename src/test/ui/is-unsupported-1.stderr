@@ -1,0 +1,8 @@
+error[E0302]: cannot assign in a pattern guard
+  --> $DIR/is-unsupported-1.rs:14:16
+   |
+14 |         0u8 if my_opt is Some(x) => { //~ ERROR cannot assign in a pattern guard
+   |                ^^^^^^^^^^^^^^^^^ assignment in pattern guard
+
+error: aborting due to previous error
+

@@ -10,20 +10,24 @@
 
 use rustc::hir::def::{Def, PathResolution};
 use rustc::hir::lowering::Resolver;
+use rustc::hir::map::definitions::DefPathData;
+use rustc::hir::map::REGULAR_SPACE;
 use rustc::session::Session;
 use rustc::util::nodemap::FxHashMap;
 use syntax::ast::*;
+use syntax::attr;
 use syntax::codemap::{respan, Spanned};
 use syntax::fold::{self, Folder};
 use syntax::visit::{self, Visitor};
 use syntax::ptr::P;
 use syntax::symbol::{keywords, Symbol};
+use syntax::util::move_map::MoveMap;
 use syntax::util::small_vector::SmallVector;
+use syntax_pos::hygiene::Mark;
 use syntax_pos::Span;
 
 use std::mem::replace;
 
-#[derive(Debug)]
 struct Binding {
     bmode: BindingMode,
     ident: SpannedIdent,
@@ -31,17 +35,18 @@ struct Binding {
     node_id: NodeId,
 }
 
-fn add_underscores(mut ident: Ident) -> Ident {
-    if ident.name != keywords::Invalid.name() {
-        ident.name = Symbol::intern(&(String::from("__") + &ident.name.as_str()));
-    }
-    ident
+#[derive(PartialEq)]
+enum IsBindingsScope {
+    Block,
+    Stmt,
 }
 
 struct DesugarIs<'a> {
     session: &'a Session,
     resolver: &'a mut Resolver,
+    is_bindings_scope: IsBindingsScope,
     binding_id_remapping: FxHashMap<NodeId, NodeId>,
+    is_top_level_expr: bool,
 }
 
 struct CollectPatBindings<'a, 'b: 'a> {
@@ -57,6 +62,13 @@ struct RenamePatBindings;
 
 struct CaninicalizeCondition<'a> {
     session: &'a Session,
+}
+
+fn add_underscores(mut ident: Ident) -> Ident {
+    if ident.name != keywords::Invalid.name() {
+        ident.name = Symbol::intern(&(String::from("__") + &ident.name.as_str()));
+    }
+    ident
 }
 
 impl<'a, 'b, 'ast> Visitor<'ast> for CollectPatBindings<'a, 'b> {
@@ -84,16 +96,20 @@ impl<'a, 'b, 'ast> Visitor<'ast> for CollectPatBindings<'a, 'b> {
 impl<'a, 'ast> Visitor<'ast> for CollectExprBindings<'a> {
     // Do not recurse into blocks (including `match`) and
     // "bodies" (including closures and array lengths)
-    fn visit_block(&mut self, _block: &'ast Block) {}
-    fn visit_arm(&mut self, _arm: &'ast Arm) {}
+    fn visit_stmt(&mut self, _stmt: &'ast Stmt) {}
     fn visit_ty(&mut self, _ty: &'ast Ty) {}
+    fn visit_arm(&mut self, arm: &'ast Arm) {
+        // HACK: Pull bindings from if guards out of the match,
+        // they don't work anyway, but can do less harm this way.
+        walk_list!(self, visit_expr, &arm.guard);
+    }
     fn visit_expr(&mut self, expr: &'ast Expr) {
         match &expr.node {
             ExprKind::Closure(..) => {}
             ExprKind::Repeat(expr, _) => self.visit_expr(expr),
-            ExprKind::Is(expr, pat) => {
-                self.visit_expr(expr);
+            ExprKind::Is(_, pat) => {
                 CollectPatBindings { parent: self }.visit_pat(pat);
+                visit::walk_expr(self, expr)
             }
             _ => visit::walk_expr(self, expr),
         }
@@ -138,10 +154,97 @@ impl<'a> Folder for CaninicalizeCondition<'a> {
     }
 }
 
+impl<'a> DesugarIs<'a> {
+    fn blockify(&mut self, expr: P<Expr>) -> P<Expr> {
+        let span = expr.span;
+        let id = expr.id;
+        let stmt = Stmt { span, node: StmtKind::Expr(expr), id: self.session.next_node_id() };
+        let block = Block { stmts: vec![stmt], rules: BlockCheckMode::Default, recovered: false, span, id: self.session.next_node_id() };
+        let block_expr = Expr { node: ExprKind::Block(P(block)), span, id: self.session.next_node_id(), attrs: ThinVec::new() };
+        if let Some(def_index) = self.resolver.definitions().opt_def_index(id) {
+            if let Some(parent) = self.resolver.definitions().def_key(def_index).parent {
+                self.resolver.definitions().create_def_with_parent(
+                    parent,
+                    block_expr.id,
+                    DefPathData::Initializer,
+                    REGULAR_SPACE,
+                    Mark::root()
+                );
+            }
+        }
+        P(block_expr)
+    }
+}
+
 impl<'a> Folder for DesugarIs<'a> {
+    // Sigh, expressions can now sneak into attributes, ignore them for now.
+    // (See libcore/sync/atomic.rs:955:15 `#[doc = $s_int_type]`)
+    fn fold_attribute(&mut self, attr: Attribute) -> Option<Attribute> {
+        Some(attr)
+    }
+    // Analogous to `CollectExprBindings`
+    fn fold_ty(&mut self, ty: P<Ty>) -> P<Ty> {
+        let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, true);
+        let ty = fold::noop_fold_ty(ty, self);
+        self.is_top_level_expr = orig_is_top_level_expr;
+        ty
+    }
+    fn fold_arm(&mut self, arm: Arm) -> Arm {
+        Arm {
+            attrs: fold::fold_attrs(arm.attrs, self),
+            pats: arm.pats.move_map(|x| self.fold_pat(x)),
+            guard: arm.guard.map(|x| self.fold_expr(x)),
+            body: {
+                let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, true);
+                let body = self.fold_expr(arm.body);
+                self.is_top_level_expr = orig_is_top_level_expr;
+                body
+            }
+        }
+    }
+
     fn fold_expr(&mut self, expr: P<Expr>) -> P<Expr> {
+        let expr = if self.is_top_level_expr { self.blockify(expr) } else { expr };
         let expr = expr.into_inner();
-        match expr.node {
+        let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, false);
+        let expr = match expr.node {
+            // Analogous to `CollectExprBindings`
+            ExprKind::Closure(capture_clause, movability, decl, body, span) => {
+                P(Expr {
+                    node: ExprKind::Closure(
+                        capture_clause,
+                        movability,
+                        self.fold_fn_decl(decl),
+                        {
+                            let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, true);
+                            let body = self.fold_expr(body);
+                            self.is_top_level_expr = orig_is_top_level_expr;
+                            body
+                        },
+                        self.new_span(span),
+                    ),
+                    id: self.new_id(expr.id),
+                    span: self.new_span(expr.span),
+                    attrs: fold::fold_attrs(expr.attrs.into(), self).into(),
+                })
+            }
+            ExprKind::Repeat(inner_expr, count) => {
+                P(Expr {
+                    node: ExprKind::Repeat(
+                        self.fold_expr(inner_expr),
+                        {
+                            let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, true);
+                            let count = self.fold_expr(count);
+                            self.is_top_level_expr = orig_is_top_level_expr;
+                            count
+                        },
+                    ),
+                    id: self.new_id(expr.id),
+                    span: self.new_span(expr.span),
+                    attrs: fold::fold_attrs(expr.attrs.into(), self).into(),
+                })
+            }
+
             ExprKind::While(inner_expr, block, label) => {
                 // 'label: while cond {
                 //    stmts
@@ -299,30 +402,37 @@ impl<'a> Folder for DesugarIs<'a> {
                 self.fold_expr(P(expr_if))
             }
             _ => P(fold::noop_fold_expr(expr, self)),
-        }
+        };
+        self.is_top_level_expr = orig_is_top_level_expr;
+        expr
     }
 
     fn fold_stmt(&mut self, stmt: Stmt) -> SmallVector<Stmt> {
+        let orig_is_top_level_expr = self.is_top_level_expr;
         let bindings = {
             let mut collect_expr_bindings = CollectExprBindings {
                 resolver: self.resolver,
                 bindings: Vec::new(),
             };
+            let _ = self.is_bindings_scope;
             match &stmt.node {
                 StmtKind::Local(local) => {
                     if let Some(expr) = &local.init {
                         collect_expr_bindings.visit_expr(expr);
                     }
+                    self.is_top_level_expr = false;
                 }
                 StmtKind::Expr(expr) | StmtKind::Semi(expr) => {
                     collect_expr_bindings.visit_expr(expr);
+                    self.is_top_level_expr = false;
                 }
-                _ => {}
+                _ => {
+                    self.is_top_level_expr = true;
+                }
             }
             collect_expr_bindings.bindings
         };
 
-        let orig_binding_id_remapping = replace(&mut self.binding_id_remapping, FxHashMap());
         let let_stmts = bindings.iter().map(|binding| {
             let pat = Pat {
                 id: self.session.next_node_id(),
@@ -330,6 +440,7 @@ impl<'a> Folder for DesugarIs<'a> {
                 span: binding.pat_span,
             };
             self.binding_id_remapping.insert(binding.node_id, pat.id);
+            self.resolver.remap_binding_id(binding.node_id, pat.id);
             let local = Local {
                 id: self.session.next_node_id(),
                 pat: P(pat),
@@ -345,17 +456,14 @@ impl<'a> Folder for DesugarIs<'a> {
             }
         }).collect::<Vec<_>>();
 
-        for (&old_id, &new_id) in &self.binding_id_remapping {
-            self.resolver.remap_binding_id(old_id, new_id);
-        }
-
         let stmt = fold::noop_fold_stmt(stmt, self);
-        self.binding_id_remapping = orig_binding_id_remapping;
+        self.is_top_level_expr = orig_is_top_level_expr;
         SmallVector::many(let_stmts.into_iter().chain(stmt.into_iter()))
     }
 }
 
 pub fn fold_crate(session: &Session, resolver: &mut Resolver, krate: Crate) -> Crate {
-    let large_desugar_is = &mut DesugarIs { session, resolver, binding_id_remapping: FxHashMap() };
-    large_desugar_is.fold_crate(krate)
+    let is_bindings_scope = if attr::contains_name(&krate.attrs, "rustc_is_bindings_scope_stmt") { IsBindingsScope::Stmt } else { IsBindingsScope::Block };
+    let mut desugar_is = DesugarIs { session, resolver, is_bindings_scope, is_top_level_expr: true, binding_id_remapping: FxHashMap() };
+    desugar_is.fold_crate(krate)
 }

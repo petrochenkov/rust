@@ -1,0 +1,8 @@
+error[E0019]: constant contains unimplemented expression type
+  --> $DIR/is-unsupported-2.rs:12:18
+   |
+12 | const C2: bool = C1 is Some(x); //~ ERROR constant contains unimplemented expression type
+   |                  ^^^^^^^^^^^^^
+
+error: aborting due to previous error
+
