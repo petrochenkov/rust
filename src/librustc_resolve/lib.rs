@@ -55,7 +55,7 @@ use syntax::attr;
 use syntax::ast::{Arm, BindingMode, Block, Crate, Expr, ExprKind};
 use syntax::ast::{FnDecl, ForeignItem, ForeignItemKind, GenericParam, Generics};
 use syntax::ast::{Item, ItemKind, ImplItem, ImplItemKind};
-use syntax::ast::{Label, Local, Mutability, Pat, PatKind, Path};
+use syntax::ast::{Label, Local, Mutability, Pat, PatKind, Path, Stmt, StmtKind};
 use syntax::ast::{QSelf, TraitItemKind, TraitRef, Ty, TyKind};
 use syntax::feature_gate::{feature_err, emit_feature_err, GateIssue};
 use syntax::parse::token;
@@ -93,6 +93,12 @@ enum AssocSuggestion {
     Field,
     MethodWithSelf,
     AssocItem,
+}
+
+#[derive(PartialEq)]
+enum IsBindingsScope {
+    Block,
+    Expr,
 }
 
 #[derive(Eq)]
@@ -672,6 +678,16 @@ impl<'a, 'tcx> Visitor<'tcx> for Resolver<'a> {
     }
     fn visit_block(&mut self, block: &'tcx Block) {
         self.resolve_block(block);
+    }
+    fn visit_stmt(&mut self, stmt: &'tcx Stmt) {
+        match stmt.node {
+            StmtKind::Expr(..) | StmtKind::Semi(..) if self.is_bindings_scope == IsBindingsScope::Expr => {
+                self.ribs[ValueNS].push(Rib::new(NormalRibKind));
+                visit::walk_stmt(self, stmt);
+                self.ribs[ValueNS].pop();
+            }
+            _ => visit::walk_stmt(self, stmt)
+        }
     }
     fn visit_expr(&mut self, expr: &'tcx Expr) {
         self.resolve_expr(expr, None);
@@ -1358,6 +1374,8 @@ pub struct Resolver<'a> {
     current_type_ascription: Vec<Span>,
 
     injected_crate: Option<Module<'a>>,
+
+    is_bindings_scope: IsBindingsScope,
 }
 
 pub struct ResolverArenas<'a> {
@@ -1629,6 +1647,7 @@ impl<'a> Resolver<'a> {
             unused_macros: FxHashSet(),
             current_type_ascription: Vec::new(),
             injected_crate: None,
+            is_bindings_scope: if attr::contains_name(&krate.attrs, "rustc_alternative_is_bindings_scope") { IsBindingsScope::Expr } else { IsBindingsScope::Block },
         }
     }
 
@@ -2313,7 +2332,13 @@ impl<'a> Resolver<'a> {
         walk_list!(self, visit_ty, &local.ty);
 
         // Resolve the initializer.
-        walk_list!(self, visit_expr, &local.init);
+        if self.is_bindings_scope == IsBindingsScope::Expr {
+            self.ribs[ValueNS].push(Rib::new(NormalRibKind));
+            walk_list!(self, visit_expr, &local.init);
+            self.ribs[ValueNS].pop();
+        } else {
+            walk_list!(self, visit_expr, &local.init);
+        }
 
         // Resolve the pattern.
         self.resolve_pattern(&local.pat, PatternSource::Let, &mut FxHashMap());

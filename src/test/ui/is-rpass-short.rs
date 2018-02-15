@@ -10,32 +10,36 @@
 
 // must-compile-successfully
 
+#![feature(rustc_attrs)]
+#![rustc_alternative_is_bindings_scope]
+
 #![warn(unused)]
 
 fn main() {
     let my_opt = Some(15);
     if my_opt is Some(x) &&
        x > 10 {
-        println!("{:?}", x);
+        assert_eq!(x, 15);
+    } else {
+        panic!();
     }
 
+    let mut count = 0;
     let mut iter = my_opt.into_iter();
     while iter.next() is Some(mut y) &&
           y > 10 {
-        println!("{:?}", y);
+        assert_eq!(y, 15);
     }
+    assert_eq!(count, 1);
 
-    let z = '6';
-    let is_digit = z is '0' ... '9' && z > '5';
+    let b = my_opt is Some(z);
+    assert_eq!(b, true);
+
+    let d = '6';
+    let is_digit = d is '0' ... '9' && d > '5';
     if is_digit {
-        println!("{:?}", z);
+        // OK
+    } else {
+        panic!();
     }
-
-    let _ = my_opt is Some(a); //~ WARN variable `a` is assigned to, but never used
-                               //~^ WARN value assigned to `a` is never read
-
-    // Variables bound in `is` live until the end of the block in this configuration
-    let _ = x;
-    let _ = y;
-    let _ = z;
 }

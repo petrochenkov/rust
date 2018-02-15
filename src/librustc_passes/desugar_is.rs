@@ -26,6 +26,7 @@ use syntax::util::small_vector::SmallVector;
 use syntax_pos::hygiene::Mark;
 use syntax_pos::Span;
 
+use std::iter;
 use std::mem::replace;
 
 struct Binding {
@@ -38,7 +39,7 @@ struct Binding {
 #[derive(PartialEq)]
 enum IsBindingsScope {
     Block,
-    Stmt,
+    Expr,
 }
 
 struct DesugarIs<'a> {
@@ -155,11 +156,12 @@ impl<'a> Folder for CaninicalizeCondition<'a> {
 }
 
 impl<'a> DesugarIs<'a> {
-    fn blockify(&mut self, expr: P<Expr>) -> P<Expr> {
+    fn blockify(&mut self, expr: P<Expr>, mut stmts: Vec<Stmt>) -> P<Expr> {
         let span = expr.span;
         let id = expr.id;
         let stmt = Stmt { span, node: StmtKind::Expr(expr), id: self.session.next_node_id() };
-        let block = Block { stmts: vec![stmt], rules: BlockCheckMode::Default, recovered: false, span, id: self.session.next_node_id() };
+        stmts.push(stmt);
+        let block = Block { stmts, rules: BlockCheckMode::Default, recovered: false, span, id: self.session.next_node_id() };
         let block_expr = Expr { node: ExprKind::Block(P(block)), span, id: self.session.next_node_id(), attrs: ThinVec::new() };
         if let Some(def_index) = self.resolver.definitions().opt_def_index(id) {
             if let Some(parent) = self.resolver.definitions().def_key(def_index).parent {
@@ -204,7 +206,7 @@ impl<'a> Folder for DesugarIs<'a> {
     }
 
     fn fold_expr(&mut self, expr: P<Expr>) -> P<Expr> {
-        let expr = if self.is_top_level_expr { self.blockify(expr) } else { expr };
+        let expr = if self.is_top_level_expr { self.blockify(expr, Vec::new()) } else { expr };
         let expr = expr.into_inner();
         let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, false);
         let expr = match expr.node {
@@ -408,27 +410,21 @@ impl<'a> Folder for DesugarIs<'a> {
     }
 
     fn fold_stmt(&mut self, stmt: Stmt) -> SmallVector<Stmt> {
-        let orig_is_top_level_expr = self.is_top_level_expr;
         let bindings = {
             let mut collect_expr_bindings = CollectExprBindings {
                 resolver: self.resolver,
                 bindings: Vec::new(),
             };
-            let _ = self.is_bindings_scope;
             match &stmt.node {
                 StmtKind::Local(local) => {
                     if let Some(expr) = &local.init {
                         collect_expr_bindings.visit_expr(expr);
                     }
-                    self.is_top_level_expr = false;
                 }
                 StmtKind::Expr(expr) | StmtKind::Semi(expr) => {
                     collect_expr_bindings.visit_expr(expr);
-                    self.is_top_level_expr = false;
                 }
-                _ => {
-                    self.is_top_level_expr = true;
-                }
+                _ => {}
             }
             collect_expr_bindings.bindings
         };
@@ -456,14 +452,34 @@ impl<'a> Folder for DesugarIs<'a> {
             }
         }).collect::<Vec<_>>();
 
+        let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, false);
         let stmt = fold::noop_fold_stmt(stmt, self);
         self.is_top_level_expr = orig_is_top_level_expr;
-        SmallVector::many(let_stmts.into_iter().chain(stmt.into_iter()))
+
+        let stmt = stmt.into_iter().next().expect("statement unwrapped into nothing");
+        let (stmt, let_stmts) = if self.is_bindings_scope == IsBindingsScope::Expr {
+            (Stmt {
+                node: match stmt.node {
+                    StmtKind::Local(local) => StmtKind::Local(local.map(|local| Local {
+                        init: local.init.map(|expr| self.blockify(expr, let_stmts)),
+                        ..local
+                    })),
+                    StmtKind::Expr(expr) => StmtKind::Expr(self.blockify(expr, let_stmts)),
+                    StmtKind::Semi(expr) => StmtKind::Semi(self.blockify(expr, let_stmts)),
+                    node => node,
+                },
+                ..stmt
+            }, Vec::new())
+        } else {
+            (stmt, let_stmts)
+        };
+
+        SmallVector::many(let_stmts.into_iter().chain(iter::once(stmt)))
     }
 }
 
 pub fn fold_crate(session: &Session, resolver: &mut Resolver, krate: Crate) -> Crate {
-    let is_bindings_scope = if attr::contains_name(&krate.attrs, "rustc_is_bindings_scope_stmt") { IsBindingsScope::Stmt } else { IsBindingsScope::Block };
+    let is_bindings_scope = if attr::contains_name(&krate.attrs, "rustc_alternative_is_bindings_scope") { IsBindingsScope::Expr } else { IsBindingsScope::Block };
     let mut desugar_is = DesugarIs { session, resolver, is_bindings_scope, is_top_level_expr: true, binding_id_remapping: FxHashMap() };
     desugar_is.fold_crate(krate)
 }

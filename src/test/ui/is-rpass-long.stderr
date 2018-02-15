@@ -1,0 +1,42 @@
+warning: variable `z` is assigned to, but never used
+  --> $DIR/is-rpass-long.rs:32:28
+   |
+32 |     let b = my_opt is Some(z);
+   |                            ^
+   |
+note: lint level defined here
+  --> $DIR/is-rpass-long.rs:13:9
+   |
+13 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unused_variables)] implied by #[warn(unused)]
+   = note: consider using `_z` instead
+
+warning: value assigned to `z` is never read
+  --> $DIR/is-rpass-long.rs:32:13
+   |
+32 |     let b = my_opt is Some(z);
+   |             ^^^^^^^^^^^^^^^^^
+   |
+note: lint level defined here
+  --> $DIR/is-rpass-long.rs:13:9
+   |
+13 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unused_assignments)] implied by #[warn(unused)]
+
+warning: variable does not need to be mutable
+  --> $DIR/is-rpass-long.rs:24:9
+   |
+24 |     let mut count = 0;
+   |         ----^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+note: lint level defined here
+  --> $DIR/is-rpass-long.rs:13:9
+   |
+13 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unused_mut)] implied by #[warn(unused)]
+
