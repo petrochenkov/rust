@@ -57,6 +57,7 @@ struct CollectPatBindings<'a, 'b: 'a> {
 struct CollectExprBindings<'a> {
     resolver: &'a mut Resolver,
     bindings: Vec<Binding>,
+    has_is: bool,
 }
 
 struct RenamePatBindings;
@@ -109,6 +110,7 @@ impl<'a, 'ast> Visitor<'ast> for CollectExprBindings<'a> {
             ExprKind::Closure(..) => {}
             ExprKind::Repeat(expr, _) => self.visit_expr(expr),
             ExprKind::Is(_, pat) => {
+                self.has_is = true;
                 CollectPatBindings { parent: self }.visit_pat(pat);
                 visit::walk_expr(self, expr)
             }
@@ -156,6 +158,16 @@ impl<'a> Folder for CaninicalizeCondition<'a> {
 }
 
 impl<'a> DesugarIs<'a> {
+    fn has_is(&mut self, expr: &Expr) -> bool {
+        let mut collect_expr_bindings = CollectExprBindings {
+            resolver: self.resolver,
+            bindings: Vec::new(),
+            has_is: false
+        };
+        collect_expr_bindings.visit_expr(&expr);
+        collect_expr_bindings.has_is
+    }
+
     fn blockify(&mut self, expr: P<Expr>, mut stmts: Vec<Stmt>) -> P<Expr> {
         let span = expr.span;
         let id = expr.id;
@@ -206,7 +218,8 @@ impl<'a> Folder for DesugarIs<'a> {
     }
 
     fn fold_expr(&mut self, expr: P<Expr>) -> P<Expr> {
-        let expr = if self.is_top_level_expr { self.blockify(expr, Vec::new()) } else { expr };
+        let has_is = self.has_is(&expr);
+        let expr = if self.is_top_level_expr && has_is { self.blockify(expr, Vec::new()) } else { expr };
         let expr = expr.into_inner();
         let orig_is_top_level_expr = replace(&mut self.is_top_level_expr, false);
         let expr = match expr.node {
@@ -247,6 +260,7 @@ impl<'a> Folder for DesugarIs<'a> {
                 })
             }
 
+            _ if !has_is => P(fold::noop_fold_expr(expr, self)),
             ExprKind::While(inner_expr, block, label) => {
                 // 'label: while cond {
                 //    stmts
@@ -329,6 +343,7 @@ impl<'a> Folder for DesugarIs<'a> {
                     let mut collect_expr_bindings = CollectExprBindings {
                         resolver: self.resolver,
                         bindings: Vec::new(),
+                        has_is: false,
                     };
                     CollectPatBindings { parent: &mut collect_expr_bindings }.visit_pat(&canon_lhs_pat);
                     collect_expr_bindings.bindings
@@ -414,6 +429,7 @@ impl<'a> Folder for DesugarIs<'a> {
             let mut collect_expr_bindings = CollectExprBindings {
                 resolver: self.resolver,
                 bindings: Vec::new(),
+                has_is: false,
             };
             match &stmt.node {
                 StmtKind::Local(local) => {
@@ -457,7 +473,7 @@ impl<'a> Folder for DesugarIs<'a> {
         self.is_top_level_expr = orig_is_top_level_expr;
 
         let stmt = stmt.into_iter().next().expect("statement unwrapped into nothing");
-        let (stmt, let_stmts) = if self.is_bindings_scope == IsBindingsScope::Expr {
+        let (stmt, let_stmts) = if self.is_bindings_scope == IsBindingsScope::Expr && !let_stmts.is_empty() {
             (Stmt {
                 node: match stmt.node {
                     StmtKind::Local(local) => StmtKind::Local(local.map(|local| Local {
