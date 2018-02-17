@@ -28,6 +28,10 @@ fn main() {
     my_opt is Some(unused); //~ WARN variable `unused` is assigned to, but never used
                             //~^ WARN value assigned to `unused` is never read
 
+    if Ok(10) is Ok(u) | Err(u) { //~ WARN unreachable pattern
+        println!("{:?}", u);
+    }
+
     let d = '6';
     let is_digit = d is '0' ... '9' && d > '5';
     if is_digit {
@@ -38,4 +42,5 @@ fn main() {
     let _x = x; //~ ERROR use of possibly uninitialized variable: `x`
     let _y = y; //~ ERROR use of possibly uninitialized variable: `y`
     let _z = z; //~ ERROR use of possibly uninitialized variable: `z`
+    let _u = u; //~ ERROR use of possibly uninitialized variable: `u`
 }

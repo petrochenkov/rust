@@ -59,6 +59,7 @@ use syntax::ast::{Label, Local, Mutability, Pat, PatKind, Path, Stmt, StmtKind};
 use syntax::ast::{QSelf, TraitItemKind, TraitRef, Ty, TyKind};
 use syntax::feature_gate::{feature_err, emit_feature_err, GateIssue};
 use syntax::parse::token;
+use syntax::ptr::P;
 
 use syntax_pos::{Span, DUMMY_SP, MultiSpan};
 use errors::{DiagnosticBuilder, DiagnosticId};
@@ -1455,12 +1456,9 @@ impl<'a> hir::lowering::Resolver for Resolver<'a> {
         self.record_def(id, resolution)
     }
 
-    fn remap_binding_id(&mut self, old_id: NodeId, new_id: NodeId) {
-        for (&id, resolution) in &mut self.def_map {
-            // We need to remap uses of the old id, but not its definition.
-            if id != old_id {
-                resolution.remap_binding_id(old_id, new_id);
-            }
+    fn remap_binding_id(&mut self, id: NodeId, map: &FxHashMap<NodeId, NodeId>) {
+        if let Some(resolution) = self.def_map.get_mut(&id) {
+            resolution.remap_binding_id(map);
         }
     }
 
@@ -2369,17 +2367,17 @@ impl<'a> Resolver<'a> {
 
     // check that all of the arms in an or-pattern have exactly the
     // same set of bindings, with the same binding modes for each.
-    fn check_consistent_bindings(&mut self, arm: &Arm) {
-        if arm.pats.is_empty() {
+    fn check_consistent_bindings(&mut self, pats: &[P<Pat>]) {
+        if pats.is_empty() {
             return;
         }
 
         let mut missing_vars = FxHashMap();
         let mut inconsistent_vars = FxHashMap();
-        for (i, p) in arm.pats.iter().enumerate() {
+        for (i, p) in pats.iter().enumerate() {
             let map_i = self.binding_mode_map(&p);
 
-            for (j, q) in arm.pats.iter().enumerate() {
+            for (j, q) in pats.iter().enumerate() {
                 if i == j {
                     continue;
                 }
@@ -2446,7 +2444,7 @@ impl<'a> Resolver<'a> {
 
         // This has to happen *after* we determine which
         // pat_idents are variants
-        self.check_consistent_bindings(arm);
+        self.check_consistent_bindings(&arm.pats);
 
         walk_list!(self, visit_expr, &arm.guard);
         self.visit_expr(&arm.body);
@@ -2530,7 +2528,7 @@ impl<'a> Resolver<'a> {
                         &ident.node.name.as_str())
                 );
             }
-            Some(..) if pat_src == PatternSource::Match => {
+            Some(..) if pat_src == PatternSource::Match || pat_src == PatternSource::Is => {
                 // `Variant1(a) | Variant2(a)`, ok
                 // Reuse definition from the first `a`.
                 def = self.ribs[ValueNS].last_mut().unwrap().bindings[&ident.node];
@@ -3590,9 +3588,14 @@ impl<'a> Resolver<'a> {
                 visit::walk_expr(self, expr);
                 self.current_type_ascription.pop();
             }
-            ExprKind::Is(ref expr, ref pat) => {
+            ExprKind::Is(ref expr, ref pats) => {
                 self.visit_expr(expr);
-                self.resolve_pattern(pat, PatternSource::Is, &mut FxHashMap());
+                let mut bindings_list = FxHashMap();
+                for pat in pats {
+                    self.resolve_pattern(pat, PatternSource::Is, &mut bindings_list);
+                }
+                // This has to happen *after* we determine which pat_idents are variants
+                self.check_consistent_bindings(pats);
             }
             _ => {
                 visit::walk_expr(self, expr);

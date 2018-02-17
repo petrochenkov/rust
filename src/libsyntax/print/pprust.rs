@@ -2094,12 +2094,21 @@ impl<'a> State<'a> {
                 self.word_space("as")?;
                 self.print_type(ty)?;
             }
-            ast::ExprKind::Is(ref expr, ref pat) => {
+            ast::ExprKind::Is(ref expr, ref pats) => {
                 let prec = AssocOp::Is.precedence() as i8;
                 self.print_expr_maybe_paren(expr, prec)?;
                 self.s.space()?;
                 self.word_space("is")?;
-                self.print_pat(pat)?;
+                let mut first = true;
+                for p in pats {
+                    if first {
+                        first = false;
+                    } else {
+                        self.s.space()?;
+                        self.word_space("|")?;
+                    }
+                    self.print_pat(p)?;
+                }
             }
             ast::ExprKind::Type(ref expr, ref ty) => {
                 let prec = AssocOp::Colon.precedence() as i8;

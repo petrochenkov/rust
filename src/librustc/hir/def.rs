@@ -115,11 +115,19 @@ impl PathResolution {
         }
     }
 
-    pub fn remap_binding_id(&mut self, old_id: ast::NodeId, new_id: ast::NodeId) {
+    pub fn remap_binding_id(&mut self, map: &NodeMap<ast::NodeId>) {
         self.base_def = match self.base_def {
-            Def::Local(id) if id == old_id => Def::Local(new_id),
-            Def::Upvar(id, index, expr_id) if id == old_id => Def::Upvar(new_id, index, expr_id),
-            _ => return,
+            Def::Local(old_id) => if let Some(new_id) = map.get(&old_id).cloned() {
+                Def::Local(new_id)
+            } else {
+                return
+            }
+            Def::Upvar(old_id, index, expr_id) => if let Some(new_id) = map.get(&old_id).cloned() {
+                Def::Upvar(new_id, index, expr_id)
+            } else {
+                return
+            }
+            _ => return
         };
     }
 }

@@ -8,9 +8,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-// must-compile-successfully
-
-#![warn(unused)]
+#![feature(rustc_attrs)]
+#![rustc_alternative_is_bindings_scope]
 
 fn main() {
     let my_opt = Some(15);
@@ -26,11 +25,16 @@ fn main() {
     while iter.next() is Some(mut y) &&
           y > 10 {
         assert_eq!(y, 15);
+        count += 1;
     }
     assert_eq!(count, 1);
 
     let b = my_opt is Some(z);
     assert_eq!(b, true);
+
+    if Ok(10) is Ok(u) | Err(u) {
+        assert_eq!(u, 10);
+    }
 
     let d = '6';
     let is_digit = d is '0' ... '9' && d > '5';

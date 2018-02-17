@@ -2946,8 +2946,10 @@ impl<'a> Parser<'a> {
                 };
                 continue
             } else if op == AssocOp::Is {
-                let pat = self.parse_pat()?;
-                lhs = self.mk_expr(lhs_span.to(pat.span), ExprKind::Is(lhs, pat), ThinVec::new());
+                self.eat(&token::BinOp(token::Or));
+                let pats = self.parse_pats(false)?;
+                let span = lhs_span.to(self.prev_span);
+                lhs = self.mk_expr(span, ExprKind::Is(lhs, pats), ThinVec::new());
                 continue
             } else if op == AssocOp::DotDot || op == AssocOp::DotDotEq {
                 // If we didn’t have to handle `x..`/`x..=`, it would be pretty easy to
@@ -3401,7 +3403,7 @@ impl<'a> Parser<'a> {
         let attrs = self.parse_outer_attributes()?;
         // Allow a '|' before the pats (RFC 1925)
         self.eat(&token::BinOp(token::Or));
-        let pats = self.parse_pats()?;
+        let pats = self.parse_pats(true)?;
         let guard = if self.eat_keyword(keywords::If) {
             Some(self.parse_expr()?)
         } else {
@@ -3466,12 +3468,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse patterns, separated by '|' s
-    fn parse_pats(&mut self) -> PResult<'a, Vec<P<Pat>>> {
+    fn parse_pats(&mut self, logical_or_recovery: bool) -> PResult<'a, Vec<P<Pat>>> {
         let mut pats = Vec::new();
         loop {
             pats.push(self.parse_pat()?);
 
-            if self.token == token::OrOr {
+            if logical_or_recovery && self.token == token::OrOr {
                 let mut err = self.struct_span_err(self.span,
                                                    "unexpected token `||` after pattern");
                 err.span_suggestion(self.span,

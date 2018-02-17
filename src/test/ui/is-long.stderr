@@ -1,3 +1,18 @@
+warning: unreachable pattern
+  --> $DIR/is-long.rs:31:5
+   |
+31 | /     if Ok(10) is Ok(u) | Err(u) { //~ WARN unreachable pattern
+32 | |         println!("{:?}", u);
+33 | |     }
+   | |_____^
+   |
+note: lint level defined here
+  --> $DIR/is-long.rs:11:9
+   |
+11 | #![warn(unused)]
+   |         ^^^^^^
+   = note: #[warn(unreachable_patterns)] implied by #[warn(unused)]
+
 warning: variable `unused` is assigned to, but never used
   --> $DIR/is-long.rs:28:20
    |
@@ -26,22 +41,28 @@ note: lint level defined here
    = note: #[warn(unused_assignments)] implied by #[warn(unused)]
 
 error[E0381]: use of possibly uninitialized variable: `x`
-  --> $DIR/is-long.rs:38:9
+  --> $DIR/is-long.rs:42:9
    |
-38 |     let _x = x; //~ ERROR use of possibly uninitialized variable: `x`
+42 |     let _x = x; //~ ERROR use of possibly uninitialized variable: `x`
    |         ^^ use of possibly uninitialized `x`
 
 error[E0381]: use of possibly uninitialized variable: `y`
-  --> $DIR/is-long.rs:39:9
+  --> $DIR/is-long.rs:43:9
    |
-39 |     let _y = y; //~ ERROR use of possibly uninitialized variable: `y`
+43 |     let _y = y; //~ ERROR use of possibly uninitialized variable: `y`
    |         ^^ use of possibly uninitialized `y`
 
 error[E0381]: use of possibly uninitialized variable: `z`
-  --> $DIR/is-long.rs:40:9
+  --> $DIR/is-long.rs:44:9
    |
-40 |     let _z = z; //~ ERROR use of possibly uninitialized variable: `z`
+44 |     let _z = z; //~ ERROR use of possibly uninitialized variable: `z`
    |         ^^ use of possibly uninitialized `z`
 
-error: aborting due to 3 previous errors
+error[E0381]: use of possibly uninitialized variable: `u`
+  --> $DIR/is-long.rs:45:9
+   |
+45 |     let _u = u; //~ ERROR use of possibly uninitialized variable: `u`
+   |         ^^ use of possibly uninitialized `u`
+
+error: aborting due to 4 previous errors
 

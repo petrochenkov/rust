@@ -162,7 +162,7 @@ pub trait Resolver {
 
     /// Node ids of bindings in `is` expressions can change during desugaring,
     /// update definition map after these changes.
-    fn remap_binding_id(&mut self, old_id: NodeId, new_id: NodeId);
+    fn remap_binding_id(&mut self, id: NodeId, map: &NodeMap<NodeId>);
 }
 
 #[derive(Clone, Copy, Debug)]

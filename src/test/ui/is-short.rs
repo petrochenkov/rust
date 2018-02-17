@@ -28,6 +28,10 @@ fn main() {
 
     my_opt is Some(z);
 
+    if Ok(10) is Ok(u) | Err(u) {
+        println!("{:?}", u);
+    }
+
     my_opt is Some(unused); // `unused` warining are reported later
 
     let d = '6';
@@ -40,4 +44,5 @@ fn main() {
     let _x = x; //~ ERROR cannot find value `x` in this scope
     let _y = y; //~ ERROR cannot find value `y` in this scope
     let _z = z; //~ ERROR cannot find value `z` in this scope
+    let _u = u; //~ ERROR cannot find value `u` in this scope
 }

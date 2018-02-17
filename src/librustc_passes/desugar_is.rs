@@ -109,9 +109,9 @@ impl<'a, 'ast> Visitor<'ast> for CollectExprBindings<'a> {
         match &expr.node {
             ExprKind::Closure(..) => {}
             ExprKind::Repeat(expr, _) => self.visit_expr(expr),
-            ExprKind::Is(_, pat) => {
+            ExprKind::Is(_, pats) => {
                 self.has_is = true;
-                CollectPatBindings { parent: self }.visit_pat(pat);
+                CollectPatBindings { parent: self }.visit_pat(&pats[0]);
                 visit::walk_expr(self, expr)
             }
             _ => visit::walk_expr(self, expr),
@@ -260,6 +260,11 @@ impl<'a> Folder for DesugarIs<'a> {
                 })
             }
 
+            ExprKind::Path(None, ..) => {
+                self.resolver.remap_binding_id(expr.id, &self.binding_id_remapping);
+                P(fold::noop_fold_expr(expr, self))
+            }
+
             _ if !has_is => P(fold::noop_fold_expr(expr, self)),
             ExprKind::While(inner_expr, block, label) => {
                 // 'label: while cond {
@@ -302,21 +307,21 @@ impl<'a> Folder for DesugarIs<'a> {
                 let expr_true = Expr { node: lit_true, span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
                 let pat_true = Pat { node: PatKind::Lit(P(expr_true)), span: expr.span, id: self.session.next_node_id() };
 
-                let (canon_lhs_expr, canon_lhs_pat, canon_rhs) = match canon_cond.node {
+                let (canon_lhs_expr, canon_lhs_pats, canon_rhs) = match canon_cond.node {
                     ExprKind::Binary(Spanned { node: BinOpKind::And, .. }, lhs_expr, rhs_expr) => {
                         let lhs_expr = lhs_expr.into_inner();
                         match lhs_expr.node {
                             // if expr is pat && other_conds { ... }
-                            ExprKind::Is(expr, pat) => (expr, pat, Some(rhs_expr)),
+                            ExprKind::Is(expr, pats) => (expr, pats, Some(rhs_expr)),
                             // if cond && other_conds { ... }
-                            _ => (P(lhs_expr), P(pat_true), Some(rhs_expr)),
+                            _ => (P(lhs_expr), vec![P(pat_true)], Some(rhs_expr)),
                         }
 
                     }
                     // if expr is pat { ... }
-                    ExprKind::Is(expr, pat) => (expr, pat, None),
+                    ExprKind::Is(expr, pats) => (expr, pats, None),
                     // if expr { ... }
-                    _ => (P(canon_cond), P(pat_true), None),
+                    _ => (P(canon_cond), vec![P(pat_true)], None),
                 };
 
                 let end_label = Some(Label { ident: Ident::from_str("'__end"), span: expr.span });
@@ -345,10 +350,10 @@ impl<'a> Folder for DesugarIs<'a> {
                         bindings: Vec::new(),
                         has_is: false,
                     };
-                    CollectPatBindings { parent: &mut collect_expr_bindings }.visit_pat(&canon_lhs_pat);
+                    CollectPatBindings { parent: &mut collect_expr_bindings }.visit_pat(&canon_lhs_pats[0]);
                     collect_expr_bindings.bindings
                 };
-                let canon_lhs_pat = RenamePatBindings.fold_pat(canon_lhs_pat);
+                let canon_lhs_pats = canon_lhs_pats.move_map(|pat| RenamePatBindings.fold_pat(pat));
 
                 let stmt_inner = Stmt { node: StmtKind::Expr(self.fold_expr(P(inner))), span: expr.span, id: self.session.next_node_id() };
                 let mut stmts = Vec::new();
@@ -373,7 +378,7 @@ impl<'a> Folder for DesugarIs<'a> {
 
                 // match expr1 { pat1(bindings1) => ..., _ => ... }
                 let pat_wild = Pat { node: PatKind::Wild, span: expr.span, id: self.session.next_node_id() };
-                let arm_inner = Arm { pats: vec![self.fold_pat(canon_lhs_pat)], guard: None, body: P(inner), attrs: Vec::new() };
+                let arm_inner = Arm { pats: canon_lhs_pats.move_map(|pat| self.fold_pat(pat)), guard: None, body: P(inner), attrs: Vec::new() };
                 let arm_break = Arm { pats: vec![P(pat_wild)], guard: None, body: P(break_else2), attrs: Vec::new() };
                 let inner_match = Expr { node: ExprKind::Match(self.fold_expr(canon_lhs_expr), vec![arm_inner, arm_break]), span: expr.span, id: self.session.next_node_id(), attrs: ThinVec::new() };
 
@@ -452,7 +457,6 @@ impl<'a> Folder for DesugarIs<'a> {
                 span: binding.pat_span,
             };
             self.binding_id_remapping.insert(binding.node_id, pat.id);
-            self.resolver.remap_binding_id(binding.node_id, pat.id);
             let local = Local {
                 id: self.session.next_node_id(),
                 pat: P(pat),

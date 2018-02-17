@@ -798,9 +798,9 @@ pub fn walk_expr<'a, V: Visitor<'a>>(visitor: &mut V, expression: &'a Expr) {
         ExprKind::Catch(ref body) => {
             visitor.visit_block(body)
         }
-        ExprKind::Is(ref expr, ref pat) => {
+        ExprKind::Is(ref expr, ref pats) => {
             visitor.visit_expr(expr);
-            visitor.visit_pat(pat);
+            walk_list!(visitor, visit_pat, pats);
         }
     }
 
