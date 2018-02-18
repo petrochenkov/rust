@@ -33,6 +33,11 @@ fn main() {
         assert_eq!(u, 10);
     }
 
+    if 0u8 is w {
+        let tmp = || w;
+        assert_eq!(tmp(), 0);
+    }
+
     let d = '6';
     let is_digit = d is '0' ... '9' && d > '5';
     if is_digit {

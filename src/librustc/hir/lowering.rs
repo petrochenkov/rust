@@ -163,6 +163,7 @@ pub trait Resolver {
     /// Node ids of bindings in `is` expressions can change during desugaring,
     /// update definition map after these changes.
     fn remap_binding_id(&mut self, id: NodeId, map: &NodeMap<NodeId>);
+    fn remap_freevar_ids(&mut self, map: &NodeMap<NodeId>);
 }
 
 #[derive(Clone, Copy, Debug)]

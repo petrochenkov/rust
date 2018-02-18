@@ -116,19 +116,7 @@ impl PathResolution {
     }
 
     pub fn remap_binding_id(&mut self, map: &NodeMap<ast::NodeId>) {
-        self.base_def = match self.base_def {
-            Def::Local(old_id) => if let Some(new_id) = map.get(&old_id).cloned() {
-                Def::Local(new_id)
-            } else {
-                return
-            }
-            Def::Upvar(old_id, index, expr_id) => if let Some(new_id) = map.get(&old_id).cloned() {
-                Def::Upvar(new_id, index, expr_id)
-            } else {
-                return
-            }
-            _ => return
-        };
+        self.base_def.remap_binding_id(map);
     }
 }
 
@@ -230,5 +218,16 @@ impl Def {
             Def::GlobalAsm(..) => "global asm",
             Def::Err => "unresolved item",
         }
+    }
+
+    pub fn remap_binding_id(&mut self, map: &NodeMap<ast::NodeId>) {
+        match self {
+            Def::Local(old_id) | Def::Upvar(old_id, ..) => if let Some(new_id) = map.get(&old_id).cloned() {
+                *old_id = new_id;
+            } else {
+                return
+            }
+            _ => return
+        };
     }
 }

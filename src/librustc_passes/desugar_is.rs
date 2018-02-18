@@ -501,5 +501,7 @@ impl<'a> Folder for DesugarIs<'a> {
 pub fn fold_crate(session: &Session, resolver: &mut Resolver, krate: Crate) -> Crate {
     let is_bindings_scope = if attr::contains_name(&krate.attrs, "rustc_alternative_is_bindings_scope") { IsBindingsScope::Expr } else { IsBindingsScope::Block };
     let mut desugar_is = DesugarIs { session, resolver, is_bindings_scope, is_top_level_expr: true, binding_id_remapping: FxHashMap() };
-    desugar_is.fold_crate(krate)
+    let krate = desugar_is.fold_crate(krate);
+    desugar_is.resolver.remap_freevar_ids(&desugar_is.binding_id_remapping);
+    krate
 }

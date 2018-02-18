@@ -32,6 +32,10 @@ fn main() {
         println!("{:?}", u);
     }
 
+    if 0u8 is w { //~ WARN unreachable pattern
+        || w;
+    }
+
     let d = '6';
     let is_digit = d is '0' ... '9' && d > '5';
     if is_digit {

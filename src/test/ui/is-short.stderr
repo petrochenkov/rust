@@ -1,25 +1,25 @@
 error[E0425]: cannot find value `x` in this scope
-  --> $DIR/is-short.rs:44:14
+  --> $DIR/is-short.rs:48:14
    |
-44 |     let _x = x; //~ ERROR cannot find value `x` in this scope
+48 |     let _x = x; //~ ERROR cannot find value `x` in this scope
    |              ^ did you mean `d`?
 
 error[E0425]: cannot find value `y` in this scope
-  --> $DIR/is-short.rs:45:14
+  --> $DIR/is-short.rs:49:14
    |
-45 |     let _y = y; //~ ERROR cannot find value `y` in this scope
+49 |     let _y = y; //~ ERROR cannot find value `y` in this scope
    |              ^ did you mean `d`?
 
 error[E0425]: cannot find value `z` in this scope
-  --> $DIR/is-short.rs:46:14
+  --> $DIR/is-short.rs:50:14
    |
-46 |     let _z = z; //~ ERROR cannot find value `z` in this scope
+50 |     let _z = z; //~ ERROR cannot find value `z` in this scope
    |              ^ did you mean `d`?
 
 error[E0425]: cannot find value `u` in this scope
-  --> $DIR/is-short.rs:47:14
+  --> $DIR/is-short.rs:51:14
    |
-47 |     let _u = u; //~ ERROR cannot find value `u` in this scope
+51 |     let _u = u; //~ ERROR cannot find value `u` in this scope
    |              ^ did you mean `d`?
 
 error: aborting due to 4 previous errors

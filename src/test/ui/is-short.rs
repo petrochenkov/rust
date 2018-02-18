@@ -32,6 +32,10 @@ fn main() {
         println!("{:?}", u);
     }
 
+    if 0u8 is w {
+        || w;
+    }
+
     my_opt is Some(unused); // `unused` warining are reported later
 
     let d = '6';

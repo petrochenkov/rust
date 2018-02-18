@@ -1456,9 +1456,17 @@ impl<'a> hir::lowering::Resolver for Resolver<'a> {
         self.record_def(id, resolution)
     }
 
-    fn remap_binding_id(&mut self, id: NodeId, map: &FxHashMap<NodeId, NodeId>) {
+    fn remap_binding_id(&mut self, id: NodeId, map: &NodeMap<NodeId>) {
         if let Some(resolution) = self.def_map.get_mut(&id) {
             resolution.remap_binding_id(map);
+        }
+    }
+
+    fn remap_freevar_ids(&mut self, map: &NodeMap<NodeId>) {
+        for (_, freevars) in &mut self.freevars {
+            for freevar in freevars {
+                freevar.def.remap_binding_id(map);
+            }
         }
     }
 

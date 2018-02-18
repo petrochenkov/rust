@@ -3682,9 +3682,11 @@ impl<'a> Parser<'a> {
     // helper function to decide whether to parse as ident binding or to try to do
     // something more complex like range patterns
     fn parse_as_ident(&mut self) -> bool {
+        let allow_struct_literal = !self.restrictions.contains(Restrictions::NO_STRUCT_LITERAL);
         self.look_ahead(1, |t| match *t {
-            token::OpenDelim(token::Paren) | token::OpenDelim(token::Brace) |
+            token::OpenDelim(token::Paren) |
             token::DotDotDot | token::DotDotEq | token::ModSep | token::Not => Some(false),
+            token::OpenDelim(token::Brace) if allow_struct_literal => Some(false),
             // ensure slice patterns [a, b.., c] and [a, b, c..] don't go into the
             // range pattern branch
             token::DotDot => None,
@@ -3770,6 +3772,7 @@ impl<'a> Parser<'a> {
                     // Parse an unqualified path
                     (None, self.parse_path(PathStyle::Expr)?)
                 };
+                let allow_struct_literal = !self.restrictions.contains(Restrictions::NO_STRUCT_LITERAL);
                 match self.token {
                     token::Not if qself.is_none() => {
                         // Parse macro invocation
@@ -3793,7 +3796,7 @@ impl<'a> Parser<'a> {
                         let end = self.parse_pat_range_end()?;
                         pat = PatKind::Range(begin, end, end_kind);
                     }
-                    token::OpenDelim(token::Brace) => {
+                    token::OpenDelim(token::Brace) if allow_struct_literal => {
                         if qself.is_some() {
                             return Err(self.fatal("unexpected `{` after qualified path"));
                         }
