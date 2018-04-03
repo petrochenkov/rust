@@ -134,15 +134,13 @@ pub fn get_linker<'a>(
         }
         LinkerFlavor::Em => Box::new(EmLinker { cmd, sess }) as Box<dyn Linker>,
         LinkerFlavor::Gcc => {
-            Box::new(GccLinker { cmd, sess, target_cpu, hinted_static: false, is_ld: false })
-                as Box<dyn Linker>
+            Box::new(GccLinker::new(cmd, sess, target_cpu, false)) as Box<dyn Linker>
         }
 
         LinkerFlavor::Lld(LldFlavor::Ld)
         | LinkerFlavor::Lld(LldFlavor::Ld64)
         | LinkerFlavor::Ld => {
-            Box::new(GccLinker { cmd, sess, target_cpu, hinted_static: false, is_ld: true })
-                as Box<dyn Linker>
+            Box::new(GccLinker::new(cmd, sess, target_cpu, true)) as Box<dyn Linker>
         }
 
         LinkerFlavor::Lld(LldFlavor::Wasm) => Box::new(WasmLd::new(cmd, sess)) as Box<dyn Linker>,
@@ -220,6 +218,17 @@ pub struct GccLinker<'a> {
 }
 
 impl<'a> GccLinker<'a> {
+    fn new(mut cmd: Command, sess: &'a Session, target_cpu: &'a str, is_ld: bool) -> GccLinker<'a> {
+        if sess.target.os == "l4re" {
+            // FIXME: Why is this a rustc's job at all?
+            // Why can't l4-bender read the `L4_BENDER_ARGS` variable instead?
+            // If this needs to be done with rustc, then why it cannot be done with existing
+            // generic tools like `-Clink-arg` or `-Zpre-link-arg`
+            add_l4bender_args(&mut cmd);
+        }
+        GccLinker { cmd, sess, target_cpu, is_ld, hinted_static: false }
+    }
+
     /// Argument that must be passed *directly* to the linker
     ///
     /// These arguments need to be prepended with `-Wl`, when a GCC-style linker is used.
@@ -339,6 +348,10 @@ impl<'a> Linker for GccLinker<'a> {
     }
 
     fn set_output_kind(&mut self, output_kind: LinkOutputKind, out_filename: &Path) {
+        if self.sess.target.os == "l4re" {
+            // FIXME: Should be unnecessary if the targets correctly specify not supporting dylibs and cdylibs.
+            return;
+        }
         match output_kind {
             LinkOutputKind::DynamicNoPicExe => {
                 if !self.is_ld && self.sess.target.linker_is_gnu {
@@ -433,7 +446,12 @@ impl<'a> Linker for GccLinker<'a> {
     }
     fn link_staticlib(&mut self, lib: Symbol, verbatim: bool) {
         self.hint_static();
-        self.cmd.arg(format!("-l{}{}", if verbatim { ":" } else { "" }, lib));
+        if self.sess.target.os == "l4re" {
+            // FIXME: Why is this deliberate difference from gcc necessary?
+            self.cmd.arg(format!("-PC{}", lib));
+        } else {
+            self.cmd.arg(format!("-l{}{}", if verbatim { ":" } else { "" }, lib));
+        }
     }
     fn link_rlib(&mut self, lib: &Path) {
         self.hint_static();
@@ -452,14 +470,33 @@ impl<'a> Linker for GccLinker<'a> {
         self.cmd.arg(path);
     }
     fn full_relro(&mut self) {
-        self.linker_arg("-zrelro");
-        self.linker_arg("-znow");
+        if self.sess.target.os == "l4re" {
+            // FIXME: Why a comma between `-z` and `relro`?
+            // FIXME: Why a comma between `-z,relro and -z,now`?
+            // FIXME: Will `-zrelro` without space or comma work?
+            self.cmd.arg("-z,relro,-z,now");
+        } else {
+            self.linker_arg("-zrelro");
+            self.linker_arg("-znow");
+        }
     }
     fn partial_relro(&mut self) {
-        self.linker_arg("-zrelro");
+        if self.sess.target.os == "l4re" {
+            // FIXME: Why a comma between `-z` and `relro`?
+            // FIXME: Will `-zrelro` without space or comma work?
+            self.cmd.arg("-z,relro");
+        } else {
+            self.linker_arg("-zrelro");
+        }
     }
     fn no_relro(&mut self) {
-        self.linker_arg("-znorelro");
+        if self.sess.target.os == "l4re" {
+            // FIXME: Why a comma between `-z` and `norelro`?
+            // FIXME: Will `-znorelro` without space or comma work?
+            self.cmd.arg("-z,norelro");
+        } else {
+            self.linker_arg("-znorelro");
+        }
     }
 
     fn link_rust_dylib(&mut self, lib: Symbol, _path: &Path) {
@@ -537,7 +574,9 @@ impl<'a> Linker for GccLinker<'a> {
         // eliminate the metadata. If we're building an executable, however,
         // --gc-sections drops the size of hello world from 1.8MB to 597K, a 67%
         // reduction.
-        } else if (self.sess.target.linker_is_gnu || self.sess.target.is_like_wasm)
+        } else if (self.sess.target.linker_is_gnu
+            || self.sess.target.is_like_wasm
+            || self.sess.target.os == "l4re")
             && !keep_metadata
         {
             self.linker_arg("--gc-sections");
@@ -553,7 +592,11 @@ impl<'a> Linker for GccLinker<'a> {
     }
 
     fn optimize(&mut self) {
-        if !self.sess.target.linker_is_gnu && !self.sess.target.is_like_wasm {
+        if self.sess.target.os == "l4re" {
+            // FIXME: Why the difference with the GNU case below?
+            self.cmd.arg("-O2");
+            return;
+        } else if !self.sess.target.linker_is_gnu && !self.sess.target.is_like_wasm {
             return;
         }
 
@@ -713,8 +756,13 @@ impl<'a> Linker for GccLinker<'a> {
     }
 
     fn subsystem(&mut self, subsystem: &str) {
-        self.linker_arg("--subsystem");
-        self.linker_arg(&subsystem);
+        if self.sess.target.os == "l4re" {
+            // FIXME: Why the comma between --subsystem and its name?
+            self.cmd.arg(&format!("--subsystem,{}", subsystem));
+        } else {
+            self.linker_arg("--subsystem");
+            self.linker_arg(&subsystem);
+        }
     }
 
     fn reset_per_library_state(&mut self) {
@@ -1596,4 +1644,32 @@ impl<'a> Linker for BpfLinker<'a> {
     fn group_end(&mut self) {}
 
     fn linker_plugin_lto(&mut self) {}
+}
+
+fn add_l4bender_args(cmd: &mut Command) {
+    if let Ok(l4bender_args) = env::var("L4_BENDER_ARGS") {
+        // This parses a shell-escaped string and unquotes the arguments. It doesn't attempt to
+        // completely understand shell, but should instead allow passing arguments like
+        // `-Dlinker="ld -m x86_64"`, and a copy without quotes, but spaces preserved, is added
+        // as an argument to the given Command. This means that constructs as \" are not
+        // understood, so quote wisely.
+        let mut arg = String::new();
+        let mut quoted = false;
+        for character in l4bender_args.chars() {
+            match character {
+                ' ' if !quoted => {
+                    cmd.arg(&arg);
+                    arg.clear();
+                }
+                '"' | '\'' => quoted = !quoted,
+                _ => arg.push(character),
+            };
+        }
+        if arg.len() > 0 {
+            cmd.arg(&arg);
+            arg.clear();
+        }
+    }
+
+    cmd.arg("--"); // separate direct l4-bender args from linker args
 }
