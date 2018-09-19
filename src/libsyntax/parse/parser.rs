@@ -2044,6 +2044,65 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn angle_bracket_count(token: &token::Token) -> isize {
+        // <
+        // <=
+        // <<
+        // <<=
+        // <-
+        // >
+        // >=
+        // >>
+        // >>=
+        // ->
+        // =>
+        match *token {
+            token::Lt |
+            token::LArrow => 1,
+            token::BinOp(token::Shl) => 2,
+            token::Gt |
+            token::Ge => -1,
+            token::BinOp(token::Shr) |
+            token::BinOpEq(token::Shr) => -2,
+            // Generic arguments (neither types, nor expressions) will never start with
+            // `=` or `<=`, so we never consider `<=` and `<<=` opening brackets.
+            token::Le |
+            token::BinOpEq(token::Shl) => 0,
+            // Generic arguments (neither types, nor expressions) will never end with
+            // `=` or `-`, so we never consider `=>` and `->` closing brackets.
+            token::FatArrow |
+            token::RArrow => 0,
+            _ => 0,
+        }
+    }
+
+    fn lookup_balanced_angle_brackets(&self) -> Option<Span> {
+        use tokenstream::*;
+        if Self::angle_bracket_count(&self.token) <= 0 {
+            return None;
+        }
+        let cursor_kind = &self.token_cursor.frame.tree_cursor.0;
+        if let CursorKind::Stream(stream_cursor) = cursor_kind {
+            let mut count = 0isize;
+            // for token_stream in &stream_cursor.stream[stream_cursor.index - 1..] {
+            for i in stream_cursor.index - 1 .. stream_cursor.stream.len() {
+                if let TokenStreamKind::Tree(TokenTree::Token(span, token)) |
+                       TokenStreamKind::JointTree(TokenTree::Token(span, token)) =
+                            &stream_cursor.stream[i].kind {
+                    let current_count = Self::angle_bracket_count(token);
+                    count += current_count;
+                    if count <= 0 {
+                        return Some(*span);
+                    }
+                }
+            }
+        } else {
+            self.diagnostic().span_err(self.span,
+                                       &format!("cursor kind is not a stream: {:#?}", cursor_kind));
+        }
+        None
+    }
+
     fn parse_path_segment(&mut self, style: PathStyle, enable_warning: bool)
                           -> PResult<'a, PathSegment> {
         let ident = self.parse_path_segment_ident()?;
@@ -2058,6 +2117,12 @@ impl<'a> Parser<'a> {
             );
             is_args_start(&this.token)
         };
+
+        if style == PathStyle::Expr {
+            if let Some(close_span) = self.lookup_balanced_angle_brackets() {
+                self.sess.balanced_angle_brackets.borrow_mut().insert((self.span, close_span));
+            }
+        }
 
         Ok(if style == PathStyle::Type && check_args_start(self) ||
               style != PathStyle::Mod && self.check(&token::ModSep)

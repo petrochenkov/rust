@@ -179,7 +179,7 @@ impl TokenTree {
 /// Today's `TokenTree`s can still contain AST via `Token::Interpolated` for back-compat.
 #[derive(Clone, Debug)]
 pub struct TokenStream {
-    kind: TokenStreamKind,
+    pub kind: TokenStreamKind,
 }
 
 impl TokenStream {
@@ -223,7 +223,7 @@ impl TokenStream {
 }
 
 #[derive(Clone, Debug)]
-enum TokenStreamKind {
+pub enum TokenStreamKind {
     Empty,
     Tree(TokenTree),
     JointTree(TokenTree),
@@ -500,21 +500,21 @@ impl TokenStreamBuilder {
     }
 }
 
-#[derive(Clone)]
-pub struct Cursor(CursorKind);
+#[derive(Clone, Debug)]
+pub struct Cursor(pub CursorKind);
 
-#[derive(Clone)]
-enum CursorKind {
+#[derive(Clone, Debug)]
+pub enum CursorKind {
     Empty,
     Tree(TokenTree, bool /* consumed? */),
     JointTree(TokenTree, bool /* consumed? */),
     Stream(StreamCursor),
 }
 
-#[derive(Clone)]
-struct StreamCursor {
-    stream: RcVec<TokenStream>,
-    index: usize,
+#[derive(Clone, Debug)]
+pub struct StreamCursor {
+    pub stream: RcVec<TokenStream>,
+    pub index: usize,
     stack: Vec<(RcVec<TokenStream>, usize)>,
 }
 

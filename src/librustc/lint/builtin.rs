@@ -338,6 +338,12 @@ declare_lint! {
      cannot be referred to by absolute paths"
 }
 
+declare_lint! {
+    pub BALANCED_ANGLE_BRACKETS,
+    Deny,
+    "balanced angle brackets in turbofish position"
+}
+
 /// Some lints that are buffered from `libsyntax`. See `syntax::early_buffered_lints`.
 pub mod parser {
     declare_lint! {
@@ -407,6 +413,7 @@ impl LintPass for HardwiredLints {
             MACRO_USE_EXTERN_CRATE,
             MACRO_EXPANDED_MACRO_EXPORTS_ACCESSED_BY_ABSOLUTE_PATHS,
             parser::QUESTION_MARK_MACRO_SEP,
+            BALANCED_ANGLE_BRACKETS,
         )
     }
 }

@@ -1096,6 +1096,13 @@ where
 
     // Done with macro expansion!
 
+    for (open_span, close_span) in
+            sess.parse_sess.balanced_angle_brackets.borrow().iter().cloned() {
+        sess.buffer_lint(lint::builtin::BALANCED_ANGLE_BRACKETS, ast::CRATE_NODE_ID,
+                         vec![open_span, close_span],
+                         "balanced angle brackets in turbofish position");
+    }
+
     after_expand(&krate)?;
 
     if sess.opts.debugging_opts.input_stats {

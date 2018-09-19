@@ -25,6 +25,7 @@ use tokenstream::{TokenStream, TokenTree};
 use diagnostics::plugin::ErrorMap;
 
 use rustc_data_structures::fx::FxHashSet;
+use std::collections::BTreeSet;
 use std::borrow::Cow;
 use std::iter;
 use std::path::{Path, PathBuf};
@@ -47,6 +48,7 @@ pub struct ParseSess {
     pub unstable_features: UnstableFeatures,
     pub config: CrateConfig,
     pub missing_fragment_specifiers: Lock<FxHashSet<Span>>,
+    pub balanced_angle_brackets: Lock<BTreeSet<(Span, Span)>>,
     /// Places where raw identifiers were used. This is used for feature gating
     /// raw identifiers
     pub raw_identifier_spans: Lock<Vec<Span>>,
@@ -77,6 +79,7 @@ impl ParseSess {
             unstable_features: UnstableFeatures::from_environment(),
             config: FxHashSet::default(),
             missing_fragment_specifiers: Lock::new(FxHashSet::default()),
+            balanced_angle_brackets: Lock::new(Default::default()),
             raw_identifier_spans: Lock::new(Vec::new()),
             registered_diagnostics: Lock::new(ErrorMap::new()),
             included_mod_stack: Lock::new(vec![]),
