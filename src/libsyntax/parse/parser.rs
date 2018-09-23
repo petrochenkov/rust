@@ -2044,6 +2044,14 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn can_follow_path_segment(token: &token::Token) -> bool {
+        match *token {
+            token::Ident(..) |
+            token::Literal(..) => false,
+            _ => true,
+        }
+    }
+
     fn angle_bracket_count(token: &token::Token) -> isize {
         // <
         // <=
@@ -2084,7 +2092,6 @@ impl<'a> Parser<'a> {
         let cursor_kind = &self.token_cursor.frame.tree_cursor.0;
         if let CursorKind::Stream(stream_cursor) = cursor_kind {
             let mut count = 0isize;
-            // for token_stream in &stream_cursor.stream[stream_cursor.index - 1..] {
             for i in stream_cursor.index - 1 .. stream_cursor.stream.len() {
                 if let TokenStreamKind::Tree(TokenTree::Token(span, token)) |
                        TokenStreamKind::JointTree(TokenTree::Token(span, token)) =
@@ -2092,13 +2099,38 @@ impl<'a> Parser<'a> {
                     let current_count = Self::angle_bracket_count(token);
                     count += current_count;
                     if count <= 0 {
-                        return Some(*span);
+                        // `>`, `>=`, `>>`, `>>=`
+                        match *token {
+                            // Already clear
+                            token::Ge | token::BinOpEq(token::Shr) if count == 0 =>
+                                return Some(*span),
+                            token::BinOp(token::Shr) | token::BinOpEq(token::Shr) if count == -1 =>
+                                return Some(*span),
+                            // Need to check next token
+                            token::Gt | token::BinOp(token::Shr) if count == 0 => {
+                                if i + 1 < stream_cursor.stream.len() {
+                                    if let TokenStreamKind::Tree(TokenTree::Token(_, token)) |
+                                        TokenStreamKind::JointTree(TokenTree::Token(_, token)) =
+                                                &stream_cursor.stream[i + 1].kind {
+                                            if !Self::can_follow_path_segment(token) {
+                                                return None;
+                                            }
+                                        }
+                                }
+                                return Some(*span);
+                            }
+                            _ => {
+                                self.diagnostic().span_err(*span,
+                                    &format!("unexpected token/count {:?} {}", token, count));
+                                return None;
+                            }
+                        }
                     }
                 }
             }
         } else {
             self.diagnostic().span_err(self.span,
-                                       &format!("cursor kind is not a stream: {:#?}", cursor_kind));
+                &format!("cursor kind is not a stream: {:#?}", cursor_kind));
         }
         None
     }
