@@ -67,7 +67,7 @@ use syntax::source_map::CompilerDesugaringKind::IfTemporary;
 use syntax::std_inject;
 use syntax::symbol::{kw, sym, Symbol};
 use syntax::tokenstream::{TokenStream, TokenTree};
-use syntax::parse::token::Token;
+use syntax::parse::token::{Token, ToTokenStream};
 use syntax::visit::{self, Visitor};
 use syntax_pos::{edition, Span};
 

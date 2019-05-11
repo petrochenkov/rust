@@ -1,4 +1,3 @@
-//~ ERROR mismatched types
 // aux-build:test-macros.rs
 
 // For each of these, we should get the appropriate type mismatch error message,
@@ -39,7 +38,7 @@ fn c() {
 // injects a "C" between `extern` and `fn` which causes a "probably_eq"
 // `TokenStream` mismatch. The lack of `"C"` should be preserved in the AST.
 #[recollect_attr]
-extern fn bar() {
+extern fn bar() { //~ ERROR mismatched types
     0
 }
 

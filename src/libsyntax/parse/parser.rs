@@ -1143,7 +1143,6 @@ impl<'a> Parser<'a> {
 
     /// Parses the items in a trait declaration.
     pub fn parse_trait_item(&mut self, at_end: &mut bool) -> PResult<'a, TraitItem> {
-        maybe_whole!(self, NtTraitItem, |x| x);
         let attrs = self.parse_outer_attributes()?;
         let mut unclosed_delims = vec![];
         let (mut item, tokens) = self.collect_tokens(|this| {
@@ -5729,7 +5728,6 @@ impl<'a> Parser<'a> {
 
     /// Parses an impl item.
     pub fn parse_impl_item(&mut self, at_end: &mut bool) -> PResult<'a, ImplItem> {
-        maybe_whole!(self, NtImplItem, |x| x);
         let attrs = self.parse_outer_attributes()?;
         let mut unclosed_delims = vec![];
         let (mut item, tokens) = self.collect_tokens(|this| {
@@ -7514,8 +7512,6 @@ impl<'a> Parser<'a> {
 
     /// Parses a foreign item.
     crate fn parse_foreign_item(&mut self) -> PResult<'a, ForeignItem> {
-        maybe_whole!(self, NtForeignItem, |ni| ni);
-
         let attrs = self.parse_outer_attributes()?;
         let lo = self.span;
         let visibility = self.parse_visibility(false)?;

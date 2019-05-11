@@ -5,6 +5,7 @@ pub use LitKind::*;
 pub use Token::*;
 
 use crate::ast::{self};
+use crate::ext::base::Annotatable;
 use crate::parse::ParseSess;
 use crate::print::pprust;
 use crate::ptr::P;
@@ -619,12 +620,6 @@ pub enum Nonterminal {
     NtPath(ast::Path),
     NtVis(ast::Visibility),
     NtTT(TokenTree),
-    // Used only for passing items to proc macro attributes (they are not
-    // strictly necessary for that, `Annotatable` can be converted into
-    // tokens directly, but doing that naively regresses pretty-printing).
-    NtTraitItem(ast::TraitItem),
-    NtImplItem(ast::ImplItem),
-    NtForeignItem(ast::ForeignItem),
 }
 
 impl PartialEq for Nonterminal {
@@ -657,17 +652,17 @@ impl fmt::Debug for Nonterminal {
             NtMeta(..) => f.pad("NtMeta(..)"),
             NtPath(..) => f.pad("NtPath(..)"),
             NtTT(..) => f.pad("NtTT(..)"),
-            NtImplItem(..) => f.pad("NtImplItem(..)"),
-            NtTraitItem(..) => f.pad("NtTraitItem(..)"),
-            NtForeignItem(..) => f.pad("NtForeignItem(..)"),
             NtVis(..) => f.pad("NtVis(..)"),
             NtLifetime(..) => f.pad("NtLifetime(..)"),
         }
     }
 }
 
-impl Nonterminal {
-    pub fn to_tokenstream(&self, sess: &ParseSess, span: Span) -> TokenStream {
+pub trait ToTokenStream {
+    fn original_tokenstream(&self, sess: &ParseSess, span: Span) -> Option<TokenStream>;
+    fn stringify(&self) -> String;
+
+    fn to_tokenstream(&self, sess: &ParseSess, span: Span) -> TokenStream {
         // A `Nonterminal` is often a parsed AST item. At this point we now
         // need to convert the parsed AST to an actual token stream, e.g.
         // un-parse it basically.
@@ -680,32 +675,10 @@ impl Nonterminal {
         // As a result, some AST nodes are annotated with the token stream they
         // came from. Here we attempt to extract these lossless token streams
         // before we fall back to the stringification.
-        let tokens = match *self {
-            Nonterminal::NtItem(ref item) => {
-                prepend_attrs(sess, &item.attrs, item.tokens.as_ref(), span)
-            }
-            Nonterminal::NtTraitItem(ref item) => {
-                prepend_attrs(sess, &item.attrs, item.tokens.as_ref(), span)
-            }
-            Nonterminal::NtImplItem(ref item) => {
-                prepend_attrs(sess, &item.attrs, item.tokens.as_ref(), span)
-            }
-            Nonterminal::NtIdent(ident, is_raw) => {
-                let token = Token::Ident(ident, is_raw);
-                Some(TokenTree::Token(ident.span, token).into())
-            }
-            Nonterminal::NtLifetime(ident) => {
-                let token = Token::Lifetime(ident);
-                Some(TokenTree::Token(ident.span, token).into())
-            }
-            Nonterminal::NtTT(ref tt) => {
-                Some(tt.clone().into())
-            }
-            _ => None,
-        };
+        let tokens = self.original_tokenstream(sess, span);
 
         // FIXME(#43081): Avoid this pretty-print + reparse hack
-        let source = pprust::nonterminal_to_string(self);
+        let source = self.stringify();
         let filename = FileName::macro_expansion_source_code(&source);
         let tokens_for_real = parse_stream_from_source_str(filename, source, sess, Some(span));
 
@@ -740,6 +713,53 @@ impl Nonterminal {
                    going with stringified version");
         }
         return tokens_for_real
+    }
+}
+
+impl ToTokenStream for Nonterminal {
+    fn original_tokenstream(&self, sess: &ParseSess, span: Span) -> Option<TokenStream> {
+        match *self {
+            Nonterminal::NtItem(ref item) => {
+                prepend_attrs(sess, &item.attrs, item.tokens.as_ref(), span)
+            }
+            Nonterminal::NtIdent(ident, is_raw) => {
+                let token = Token::Ident(ident, is_raw);
+                Some(TokenTree::Token(ident.span, token).into())
+            }
+            Nonterminal::NtLifetime(ident) => {
+                let token = Token::Lifetime(ident);
+                Some(TokenTree::Token(ident.span, token).into())
+            }
+            Nonterminal::NtTT(ref tt) => {
+                Some(tt.clone().into())
+            }
+            _ => None,
+        }
+    }
+
+    fn stringify(&self) -> String {
+        pprust::nonterminal_to_string(self)
+    }
+}
+
+impl ToTokenStream for Annotatable {
+    fn original_tokenstream(&self, sess: &ParseSess, span: Span) -> Option<TokenStream> {
+        match *self {
+            Annotatable::Item(ref item) => {
+                prepend_attrs(sess, &item.attrs, item.tokens.as_ref(), span)
+            }
+            Annotatable::TraitItem(ref item) => {
+                prepend_attrs(sess, &item.attrs, item.tokens.as_ref(), span)
+            }
+            Annotatable::ImplItem(ref item) => {
+                prepend_attrs(sess, &item.attrs, item.tokens.as_ref(), span)
+            }
+            _ => None,
+        }
+    }
+
+    fn stringify(&self) -> String {
+        pprust::annotatable_to_string(self)
     }
 }
 

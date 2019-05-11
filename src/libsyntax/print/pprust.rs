@@ -5,6 +5,7 @@ use crate::ast::{SelfKind, GenericBound, TraitBoundModifier};
 use crate::ast::{Attribute, MacDelimiter, GenericArg};
 use crate::util::parser::{self, AssocOp, Fixity};
 use crate::attr;
+use crate::ext::base::Annotatable;
 use crate::source_map::{self, SourceMap, Spanned};
 use crate::parse::token::{self, BinOpToken, Nonterminal, Token};
 use crate::parse::lexer::comments;
@@ -265,10 +266,18 @@ pub fn nonterminal_to_string(nt: &Nonterminal) -> String {
         token::NtLifetime(e)        => ident_to_string(e),
         token::NtLiteral(ref e)     => expr_to_string(e),
         token::NtTT(ref tree)       => tt_to_string(tree.clone()),
-        token::NtImplItem(ref e)    => impl_item_to_string(e),
-        token::NtTraitItem(ref e)   => trait_item_to_string(e),
         token::NtVis(ref e)         => vis_to_string(e),
-        token::NtForeignItem(ref e) => foreign_item_to_string(e),
+    }
+}
+
+pub fn annotatable_to_string(annotatable: &Annotatable) -> String {
+    match *annotatable {
+        Annotatable::Item(ref e) => item_to_string(e),
+        Annotatable::TraitItem(ref e) => trait_item_to_string(e),
+        Annotatable::ImplItem(ref e) => impl_item_to_string(e),
+        Annotatable::ForeignItem(ref e) => foreign_item_to_string(e),
+        Annotatable::Stmt(ref e) => stmt_to_string(e),
+        Annotatable::Expr(ref e) => expr_to_string(e),
     }
 }
 
