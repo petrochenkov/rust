@@ -463,7 +463,7 @@ impl<'a> Resolver<'a> {
                 }
                 if let Some(attr) = attr::find_by_name(&item.attrs, sym::proc_macro_derive) {
                     if let Some(trait_attr) =
-                            attr.meta_item_list().and_then(|list| list.get(0).cloned()) {
+                            attr.meta_item_list2(&self.session.parse_sess).and_then(|list| list.get(0).cloned()) {
                         if let Some(ident) = trait_attr.ident() {
                             let res = Res::Def(
                                 DefKind::Macro(MacroKind::ProcMacroStub),
@@ -836,9 +836,8 @@ impl<'a> Resolver<'a> {
                             "`macro_use` is not supported on `extern crate self`");
                     }
                 }
-                let ill_formed = |span| span_err!(self.session, span, E0466, "bad macro import");
-                match attr.meta() {
-                    Some(meta) => match meta.node {
+                if let Some(meta) = attr.meta2(&self.session.parse_sess) {
+                    match meta.node {
                         MetaItemKind::Word => {
                             import_all = Some(meta.span);
                             break;
@@ -846,12 +845,11 @@ impl<'a> Resolver<'a> {
                         MetaItemKind::List(nested_metas) => for nested_meta in nested_metas {
                             match nested_meta.ident() {
                                 Some(ident) if nested_meta.is_word() => single_imports.push(ident),
-                                _ => ill_formed(nested_meta.span()),
+                                _ => span_err!(self.session, nested_meta.span(), E0466, "bad macro import"),
                             }
                         }
-                        MetaItemKind::NameValue(..) => ill_formed(meta.span),
+                        _ => {}
                     }
-                    None => ill_formed(attr.span),
                 }
             }
         }

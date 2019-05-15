@@ -1619,7 +1619,7 @@ fn args_required_const(tcx: TyCtxt<'_, '_, '_>, def_id: DefId) -> Option<FxHashS
     let attrs = tcx.get_attrs(def_id);
     let attr = attrs.iter().find(|a| a.check_name(sym::rustc_args_required_const))?;
     let mut ret = FxHashSet::default();
-    for meta in attr.meta_item_list()? {
+    for meta in attr.meta_item_list2(&tcx.sess.parse_sess)? {
         match meta.literal()?.node {
             LitKind::Int(a, _) => { ret.insert(a as usize); }
             _ => return None,

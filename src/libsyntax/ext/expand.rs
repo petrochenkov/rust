@@ -946,7 +946,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                 invoc.expansion_data.mark.set_expn_info(expn_info);
                 let span = span.with_ctxt(self.cx.backtrace());
                 let mut items = Vec::new();
-                func(self.cx, span, &attr.meta()?, &item, &mut |a| items.push(a));
+                func(self.cx, span, &attr.meta2(self.cx.parse_sess)?, &item, &mut |a| items.push(a));
                 Some(invoc.fragment_kind.expect_from_annotatables(items))
             }
             _ => {
@@ -1352,7 +1352,7 @@ impl<'a, 'b> MutVisitor for InvocationCollector<'a, 'b> {
                 let inline_module = item.span.contains(inner) || inner.is_dummy();
 
                 if inline_module {
-                    if let Some(path) = attr::first_attr_value_str_by_name(&item.attrs, sym::path) {
+                    if let Some(path) = attr::first_attr_value_str_by_name(self.cx.parse_sess, &item.attrs, sym::path) {
                         self.cx.current_expansion.directory_ownership =
                             DirectoryOwnership::Owned { relative: None };
                         module.directory.push(&*path.as_str());
@@ -1489,7 +1489,7 @@ impl<'a, 'b> MutVisitor for InvocationCollector<'a, 'b> {
             return noop_visit_attribute(at, self);
         }
 
-        if let Some(list) = at.meta_item_list() {
+        if let Some(list) = at.meta_item_list2(self.cx.parse_sess) {
             if !list.iter().any(|it| it.check_name(sym::include)) {
                 return noop_visit_attribute(at, self);
             }

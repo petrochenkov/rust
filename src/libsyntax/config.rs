@@ -44,7 +44,7 @@ pub fn features(mut krate: ast::Crate, sess: &ParseSess, edition: Edition,
             return (krate, Features::new());
         }
 
-        features = get_features(&sess.span_diagnostic, &krate.attrs, edition, allow_features);
+        features = get_features(sess, &krate.attrs, edition, allow_features);
 
         // Avoid reconfiguring malformed `cfg_attr`s
         if err_count == sess.span_diagnostic.err_count() {

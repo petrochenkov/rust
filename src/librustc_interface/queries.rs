@@ -143,7 +143,7 @@ impl Compiler {
             let result = match self.crate_name {
                 Some(ref crate_name) => crate_name.clone(),
                 None => rustc_codegen_utils::link::find_crate_name(
-                    Some(self.session()),
+                    self.session(),
                     &krate.attrs,
                     &self.input
                 ),

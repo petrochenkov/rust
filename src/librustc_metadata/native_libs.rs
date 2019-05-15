@@ -48,7 +48,7 @@ impl<'a, 'tcx> ItemLikeVisitor<'tcx> for Collector<'a, 'tcx> {
 
         // Process all of the #[link(..)]-style arguments
         for m in it.attrs.iter().filter(|a| a.check_name(sym::link)) {
-            let items = match m.meta_item_list() {
+            let items = match m.meta_item_list2(&self.tcx.sess.parse_sess) {
                 Some(item) => item,
                 None => continue,
             };

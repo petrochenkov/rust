@@ -1585,7 +1585,7 @@ impl<'a> Context<'a> {
                     );
                 }
             } else if name == sym::doc {
-                if let Some(content) = attr.meta_item_list() {
+                if let Some(content) = attr.meta_item_list2(self.parse_sess) {
                     if content.iter().any(|c| c.check_name(sym::include)) {
                         gate_feature!(self, external_doc, attr.span,
                             "#[doc(include = \"...\")] is experimental"
@@ -1896,7 +1896,7 @@ impl<'a> Visitor<'a> for PostExpansionVisitor<'a> {
         self.context.check_attribute(attr, attr_info, false);
 
         if attr.check_name(sym::doc) {
-            if let Some(content) = attr.meta_item_list() {
+            if let Some(content) = attr.meta_item_list2(self.context.parse_sess) {
                 if content.len() == 1 && content[0].check_name(sym::cfg) {
                     gate_feature_post!(&self, doc_cfg, attr.span,
                         "#[doc(cfg(...))] is experimental"
@@ -1979,7 +1979,7 @@ impl<'a> Visitor<'a> for PostExpansionVisitor<'a> {
 
             ast::ItemKind::Struct(..) => {
                 for attr in attr::filter_by_name(&i.attrs[..], sym::repr) {
-                    for item in attr.meta_item_list().unwrap_or_else(Vec::new) {
+                    for item in attr.meta_item_list2(self.context.parse_sess).unwrap_or_else(Vec::new) {
                         if item.check_name(sym::simd) {
                             gate_feature_post!(&self, repr_simd, attr.span,
                                                "SIMD types are experimental and possibly buggy");
@@ -1990,7 +1990,7 @@ impl<'a> Visitor<'a> for PostExpansionVisitor<'a> {
 
             ast::ItemKind::Enum(..) => {
                 for attr in attr::filter_by_name(&i.attrs[..], sym::repr) {
-                    for item in attr.meta_item_list().unwrap_or_else(Vec::new) {
+                    for item in attr.meta_item_list2(self.context.parse_sess).unwrap_or_else(Vec::new) {
                         if item.check_name(sym::align) {
                             gate_feature_post!(&self, repr_align_enum, attr.span,
                                                "`#[repr(align(x))]` on enums is experimental");
@@ -2053,7 +2053,7 @@ impl<'a> Visitor<'a> for PostExpansionVisitor<'a> {
         match i.node {
             ast::ForeignItemKind::Fn(..) |
             ast::ForeignItemKind::Static(..) => {
-                let link_name = attr::first_attr_value_str_by_name(&i.attrs, sym::link_name);
+                let link_name = attr::first_attr_value_str_by_name(self.context.parse_sess, &i.attrs, sym::link_name);
                 let links_to_llvm = match link_name {
                     Some(val) => val.as_str().starts_with("llvm."),
                     _ => false
@@ -2288,7 +2288,7 @@ impl<'a> Visitor<'a> for PostExpansionVisitor<'a> {
     }
 }
 
-pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
+pub fn get_features(sess: &ParseSess, krate_attrs: &[ast::Attribute],
                     crate_edition: Edition, allow_features: &Option<Vec<String>>) -> Features {
     fn feature_removed(span_handler: &Handler, span: Span, reason: Option<&str>) {
         let mut err = struct_span_err!(span_handler, span, E0557, "feature has been removed");
@@ -2325,7 +2325,7 @@ pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
             continue
         }
 
-        let list = match attr.meta_item_list() {
+        let list = match attr.meta_item_list2(sess) {
             Some(list) => list,
             None => continue,
         };
@@ -2337,7 +2337,7 @@ pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
 
             let name = mi.name_or_empty();
             if INCOMPLETE_FEATURES.iter().any(|f| name == *f) {
-                span_handler.struct_span_warn(
+                sess.span_diagnostic.struct_span_warn(
                     mi.span(),
                     &format!(
                         "the feature `{}` is incomplete and may cause the compiler to crash",
@@ -2370,7 +2370,7 @@ pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
             continue
         }
 
-        let list = match attr.meta_item_list() {
+        let list = match attr.meta_item_list2(sess) {
             Some(list) => list,
             None => continue,
         };
@@ -2379,7 +2379,7 @@ pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
             let name = match mi.ident() {
                 Some(ident) if mi.is_word() => ident.name,
                 _ => {
-                    span_err!(span_handler, mi.span(), E0556,
+                    span_err!(sess.span_diagnostic, mi.span(), E0556,
                             "malformed feature, expected just one word");
                     continue
                 }
@@ -2387,7 +2387,7 @@ pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
 
             if let Some(edition) = edition_enabled_features.get(&name) {
                 struct_span_warn!(
-                    span_handler,
+                    sess.span_diagnostic,
                     mi.span(),
                     E0705,
                     "the feature `{}` is included in the Rust {} edition",
@@ -2405,7 +2405,7 @@ pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
             let removed = REMOVED_FEATURES.iter().find(|f| name == f.0);
             let stable_removed = STABLE_REMOVED_FEATURES.iter().find(|f| name == f.0);
             if let Some((.., reason)) = removed.or(stable_removed) {
-                feature_removed(span_handler, mi.span(), *reason);
+                feature_removed(&sess.span_diagnostic, mi.span(), *reason);
                 continue;
             }
 
@@ -2417,7 +2417,7 @@ pub fn get_features(span_handler: &Handler, krate_attrs: &[ast::Attribute],
 
             if let Some(allowed) = allow_features.as_ref() {
                 if allowed.iter().find(|f| *f == name.as_str()).is_none() {
-                    span_err!(span_handler, mi.span(), E0725,
+                    span_err!(sess.span_diagnostic, mi.span(), E0725,
                               "the feature `{}` is not in the list of allowed features",
                               name);
                     continue;

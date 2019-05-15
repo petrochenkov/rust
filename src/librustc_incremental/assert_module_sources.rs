@@ -148,7 +148,7 @@ impl<'a, 'tcx> AssertModuleSource<'a, 'tcx> {
     }
 
     fn field(&self, attr: &ast::Attribute, name: Symbol) -> ast::Name {
-        for item in attr.meta_item_list().unwrap_or_else(Vec::new) {
+        for item in attr.meta_item_list2(&self.tcx.sess.parse_sess).unwrap_or_else(Vec::new) {
             if item.check_name(name) {
                 if let Some(value) = item.value_str() {
                     return value;

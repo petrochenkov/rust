@@ -593,7 +593,7 @@ fn should_abort_on_panic<'a, 'gcx, 'tcx>(tcx: TyCtxt<'a, 'gcx, 'tcx>,
 
     // Validate `#[unwind]` syntax regardless of platform-specific panic strategy
     let attrs = &tcx.get_attrs(fn_def_id);
-    let unwind_attr = attr::find_unwind_attr(Some(tcx.sess.diagnostic()), attrs);
+    let unwind_attr = attr::find_unwind_attr(&tcx.sess.parse_sess, attrs);
 
     // We never unwind, so it's not relevant to stop an unwind
     if tcx.sess.panic_strategy() != PanicStrategy::Unwind { return false; }

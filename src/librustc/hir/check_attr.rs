@@ -168,7 +168,7 @@ impl<'a, 'tcx> CheckAttrVisitor<'a, 'tcx> {
         let hints: Vec<_> = item.attrs
             .iter()
             .filter(|attr| attr.check_name(sym::repr))
-            .filter_map(|attr| attr.meta_item_list())
+            .filter_map(|attr| attr.meta_item_list2(&self.tcx.sess.parse_sess))
             .flatten()
             .collect();
 

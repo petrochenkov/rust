@@ -378,7 +378,7 @@ pub fn compile(
     if body.legacy {
         let allow_internal_unstable = attr::find_by_name(&def.attrs, sym::allow_internal_unstable)
             .map(|attr| attr
-                .meta_item_list()
+                .meta_item_list2(sess)
                 .map(|list| list.iter()
                     .filter_map(|it| {
                         let name = it.ident().map(|ident| ident.name);
@@ -402,7 +402,7 @@ pub fn compile(
         let allow_internal_unsafe = attr::contains_name(&def.attrs, sym::allow_internal_unsafe);
         let mut local_inner_macros = false;
         if let Some(macro_export) = attr::find_by_name(&def.attrs, sym::macro_export) {
-            if let Some(l) = macro_export.meta_item_list() {
+            if let Some(l) = macro_export.meta_item_list2(sess) {
                 local_inner_macros = attr::list_contains_name(&l, sym::local_inner_macros);
             }
         }

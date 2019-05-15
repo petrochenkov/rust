@@ -433,7 +433,7 @@ impl<'a, 'tcx> RustdocVisitor<'a, 'tcx> {
                 // anything as it will probably be stripped anyway.
                 if item.vis.node.is_pub() && self.inside_public_path {
                     let please_inline = item.attrs.iter().any(|item| {
-                        match item.meta_item_list() {
+                        match item.meta_item_list2(&self.cx.tcx.sess.parse_sess) {
                             Some(ref list) if item.check_name(sym::doc) => {
                                 list.iter().any(|i| i.check_name(sym::inline))
                             }

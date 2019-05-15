@@ -113,7 +113,7 @@ struct LanguageItemCollector<'a, 'tcx: 'a> {
 
 impl<'a, 'v, 'tcx> ItemLikeVisitor<'v> for LanguageItemCollector<'a, 'tcx> {
     fn visit_item(&mut self, item: &hir::Item) {
-        if let Some((value, span)) = extract(&item.attrs) {
+        if let Some((value, span)) = extract(self.tcx, &item.attrs) {
             let actual_target = Target::from_item(item);
             match self.item_refs.get(&*value.as_str()).cloned() {
                 // Known lang item with attribute on correct target.
@@ -207,9 +207,9 @@ impl<'a, 'tcx> LanguageItemCollector<'a, 'tcx> {
 /// Extract the first `lang = "$name"` out of a list of attributes.
 /// The attributes `#[panic_handler]` and `#[alloc_error_handler]`
 /// are also extracted out when found.
-pub fn extract(attrs: &[ast::Attribute]) -> Option<(Symbol, Span)> {
+pub fn extract(tcx: TyCtxt<'_, '_, '_>, attrs: &[ast::Attribute]) -> Option<(Symbol, Span)> {
     attrs.iter().find_map(|attr| Some(match attr {
-        _ if attr.check_name(sym::lang) => (attr.value_str()?, attr.span),
+        _ if attr.check_name(sym::lang) => (attr.value_str2(&tcx.sess.parse_sess)?, attr.span),
         _ if attr.check_name(sym::panic_handler) => (Symbol::intern("panic_impl"), attr.span),
         _ if attr.check_name(sym::alloc_error_handler) => (Symbol::intern("oom"), attr.span),
         _ => return None,

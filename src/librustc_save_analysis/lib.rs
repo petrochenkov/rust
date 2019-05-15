@@ -880,14 +880,14 @@ impl<'l, 'tcx: 'l> SaveContext<'l, 'tcx> {
 
         for attr in attrs {
             if attr.check_name(sym::doc) {
-                if let Some(val) = attr.value_str() {
+                if let Some(val) = attr.value_str2(&self.tcx.sess.parse_sess) {
                     if attr.is_sugared_doc {
                         result.push_str(&strip_doc_comment_decoration(&val.as_str()));
                     } else {
                         result.push_str(&val.as_str());
                     }
                     result.push('\n');
-                } else if let Some(meta_list) = attr.meta_item_list() {
+                } else if let Some(meta_list) = attr.meta_item_list2(&self.tcx.sess.parse_sess) {
                     meta_list.into_iter()
                              .filter(|it| it.check_name(sym::include))
                              .filter_map(|it| it.meta_item_list().map(|l| l.to_owned()))

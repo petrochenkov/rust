@@ -45,17 +45,16 @@ pub mod dynamic_lib;
 pub mod locator;
 
 pub fn validate_crate_name(
-    sess: Option<&rustc::session::Session>,
+    sess: &rustc::session::Session,
     s: &str,
     sp: Option<syntax_pos::Span>
 ) {
     let mut err_count = 0;
     {
         let mut say = |s: &str| {
-            match (sp, sess) {
-                (_, None) => bug!("{}", s),
-                (Some(sp), Some(sess)) => sess.span_err(sp, s),
-                (None, Some(sess)) => sess.err(s),
+            match sp {
+                Some(sp) => sess.span_err(sp, s),
+                None => sess.err(s),
             }
             err_count += 1;
         };
@@ -70,7 +69,7 @@ pub fn validate_crate_name(
     }
 
     if err_count > 0 {
-        sess.unwrap().abort_if_errors();
+        sess.abort_if_errors();
     }
 }
 

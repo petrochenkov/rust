@@ -2403,7 +2403,7 @@ fn from_target_feature(
     whitelist: &FxHashMap<String, Option<Symbol>>,
     target_features: &mut Vec<Symbol>,
 ) {
-    let list = match attr.meta_item_list() {
+    let list = match attr.meta_item_list2(&tcx.sess.parse_sess) {
         Some(list) => list,
         None => return,
     };
@@ -2563,7 +2563,7 @@ fn codegen_fn_attrs<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, id: DefId) -> Codegen
         } else if attr.check_name(sym::thread_local) {
             codegen_fn_attrs.flags |= CodegenFnAttrFlags::THREAD_LOCAL;
         } else if attr.check_name(sym::export_name) {
-            if let Some(s) = attr.value_str() {
+            if let Some(s) = attr.value_str2(&tcx.sess.parse_sess) {
                 if s.as_str().contains("\0") {
                     // `#[export_name = ...]` will be converted to a null-terminated string,
                     // so it may not contain any null characters.
@@ -2590,11 +2590,11 @@ fn codegen_fn_attrs<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, id: DefId) -> Codegen
                 &mut codegen_fn_attrs.target_features,
             );
         } else if attr.check_name(sym::linkage) {
-            if let Some(val) = attr.value_str() {
+            if let Some(val) = attr.value_str2(&tcx.sess.parse_sess) {
                 codegen_fn_attrs.linkage = Some(linkage_by_name(tcx, id, &val.as_str()));
             }
         } else if attr.check_name(sym::link_section) {
-            if let Some(val) = attr.value_str() {
+            if let Some(val) = attr.value_str2(&tcx.sess.parse_sess) {
                 if val.as_str().bytes().any(|b| b == 0) {
                     let msg = format!(
                         "illegal null byte in link_section \
@@ -2607,7 +2607,7 @@ fn codegen_fn_attrs<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, id: DefId) -> Codegen
                 }
             }
         } else if attr.check_name(sym::link_name) {
-            codegen_fn_attrs.link_name = attr.value_str();
+            codegen_fn_attrs.link_name = attr.value_str2(&tcx.sess.parse_sess);
         }
     }
 
@@ -2615,7 +2615,7 @@ fn codegen_fn_attrs<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, id: DefId) -> Codegen
         if attr.path != sym::inline {
             return ia;
         }
-        match attr.meta().map(|i| i.node) {
+        match attr.meta2(&tcx.sess.parse_sess).map(|i| i.node) {
             Some(MetaItemKind::Word) => {
                 mark_used(attr);
                 InlineAttr::Hint
@@ -2656,7 +2656,7 @@ fn codegen_fn_attrs<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, id: DefId) -> Codegen
             return ia;
         }
         let err = |sp, s| span_err!(tcx.sess.diagnostic(), sp, E0722, "{}", s);
-        match attr.meta().map(|i| i.node) {
+        match attr.meta2(&tcx.sess.parse_sess).map(|i| i.node) {
             Some(MetaItemKind::Word) => {
                 err(attr.span, "expected one argument");
                 ia
@@ -2705,7 +2705,7 @@ fn codegen_fn_attrs<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, id: DefId) -> Codegen
     if tcx.is_weak_lang_item(id) {
         codegen_fn_attrs.flags |= CodegenFnAttrFlags::RUSTC_STD_INTERNAL_SYMBOL;
     }
-    if let Some(name) = weak_lang_items::link_name(&attrs) {
+    if let Some(name) = weak_lang_items::link_name(tcx, &attrs) {
         codegen_fn_attrs.export_name = Some(name);
         codegen_fn_attrs.link_name = Some(name);
     }

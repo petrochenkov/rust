@@ -443,8 +443,14 @@ impl SourceMap {
     }
 
     pub fn span_to_unmapped_path(&self, sp: Span) -> FileName {
-        self.lookup_char_pos(sp.lo()).file.unmapped_path.clone()
-            .expect("SourceMap::span_to_unmapped_path called for imported SourceFile?")
+        let file = self.lookup_char_pos(sp.lo()).file;
+        match &file.unmapped_path {
+            Some(name) => name.clone(),
+            None => {
+                let msg = format!("<ubulala {:?}>", file.name);
+                FileName::Custom(msg)
+            }
+        }
     }
 
     pub fn is_multiline(&self, sp: Span) -> bool {

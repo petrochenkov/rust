@@ -1058,7 +1058,7 @@ impl<'a> CrateLoader<'a> {
                        item.ident, orig_name);
                 let orig_name = match orig_name {
                     Some(orig_name) => {
-                        crate::validate_crate_name(Some(self.sess), &orig_name.as_str(),
+                        crate::validate_crate_name(self.sess, &orig_name.as_str(),
                                             Some(item.span));
                         orig_name
                     }

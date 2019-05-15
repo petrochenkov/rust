@@ -53,7 +53,7 @@ impl<'a, 'tcx> VarianceTest<'a, 'tcx> {
             Ok(ty_layout) => {
                 // Check out the `#[rustc_layout(..)]` attribute to tell what to dump.
                 // The `..` are the names of fields to dump.
-                let meta_items = attr.meta_item_list().unwrap_or_default();
+                let meta_items = attr.meta_item_list2(&self.tcx.sess.parse_sess).unwrap_or_default();
                 for meta_item in meta_items {
                     match meta_item.name_or_empty() {
                         sym::abi => {

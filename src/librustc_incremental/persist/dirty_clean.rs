@@ -299,7 +299,7 @@ impl<'a, 'tcx> DirtyCleanVisitor<'a, 'tcx> {
     }
 
     fn labels(&self, attr: &Attribute) -> Option<Labels> {
-        for item in attr.meta_item_list().unwrap_or_else(Vec::new) {
+        for item in attr.meta_item_list2(&self.tcx.sess.parse_sess).unwrap_or_else(Vec::new) {
             if item.check_name(LABEL) {
                 let value = expect_associated_value(self.tcx, &item);
                 return Some(self.resolve_labels(&item, value.as_str().as_ref()));
@@ -310,7 +310,7 @@ impl<'a, 'tcx> DirtyCleanVisitor<'a, 'tcx> {
 
     /// `except=` attribute value
     fn except(&self, attr: &Attribute) -> Labels {
-        for item in attr.meta_item_list().unwrap_or_else(Vec::new) {
+        for item in attr.meta_item_list2(&self.tcx.sess.parse_sess).unwrap_or_else(Vec::new) {
             if item.check_name(EXCEPT) {
                 let value = expect_associated_value(self.tcx, &item);
                 return self.resolve_labels(&item, value.as_str().as_ref());
@@ -543,7 +543,7 @@ fn check_config(tcx: TyCtxt<'_, '_, '_>, attr: &Attribute) -> bool {
     let config = &tcx.sess.parse_sess.config;
     debug!("check_config: config={:?}", config);
     let (mut cfg, mut except, mut label) = (None, false, false);
-    for item in attr.meta_item_list().unwrap_or_else(Vec::new) {
+    for item in attr.meta_item_list2(&tcx.sess.parse_sess).unwrap_or_else(Vec::new) {
         if item.check_name(CFG) {
             let value = expect_associated_value(tcx, &item);
             debug!("check_config: searching for cfg {:?}", value);

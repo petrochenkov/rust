@@ -146,9 +146,9 @@ impl<'a, 'gcx, 'tcx> OnUnimplementedDirective {
             return Ok(None);
         };
 
-        let result = if let Some(items) = attr.meta_item_list() {
+        let result = if let Some(items) = attr.meta_item_list2(&tcx.sess.parse_sess) {
             Self::parse(tcx, trait_def_id, &items, attr.span, true).map(Some)
-        } else if let Some(value) = attr.value_str() {
+        } else if let Some(value) = attr.value_str2(&tcx.sess.parse_sess) {
             Ok(Some(OnUnimplementedDirective {
                 condition: None,
                 message: None,

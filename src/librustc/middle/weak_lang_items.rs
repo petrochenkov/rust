@@ -44,8 +44,8 @@ pub fn check_crate<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
     verify(tcx, items);
 }
 
-pub fn link_name(attrs: &[ast::Attribute]) -> Option<Symbol> {
-    lang_items::extract(attrs).and_then(|(name, _)| {
+pub fn link_name(tcx: TyCtxt<'_, '_, '_>, attrs: &[ast::Attribute]) -> Option<Symbol> {
+    lang_items::extract(tcx, attrs).and_then(|(name, _)| {
         $(if name == sym::$name {
             Some(sym::$sym)
         } else)* {
@@ -135,7 +135,7 @@ impl<'a, 'tcx, 'v> Visitor<'v> for Context<'a, 'tcx> {
     }
 
     fn visit_foreign_item(&mut self, i: &hir::ForeignItem) {
-        if let Some((lang_item, _)) = lang_items::extract(&i.attrs) {
+        if let Some((lang_item, _)) = lang_items::extract(self.tcx, &i.attrs) {
             self.register(&lang_item.as_str(), i.span);
         }
         intravisit::walk_foreign_item(self, i)

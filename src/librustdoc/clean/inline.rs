@@ -187,7 +187,7 @@ pub fn build_external_trait(cx: &DocContext<'_>, did: DefId) -> clean::Trait {
     let generics = (cx.tcx.generics_of(did), &predicates).clean(cx);
     let generics = filter_non_trait_generics(did, generics);
     let (generics, supertrait_bounds) = separate_supertrait_bounds(generics);
-    let is_spotlight = load_attrs(cx, did).has_doc_flag(sym::spotlight);
+    let is_spotlight = load_attrs(cx, did).has_doc_flag(cx, sym::spotlight);
     let is_auto = cx.tcx.trait_is_auto(did);
     clean::Trait {
         auto: auto_trait,

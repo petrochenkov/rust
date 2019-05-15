@@ -3,7 +3,7 @@ use rustc_interface::interface;
 use rustc::hir;
 use rustc::hir::intravisit;
 use rustc::hir::def_id::LOCAL_CRATE;
-use rustc::session::{self, config, DiagnosticOutput};
+use rustc::session::{config, DiagnosticOutput, Session};
 use rustc::session::config::{OutputType, OutputTypes, Externs, CodegenOptions};
 use rustc::session::search_paths::SearchPath;
 use rustc::util::common::ErrorReported;
@@ -79,7 +79,7 @@ pub fn run(options: Options) -> i32 {
     let tests = interface::run_compiler(config, |compiler| -> Result<_, ErrorReported> {
         let lower_to_hir = compiler.lower_to_hir()?;
 
-        let mut opts = scrape_test_config(lower_to_hir.peek().0.borrow().krate());
+        let mut opts = scrape_test_config(compiler.session(), lower_to_hir.peek().0.borrow().krate());
         opts.display_warnings |= options.display_warnings;
         let mut collector = Collector::new(
             compiler.crate_name()?.peek().to_string(),
@@ -127,7 +127,7 @@ pub fn run(options: Options) -> i32 {
 }
 
 // Look for `#![doc(test(no_crate_inject))]`, used by crates in the std facade.
-fn scrape_test_config(krate: &::rustc::hir::Crate) -> TestOptions {
+fn scrape_test_config(sess: &Session, krate: &::rustc::hir::Crate) -> TestOptions {
     use syntax::print::pprust;
 
     let mut opts = TestOptions {
@@ -138,7 +138,7 @@ fn scrape_test_config(krate: &::rustc::hir::Crate) -> TestOptions {
 
     let test_attrs: Vec<_> = krate.attrs.iter()
         .filter(|a| a.check_name(sym::doc))
-        .flat_map(|a| a.meta_item_list().unwrap_or_else(Vec::new))
+        .flat_map(|a| a.meta_item_list2(&sess.parse_sess).unwrap_or_else(Vec::new))
         .filter(|a| a.check_name(sym::test))
         .collect();
     let attrs = test_attrs.iter().flat_map(|a| a.meta_item_list().unwrap_or(&[]));
@@ -782,7 +782,7 @@ impl Tester for Collector {
 }
 
 struct HirCollector<'a, 'hir: 'a> {
-    sess: &'a session::Session,
+    sess: &'a Session,
     collector: &'a mut Collector,
     map: &'a hir::map::Map<'hir>,
     codes: ErrorCodes,
@@ -793,7 +793,7 @@ impl<'a, 'hir> HirCollector<'a, 'hir> {
                                             name: String,
                                             attrs: &[ast::Attribute],
                                             nested: F) {
-        let mut attrs = Attributes::from_ast(self.sess.diagnostic(), attrs);
+        let mut attrs = Attributes::from_ast(self.sess, attrs);
         if let Some(ref cfg) = attrs.cfg {
             if !cfg.matches(&self.sess.parse_sess, Some(&self.sess.features_untracked())) {
                 return;

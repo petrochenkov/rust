@@ -175,7 +175,7 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for UnusedResults {
                         descr_pre_path, cx.tcx.def_path_str(def_id), descr_post_path);
                     let mut err = cx.struct_span_lint(UNUSED_MUST_USE, sp, &msg);
                     // check for #[must_use = "..."]
-                    if let Some(note) = attr.value_str() {
+                    if let Some(note) = attr.value_str2(&cx.tcx.sess.parse_sess) {
                         err.note(&note.as_str());
                     }
                     err.emit();

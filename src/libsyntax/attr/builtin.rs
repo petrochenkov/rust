@@ -4,7 +4,7 @@ use crate::ast::{self, Attribute, MetaItem, NestedMetaItem};
 use crate::feature_gate::{Features, GatedCfg};
 use crate::parse::ParseSess;
 
-use errors::{Applicability, Handler};
+use errors::Applicability;
 use syntax_pos::{symbol::Symbol, symbol::sym, Span};
 
 use super::{mark_used, MetaItemKind};
@@ -78,10 +78,10 @@ pub enum UnwindAttr {
 }
 
 /// Determine what `#[unwind]` attribute is present in `attrs`, if any.
-pub fn find_unwind_attr(diagnostic: Option<&Handler>, attrs: &[Attribute]) -> Option<UnwindAttr> {
+pub fn find_unwind_attr(sess: &ParseSess, attrs: &[Attribute]) -> Option<UnwindAttr> {
     attrs.iter().fold(None, |ia, attr| {
         if attr.check_name(sym::unwind) {
-            if let Some(meta) = attr.meta() {
+            if let Some(meta) = attr.meta2(sess) {
                 if let MetaItemKind::List(items) = meta.node {
                     if items.len() == 1 {
                         if items[0].check_name(sym::allowed) {
@@ -91,9 +91,7 @@ pub fn find_unwind_attr(diagnostic: Option<&Handler>, attrs: &[Attribute]) -> Op
                         }
                     }
 
-                    diagnostic.map(|d| {
-                        span_err!(d, attr.span, E0633, "malformed `#[unwind]` attribute");
-                    });
+                    span_err!(sess.span_diagnostic, attr.span, E0633, "malformed `#[unwind]` attribute");
                 }
             }
         }
@@ -151,17 +149,6 @@ pub struct RustcDeprecation {
     pub suggestion: Option<Symbol>,
 }
 
-/// Checks if `attrs` contains an attribute like `#![feature(feature_name)]`.
-/// This will not perform any "sanity checks" on the form of the attributes.
-pub fn contains_feature_attr(attrs: &[Attribute], feature_name: Symbol) -> bool {
-    attrs.iter().any(|item| {
-        item.check_name(sym::feature) &&
-        item.meta_item_list().map(|list| {
-            list.iter().any(|mi| mi.is_word() && mi.check_name(feature_name))
-        }).unwrap_or(false)
-    })
-}
-
 /// Finds the first stability attribute. `None` if none exists.
 pub fn find_stability(sess: &ParseSess, attrs: &[Attribute],
                       item_sp: Span) -> Option<Stability> {
@@ -197,7 +184,7 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
 
         mark_used(attr);
 
-        let meta = attr.meta();
+        let meta = attr.meta2(sess);
 
         if attr.path == sym::rustc_promotable {
             promotable = true;
@@ -478,8 +465,8 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
     stab
 }
 
-pub fn find_crate_name(attrs: &[Attribute]) -> Option<Symbol> {
-    super::first_attr_value_str_by_name(attrs, sym::crate_name)
+pub fn find_crate_name(sess: &ParseSess, attrs: &[Attribute]) -> Option<Symbol> {
+    super::first_attr_value_str_by_name(sess, attrs, sym::crate_name)
 }
 
 /// Tests if a cfg-pattern matches the cfg set
@@ -599,7 +586,7 @@ fn find_deprecation_generic<'a, I>(sess: &ParseSess,
             break
         }
 
-        let meta = attr.meta().unwrap();
+        let meta = attr.meta2(sess).unwrap();
         depr = match &meta.node {
             MetaItemKind::Word => Some(Deprecation { since: None, note: None }),
             MetaItemKind::NameValue(..) => {
@@ -719,7 +706,7 @@ pub fn find_repr_attrs(sess: &ParseSess, attr: &Attribute) -> Vec<ReprAttr> {
     let mut acc = Vec::new();
     let diagnostic = &sess.span_diagnostic;
     if attr.path == sym::repr {
-        if let Some(items) = attr.meta_item_list() {
+        if let Some(items) = attr.meta_item_list2(sess) {
             mark_used(attr);
             for item in items {
                 if !item.is_meta_item() {

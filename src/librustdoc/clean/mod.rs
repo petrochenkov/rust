@@ -21,6 +21,7 @@ use rustc::mir::interpret::{GlobalId, ConstValue};
 use rustc::hir::{self, HirVec};
 use rustc::hir::def::{self, Res, DefKind, CtorKind};
 use rustc::hir::def_id::{CrateNum, DefId, CRATE_DEF_INDEX, LOCAL_CRATE};
+use rustc::session::Session;
 use rustc::ty::subst::{InternalSubsts, SubstsRef, UnpackedKind};
 use rustc::ty::{self, DefIdTree, TyCtxt, Region, RegionVid, Ty, AdtKind};
 use rustc::ty::fold::TypeFolder;
@@ -171,7 +172,7 @@ impl<'a, 'tcx> Clean<Crate> for visit_ast::RustdocVisitor<'a, 'tcx> {
                     // `compiler_builtins` should be masked too, but we can't apply
                     // `#[doc(masked)]` to the injected `extern crate` because it's unstable.
                     if it.is_extern_crate()
-                        && (it.attrs.has_doc_flag(sym::masked)
+                        && (it.attrs.has_doc_flag(cx, sym::masked)
                             || self.cx.tcx.is_compiler_builtins(it.def_id.krate))
                     {
                         masked_crates.insert(it.def_id.krate);
@@ -861,11 +862,11 @@ impl Attributes {
         })
     }
 
-    pub fn has_doc_flag(&self, flag: Symbol) -> bool {
+    pub fn has_doc_flag(&self, cx: &DocContext<'_>, flag: Symbol) -> bool {
         for attr in &self.other_attrs {
             if !attr.check_name(sym::doc) { continue; }
 
-            if let Some(items) = attr.meta_item_list() {
+            if let Some(items) = attr.meta_item_list2(&cx.tcx.sess.parse_sess) {
                 if items.iter().filter_map(|i| i.meta_item()).any(|it| it.check_name(flag)) {
                     return true;
                 }
@@ -875,7 +876,7 @@ impl Attributes {
         false
     }
 
-    pub fn from_ast(diagnostic: &::errors::Handler,
+    pub fn from_ast(sess: &Session,
                     attrs: &[ast::Attribute]) -> Attributes {
         let mut doc_strings = vec![];
         let mut sp = None;
@@ -883,9 +884,9 @@ impl Attributes {
         let mut doc_line = 0;
 
         let other_attrs = attrs.iter().filter_map(|attr| {
-            attr.with_desugared_doc(|attr| {
+            attr.with_desugared_doc(&sess.parse_sess, |attr| {
                 if attr.check_name(sym::doc) {
-                    if let Some(mi) = attr.meta() {
+                    if let Some(mi) = attr.meta2(&sess.parse_sess) {
                         if let Some(value) = mi.value_str() {
                             // Extracted #[doc = "..."]
                             let value = value.to_string();
@@ -906,7 +907,7 @@ impl Attributes {
                             // Extracted #[doc(cfg(...))]
                             match Cfg::parse(cfg_mi) {
                                 Ok(new_cfg) => cfg &= new_cfg,
-                                Err(e) => diagnostic.span_err(e.span, e.msg),
+                                Err(e) => sess.diagnostic().span_err(e.span, e.msg),
                             }
                             return None;
                         } else if let Some((filename, contents)) = Attributes::extract_include(&mi)
@@ -1047,7 +1048,7 @@ impl AttributesExt for Attributes {
 
 impl Clean<Attributes> for [ast::Attribute] {
     fn clean(&self, cx: &DocContext<'_>) -> Attributes {
-        Attributes::from_ast(cx.sess().diagnostic(), self)
+        Attributes::from_ast(cx.sess(), self)
     }
 }
 
@@ -2134,7 +2135,7 @@ pub struct Trait {
 impl Clean<Item> for doctree::Trait {
     fn clean(&self, cx: &DocContext<'_>) -> Item {
         let attrs = self.attrs.clean(cx);
-        let is_spotlight = attrs.has_doc_flag(sym::spotlight);
+        let is_spotlight = attrs.has_doc_flag(cx, sym::spotlight);
         Item {
             name: Some(self.name.clean(cx)),
             attrs: attrs,
@@ -3894,7 +3895,7 @@ impl Clean<Vec<Item>> for doctree::ExternCrate {
     fn clean(&self, cx: &DocContext<'_>) -> Vec<Item> {
 
         let please_inline = self.vis.node.is_pub() && self.attrs.iter().any(|a| {
-            a.check_name(sym::doc) && match a.meta_item_list() {
+            a.check_name(sym::doc) && match a.meta_item_list2(&cx.tcx.sess.parse_sess) {
                 Some(l) => attr::list_contains_name(&l, sym::inline),
                 None => false,
             }
@@ -3936,7 +3937,7 @@ impl Clean<Vec<Item>> for doctree::Import {
         // #[doc(no_inline)] attribute is present.
         // Don't inline doc(hidden) imports so they can be stripped at a later stage.
         let mut denied = !self.vis.node.is_pub() || self.attrs.iter().any(|a| {
-            a.check_name(sym::doc) && match a.meta_item_list() {
+            a.check_name(sym::doc) && match a.meta_item_list2(&cx.tcx.sess.parse_sess) {
                 Some(l) => attr::list_contains_name(&l, sym::no_inline) ||
                            attr::list_contains_name(&l, sym::hidden),
                 None => false,

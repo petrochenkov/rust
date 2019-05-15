@@ -496,7 +496,7 @@ pub fn collect_crate_types(session: &Session, attrs: &[ast::Attribute]) -> Vec<c
         .iter()
         .filter_map(|a| {
             if a.check_name(sym::crate_type) {
-                match a.value_str() {
+                match a.value_str2(&session.parse_sess) {
                     Some(sym::rlib) => Some(config::CrateType::Rlib),
                     Some(sym::dylib) => Some(config::CrateType::Dylib),
                     Some(sym::cdylib) => Some(config::CrateType::Cdylib),
@@ -515,7 +515,7 @@ pub fn collect_crate_types(session: &Session, attrs: &[ast::Attribute]) -> Vec<c
                             sym::bin
                         ];
 
-                        if let ast::MetaItemKind::NameValue(spanned) = a.meta().unwrap().node {
+                        if let ast::MetaItemKind::NameValue(spanned) = a.meta2(&session.parse_sess).unwrap().node {
                             let span = spanned.span;
                             let lev_candidate = find_best_match_for_name(
                                 crate_types.iter(),

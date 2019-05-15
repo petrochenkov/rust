@@ -12,17 +12,17 @@ use syntax::symbol::{Symbol, sym};
 use rustc_data_structures::sync::Once;
 
 pub fn update_limits(sess: &Session, krate: &ast::Crate) {
-    update_limit(krate, &sess.recursion_limit, sym::recursion_limit, 64);
-    update_limit(krate, &sess.type_length_limit, sym::type_length_limit, 1048576);
+    update_limit(sess, krate, &sess.recursion_limit, sym::recursion_limit, 64);
+    update_limit(sess, krate, &sess.type_length_limit, sym::type_length_limit, 1048576);
 }
 
-fn update_limit(krate: &ast::Crate, limit: &Once<usize>, name: Symbol, default: usize) {
+fn update_limit(sess: &Session, krate: &ast::Crate, limit: &Once<usize>, name: Symbol, default: usize) {
     for attr in &krate.attrs {
         if !attr.check_name(name) {
             continue;
         }
 
-        if let Some(s) = attr.value_str() {
+        if let Some(s) = attr.value_str2(&sess.parse_sess) {
             if let Some(n) = s.as_str().parse().ok() {
                 limit.set(n);
                 return;

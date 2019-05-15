@@ -98,7 +98,7 @@ struct IfThisChanged<'a, 'tcx:'a> {
 impl<'a, 'tcx> IfThisChanged<'a, 'tcx> {
     fn argument(&self, attr: &ast::Attribute) -> Option<ast::Name> {
         let mut value = None;
-        for list_item in attr.meta_item_list().unwrap_or_default() {
+        for list_item in attr.meta_item_list2(&self.tcx.sess.parse_sess).unwrap_or_default() {
             match list_item.ident() {
                 Some(ident) if list_item.is_word() && value.is_none() =>
                     value = Some(ident.name),

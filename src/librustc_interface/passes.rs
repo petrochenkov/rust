@@ -461,7 +461,6 @@ fn configure_and_expand_inner<'a>(
             &mut resolver,
             sess.opts.test,
             &mut krate,
-            sess.diagnostic(),
             &sess.features_untracked(),
         )
     });
@@ -493,7 +492,6 @@ fn configure_and_expand_inner<'a>(
                 has_proc_macro_decls,
                 is_test_crate,
                 num_crate_types,
-                sess.diagnostic(),
             )
         });
     }
@@ -506,7 +504,6 @@ fn configure_and_expand_inner<'a>(
                 &mut resolver,
                 &mut krate,
                 crate_name.to_string(),
-                sess.diagnostic(),
             )
         });
     }

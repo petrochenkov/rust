@@ -58,22 +58,21 @@ pub fn modify_for_testing(sess: &ParseSess,
                           resolver: &mut dyn Resolver,
                           should_test: bool,
                           krate: &mut ast::Crate,
-                          span_diagnostic: &errors::Handler,
                           features: &Features) {
     // Check for #[reexport_test_harness_main = "some_name"] which
     // creates a `use __test::main as some_name;`. This needs to be
     // unconditional, so that the attribute is still marked as used in
     // non-test builds.
     let reexport_test_harness_main =
-        attr::first_attr_value_str_by_name(&krate.attrs, sym::reexport_test_harness_main);
+        attr::first_attr_value_str_by_name(sess, &krate.attrs, sym::reexport_test_harness_main);
 
     // Do this here so that the test_runner crate attribute gets marked as used
     // even in non-test builds
-    let test_runner = get_test_runner(span_diagnostic, &krate);
+    let test_runner = get_test_runner(sess, &krate);
 
     if should_test {
         generate_test_harness(sess, resolver, reexport_test_harness_main,
-                              krate, span_diagnostic, features, test_runner)
+                              krate, features, test_runner)
     }
 }
 
@@ -253,7 +252,6 @@ fn generate_test_harness(sess: &ParseSess,
                          resolver: &mut dyn Resolver,
                          reexport_test_harness_main: Option<Symbol>,
                          krate: &mut ast::Crate,
-                         sd: &errors::Handler,
                          features: &Features,
                          test_runner: Option<ast::Path>) {
     // Remove the entry points
@@ -266,13 +264,13 @@ fn generate_test_harness(sess: &ParseSess,
     econfig.features = Some(features);
 
     let cx = TestCtxt {
-        span_diagnostic: sd,
+        span_diagnostic: &sess.span_diagnostic,
         ext_cx: ExtCtxt::new(sess, econfig, resolver),
         path: Vec::new(),
         test_cases: Vec::new(),
         reexport_test_harness_main,
         // N.B., doesn't consider the value of `--crate-name` passed on the command line.
-        is_libtest: attr::find_crate_name(&krate.attrs)
+        is_libtest: attr::find_crate_name(sess, &krate.attrs)
             .map(|s| s == sym::test).unwrap_or(false),
         toplevel_reexport: None,
         ctxt: SyntaxContext::empty().apply_mark(mark),
@@ -431,16 +429,16 @@ fn is_test_case(i: &ast::Item) -> bool {
     attr::contains_name(&i.attrs, sym::rustc_test_marker)
 }
 
-fn get_test_runner(sd: &errors::Handler, krate: &ast::Crate) -> Option<ast::Path> {
+fn get_test_runner(sess: &ParseSess, krate: &ast::Crate) -> Option<ast::Path> {
     let test_attr = attr::find_by_name(&krate.attrs, sym::test_runner)?;
-    test_attr.meta_item_list().map(|meta_list| {
+    test_attr.meta_item_list2(sess).map(|meta_list| {
         if meta_list.len() != 1 {
-            sd.span_fatal(test_attr.span,
+            sess.span_diagnostic.span_fatal(test_attr.span,
                 "#![test_runner(..)] accepts exactly 1 argument").raise()
         }
         match meta_list[0].meta_item() {
             Some(meta_item) if meta_item.is_word() => meta_item.path.clone(),
-            _ => sd.span_fatal(test_attr.span, "`test_runner` argument must be a path").raise()
+            _ => sess.span_diagnostic.span_fatal(test_attr.span, "`test_runner` argument must be a path").raise()
         }
     })
 }

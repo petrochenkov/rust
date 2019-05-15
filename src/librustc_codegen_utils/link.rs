@@ -38,7 +38,7 @@ fn is_writeable(p: &Path) -> bool {
     }
 }
 
-pub fn find_crate_name(sess: Option<&Session>,
+pub fn find_crate_name(sess: &Session,
                        attrs: &[ast::Attribute],
                        input: &Input) -> String {
     let validate = |s: String, span: Option<Span>| {
@@ -51,20 +51,18 @@ pub fn find_crate_name(sess: Option<&Session>,
     // the command line over one found in the #[crate_name] attribute. If we
     // find both we ensure that they're the same later on as well.
     let attr_crate_name = attr::find_by_name(attrs, sym::crate_name)
-        .and_then(|at| at.value_str().map(|s| (at, s)));
+        .and_then(|at| at.value_str2(&sess.parse_sess).map(|s| (at, s)));
 
-    if let Some(sess) = sess {
-        if let Some(ref s) = sess.opts.crate_name {
-            if let Some((attr, name)) = attr_crate_name {
-                if name.as_str() != *s {
-                    let msg = format!("--crate-name and #[crate_name] are \
-                                       required to match, but `{}` != `{}`",
-                                      s, name);
-                    sess.span_err(attr.span, &msg);
-                }
+    if let Some(ref s) = sess.opts.crate_name {
+        if let Some((attr, name)) = attr_crate_name {
+            if name.as_str() != *s {
+                let msg = format!("--crate-name and #[crate_name] are \
+                                    required to match, but `{}` != `{}`",
+                                    s, name);
+                sess.span_err(attr.span, &msg);
             }
-            return validate(s.clone(), None);
         }
+        return validate(s.clone(), None);
     }
 
     if let Some((attr, s)) = attr_crate_name {
@@ -75,9 +73,7 @@ pub fn find_crate_name(sess: Option<&Session>,
             if s.starts_with("-") {
                 let msg = format!("crate names cannot start with a `-`, but \
                                    `{}` has a leading hyphen", s);
-                if let Some(sess) = sess {
-                    sess.err(&msg);
-                }
+                sess.err(&msg);
             } else {
                 return validate(s.replace("-", "_"), None);
             }

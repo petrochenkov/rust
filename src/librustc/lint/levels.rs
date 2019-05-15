@@ -199,7 +199,7 @@ impl<'a> LintLevelsBuilder<'a> {
                 Some(lvl) => lvl,
             };
 
-            let meta = unwrap_or!(attr.meta(), continue);
+            let meta = unwrap_or!(attr.meta2(&sess.parse_sess), continue);
             attr::mark_used(attr);
 
             let mut metas = if let Some(metas) = meta.meta_item_list() {

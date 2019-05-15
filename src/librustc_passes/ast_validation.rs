@@ -676,7 +676,7 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
             }
             ItemKind::Mod(_) => {
                 // Ensure that `path` attributes on modules are recorded as used (cf. issue #35584).
-                attr::first_attr_value_str_by_name(&item.attrs, sym::path);
+                attr::first_attr_value_str_by_name(&self.session.parse_sess, &item.attrs, sym::path);
                 if attr::contains_name(&item.attrs, sym::warn_directory_ownership) {
                     let lint = lint::builtin::LEGACY_DIRECTORY_OWNERSHIP;
                     let msg = "cannot declare a new module at this location";

@@ -37,11 +37,11 @@ struct ProcMacroDef {
 }
 
 struct CollectProcMacros<'a> {
+    sess: &'a ParseSess,
     derives: Vec<ProcMacroDerive>,
     attr_macros: Vec<ProcMacroDef>,
     bang_macros: Vec<ProcMacroDef>,
     in_root: bool,
-    handler: &'a errors::Handler,
     is_proc_macro_crate: bool,
     is_test_crate: bool,
 }
@@ -52,18 +52,17 @@ pub fn modify(sess: &ParseSess,
               is_proc_macro_crate: bool,
               has_proc_macro_decls: bool,
               is_test_crate: bool,
-              num_crate_types: usize,
-              handler: &errors::Handler) -> ast::Crate {
+              num_crate_types: usize) -> ast::Crate {
     let ecfg = ExpansionConfig::default("proc_macro".to_string());
     let mut cx = ExtCtxt::new(sess, ecfg, resolver);
 
     let (derives, attr_macros, bang_macros) = {
         let mut collect = CollectProcMacros {
+            sess,
             derives: Vec::new(),
             attr_macros: Vec::new(),
             bang_macros: Vec::new(),
             in_root: true,
-            handler,
             is_proc_macro_crate,
             is_test_crate,
         };
@@ -78,7 +77,7 @@ pub fn modify(sess: &ParseSess,
     }
 
     if num_crate_types > 1 {
-        handler.err("cannot mix `proc-macro` crate type with others");
+        sess.span_diagnostic.err("cannot mix `proc-macro` crate type with others");
     }
 
     if is_test_crate {
@@ -97,7 +96,7 @@ pub fn is_proc_macro_attr(attr: &ast::Attribute) -> bool {
 impl<'a> CollectProcMacros<'a> {
     fn check_not_pub_in_root(&self, vis: &ast::Visibility, sp: Span) {
         if self.is_proc_macro_crate && self.in_root && vis.node.is_pub() {
-            self.handler.span_err(sp,
+            self.sess.span_diagnostic.span_err(sp,
                                   "`proc-macro` crate types cannot \
                                    export any items other than functions \
                                    tagged with `#[proc_macro_derive]` currently");
@@ -108,53 +107,53 @@ impl<'a> CollectProcMacros<'a> {
         // Once we've located the `#[proc_macro_derive]` attribute, verify
         // that it's of the form `#[proc_macro_derive(Foo)]` or
         // `#[proc_macro_derive(Foo, attributes(A, ..))]`
-        let list = match attr.meta_item_list() {
+        let list = match attr.meta_item_list2(self.sess) {
             Some(list) => list,
             None => return,
         };
         if list.len() != 1 && list.len() != 2 {
-            self.handler.span_err(attr.span,
+            self.sess.span_diagnostic.span_err(attr.span,
                                   "attribute must have either one or two arguments");
             return
         }
         let trait_attr = match list[0].meta_item() {
             Some(meta_item) => meta_item,
             _ => {
-                self.handler.span_err(list[0].span(), "not a meta item");
+                self.sess.span_diagnostic.span_err(list[0].span(), "not a meta item");
                 return
             }
         };
         let trait_ident = match trait_attr.ident() {
             Some(trait_ident) if trait_attr.is_word() => trait_ident,
             _ => {
-                self.handler.span_err(trait_attr.span, "must only be one word");
+                self.sess.span_diagnostic.span_err(trait_attr.span, "must only be one word");
                 return
             }
         };
 
         if !trait_ident.can_be_raw() {
-            self.handler.span_err(trait_attr.span,
+            self.sess.span_diagnostic.span_err(trait_attr.span,
                                   &format!("`{}` cannot be a name of derive macro", trait_ident));
         }
         if deriving::is_builtin_trait(trait_ident.name) {
-            self.handler.span_err(trait_attr.span,
+            self.sess.span_diagnostic.span_err(trait_attr.span,
                                   "cannot override a built-in derive macro");
         }
 
         let attributes_attr = list.get(1);
         let proc_attrs: Vec<_> = if let Some(attr) = attributes_attr {
             if !attr.check_name(sym::attributes) {
-                self.handler.span_err(attr.span(), "second argument must be `attributes`")
+                self.sess.span_diagnostic.span_err(attr.span(), "second argument must be `attributes`")
             }
             attr.meta_item_list().unwrap_or_else(|| {
-                self.handler.span_err(attr.span(),
+                self.sess.span_diagnostic.span_err(attr.span(),
                                       "attribute must be of form: `attributes(foo, bar)`");
                 &[]
             }).into_iter().filter_map(|attr| {
                 let attr = match attr.meta_item() {
                     Some(meta_item) => meta_item,
                     _ => {
-                        self.handler.span_err(attr.span(), "not a meta item");
+                        self.sess.span_diagnostic.span_err(attr.span(), "not a meta item");
                         return None;
                     }
                 };
@@ -162,12 +161,12 @@ impl<'a> CollectProcMacros<'a> {
                 let ident = match attr.ident() {
                     Some(ident) if attr.is_word() => ident,
                     _ => {
-                        self.handler.span_err(attr.span, "must only be one word");
+                        self.sess.span_diagnostic.span_err(attr.span, "must only be one word");
                         return None;
                     }
                 };
                 if !ident.can_be_raw() {
-                    self.handler.span_err(
+                    self.sess.span_diagnostic.span_err(
                         attr.span,
                         &format!("`{}` cannot be a name of derive helper attribute", ident),
                     );
@@ -193,7 +192,7 @@ impl<'a> CollectProcMacros<'a> {
             } else {
                 "functions tagged with `#[proc_macro_derive]` must be `pub`"
             };
-            self.handler.span_err(item.span, msg);
+            self.sess.span_diagnostic.span_err(item.span, msg);
         }
     }
 
@@ -210,7 +209,7 @@ impl<'a> CollectProcMacros<'a> {
             } else {
                 "functions tagged with `#[proc_macro_attribute]` must be `pub`"
             };
-            self.handler.span_err(item.span, msg);
+            self.sess.span_diagnostic.span_err(item.span, msg);
         }
     }
 
@@ -227,7 +226,7 @@ impl<'a> CollectProcMacros<'a> {
             } else {
                 "functions tagged with `#[proc_macro]` must be `pub`"
             };
-            self.handler.span_err(item.span, msg);
+            self.sess.span_diagnostic.span_err(item.span, msg);
         }
     }
 }
@@ -238,7 +237,7 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
             if self.is_proc_macro_crate && attr::contains_name(&item.attrs, sym::macro_export) {
                 let msg =
                     "cannot export macro_rules! macros from a `proc-macro` crate type currently";
-                self.handler.span_err(item.span, msg);
+                self.sess.span_diagnostic.span_err(item.span, msg);
             }
         }
 
@@ -266,7 +265,7 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
                                 to the same function", attr.path, prev_attr.path)
                     };
 
-                    self.handler.struct_span_err(attr.span, &msg)
+                    self.sess.span_diagnostic.struct_span_err(attr.span, &msg)
                         .span_note(prev_attr.span, "Previous attribute here")
                         .emit();
 
@@ -292,7 +291,7 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
             let msg = format!("the `#[{}]` attribute may only be used on bare functions",
                               attr.path);
 
-            self.handler.span_err(attr.span, &msg);
+            self.sess.span_diagnostic.span_err(attr.span, &msg);
             return;
         }
 
@@ -304,7 +303,7 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
             let msg = format!("the `#[{}]` attribute is only usable with crates of the \
                               `proc-macro` crate type", attr.path);
 
-            self.handler.span_err(attr.span, &msg);
+            self.sess.span_diagnostic.span_err(attr.span, &msg);
             return;
         }
 

@@ -633,7 +633,7 @@ impl RustcDefaultCalls {
                         attrs,
                         sess
                     );
-                    let id = rustc_codegen_utils::link::find_crate_name(Some(sess), attrs, input);
+                    let id = rustc_codegen_utils::link::find_crate_name(sess, attrs, input);
                     if *req == PrintRequest::CrateName {
                         println!("{}", id);
                         continue;

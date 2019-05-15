@@ -255,7 +255,7 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for NonSnakeCase {
             Some(Ident::from_str(name))
         } else {
             attr::find_by_name(&cx.tcx.hir().attrs_by_hir_id(hir::CRATE_HIR_ID), sym::crate_name)
-                .and_then(|attr| attr.meta())
+                .and_then(|attr| attr.meta2(&cx.tcx.sess.parse_sess))
                 .and_then(|meta| {
                     meta.name_value_literal().and_then(|lit| {
                         if let ast::LitKind::Str(name, ..) = lit.node {

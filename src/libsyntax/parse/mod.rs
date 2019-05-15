@@ -585,7 +585,7 @@ mod tests {
             let source = "/// doc comment\r\nfn foo() {}".to_string();
             let item = parse_item_from_source_str(name_1, source, &sess)
                 .unwrap().unwrap();
-            let doc = first_attr_value_str_by_name(&item.attrs, sym::doc).unwrap();
+            let doc = first_attr_value_str_by_name(sess, &item.attrs, sym::doc).unwrap();
             assert_eq!(doc.as_str(), "/// doc comment");
 
             let name_2 = FileName::Custom("crlf_source_2".to_string());
@@ -593,14 +593,14 @@ mod tests {
             let item = parse_item_from_source_str(name_2, source, &sess)
                 .unwrap().unwrap();
             let docs = item.attrs.iter().filter(|a| a.path == sym::doc)
-                        .map(|a| a.value_str().unwrap().to_string()).collect::<Vec<_>>();
+                        .map(|a| a.value_str2(&sess).unwrap().to_string()).collect::<Vec<_>>();
             let b: &[_] = &["/// doc comment".to_string(), "/// line 2".to_string()];
             assert_eq!(&docs[..], b);
 
             let name_3 = FileName::Custom("clrf_source_3".to_string());
             let source = "/** doc comment\r\n *  with CRLF */\r\nfn foo() {}".to_string();
             let item = parse_item_from_source_str(name_3, source, &sess).unwrap().unwrap();
-            let doc = first_attr_value_str_by_name(&item.attrs, sym::doc).unwrap();
+            let doc = first_attr_value_str_by_name(sess, &item.attrs, sym::doc).unwrap();
             assert_eq!(doc.as_str(), "/** doc comment\n *  with CRLF */");
         });
     }

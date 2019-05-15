@@ -284,16 +284,16 @@ pub struct MissingDoc {
 
 impl_lint_pass!(MissingDoc => [MISSING_DOCS]);
 
-fn has_doc(attr: &ast::Attribute) -> bool {
+fn has_doc(cx: &LateContext<'_, '_>, attr: &ast::Attribute) -> bool {
     if !attr.check_name(sym::doc) {
         return false;
     }
 
-    if attr.is_value_str() {
+    if attr.is_value_str(&cx.tcx.sess.parse_sess) {
         return true;
     }
 
-    if let Some(list) = attr.meta_item_list() {
+    if let Some(list) = attr.meta_item_list2(&cx.tcx.sess.parse_sess) {
         for meta in list {
             if meta.check_name(sym::include) || meta.check_name(sym::hidden) {
                 return true;
@@ -342,7 +342,7 @@ impl MissingDoc {
             }
         }
 
-        let has_doc = attrs.iter().any(|a| has_doc(a));
+        let has_doc = attrs.iter().any(|a| has_doc(cx, a));
         if !has_doc {
             cx.span_lint(MISSING_DOCS,
                          cx.tcx.sess.source_map().def_span(sp),
@@ -352,11 +352,11 @@ impl MissingDoc {
 }
 
 impl<'a, 'tcx> LateLintPass<'a, 'tcx> for MissingDoc {
-    fn enter_lint_attrs(&mut self, _: &LateContext<'_, '_>, attrs: &[ast::Attribute]) {
+    fn enter_lint_attrs(&mut self, cx: &LateContext<'_, '_>, attrs: &[ast::Attribute]) {
         let doc_hidden = self.doc_hidden() ||
                          attrs.iter().any(|attr| {
             attr.check_name(sym::doc) &&
-            match attr.meta_item_list() {
+            match attr.meta_item_list2(&cx.tcx.sess.parse_sess) {
                 None => false,
                 Some(l) => attr::list_contains_name(&l, sym::hidden),
             }
@@ -372,7 +372,7 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for MissingDoc {
         self.check_missing_docs_attrs(cx, None, &krate.attrs, krate.span, "crate");
 
         for macro_def in &krate.exported_macros {
-            let has_doc = macro_def.attrs.iter().any(|a| has_doc(a));
+            let has_doc = macro_def.attrs.iter().any(|a| has_doc(cx, a));
             if !has_doc {
                 cx.span_lint(MISSING_DOCS,
                              cx.tcx.sess.source_map().def_span(macro_def.span),
@@ -948,7 +948,7 @@ declare_lint_pass!(
 impl<'a, 'tcx> LateLintPass<'a, 'tcx> for UnstableFeatures {
     fn check_attribute(&mut self, ctx: &LateContext<'_, '_>, attr: &ast::Attribute) {
         if attr.check_name(sym::feature) {
-            if let Some(items) = attr.meta_item_list() {
+            if let Some(items) = attr.meta_item_list2(&ctx.tcx.sess.parse_sess) {
                 for item in items {
                     ctx.span_lint(UNSTABLE_FEATURES, item.span(), "unstable feature");
                 }

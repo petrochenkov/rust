@@ -58,7 +58,7 @@ impl<'a, 'tcx> LibFeatureCollector<'a, 'tcx> {
         if let Some(stab_attr) = stab_attrs.iter().find(|stab_attr| {
             attr.check_name(**stab_attr)
         }) {
-            let meta_item = attr.meta();
+            let meta_item = attr.meta2(&self.tcx.sess.parse_sess);
             if let Some(MetaItem { node: MetaItemKind::List(ref metas), .. }) = meta_item {
                 let mut feature = None;
                 let mut since = None;

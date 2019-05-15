@@ -3,7 +3,7 @@
 mod builtin;
 
 pub use builtin::{
-    cfg_matches, contains_feature_attr, eval_condition, find_crate_name, find_deprecation,
+    cfg_matches, eval_condition, find_crate_name, find_deprecation,
     find_repr_attrs, find_stability, find_unwind_attr, Deprecation, InlineAttr, OptimizeAttr,
     IntType, ReprAttr, RustcDeprecation, Stability, StabilityLevel, UnwindAttr,
 };
@@ -171,12 +171,12 @@ impl Attribute {
         self.ident().unwrap_or(keywords::Invalid.ident()).name
     }
 
-    pub fn value_str(&self) -> Option<Symbol> {
-        self.meta().and_then(|meta| meta.value_str())
+    pub fn value_str2(&self, sess: &ParseSess) -> Option<Symbol> {
+        self.meta2(sess).and_then(|meta| meta.value_str())
     }
 
-    pub fn meta_item_list(&self) -> Option<Vec<NestedMetaItem>> {
-        match self.meta() {
+    pub fn meta_item_list2(&self, sess: &ParseSess) -> Option<Vec<NestedMetaItem>> {
+        match self.meta2(sess) {
             Some(MetaItem { node: MetaItemKind::List(list), .. }) => Some(list),
             _ => None
         }
@@ -186,13 +186,13 @@ impl Attribute {
         self.tokens.is_empty()
     }
 
-    pub fn is_meta_item_list(&self) -> bool {
-        self.meta_item_list().is_some()
+    pub fn is_meta_item_list(&self, sess: &ParseSess) -> bool {
+        self.meta_item_list2(sess).is_some()
     }
 
     /// Indicates if the attribute is a Value String.
-    pub fn is_value_str(&self) -> bool {
-        self.value_str().is_some()
+    pub fn is_value_str(&self, sess: &ParseSess) -> bool {
+        self.value_str2(sess).is_some()
     }
 }
 
@@ -259,20 +259,11 @@ impl MetaItem {
 
 impl Attribute {
     /// Extracts the MetaItem from inside this Attribute.
-    pub fn meta(&self) -> Option<MetaItem> {
-        let mut tokens = self.tokens.trees().peekable();
-        Some(MetaItem {
-            path: self.path.clone(),
-            node: if let Some(node) = MetaItemKind::from_tokens(&mut tokens) {
-                if tokens.peek().is_some() {
-                    return None;
-                }
-                node
-            } else {
-                return None;
-            },
-            span: self.span,
-        })
+    pub fn meta2(&self, sess: &ParseSess) -> Option<MetaItem> {
+        match self.parse_meta(sess) {
+            Ok(meta) => Some(meta),
+            Err(mut err) => { err.cancel(); None }
+        }
     }
 
     pub fn parse<'a, T, F>(&self, sess: &'a ParseSess, mut f: F) -> PResult<'a, T>
@@ -317,11 +308,11 @@ impl Attribute {
     /// Converts self to a normal #[doc="foo"] comment, if it is a
     /// comment like `///` or `/** */`. (Returns self unchanged for
     /// non-sugared doc attributes.)
-    pub fn with_desugared_doc<T, F>(&self, f: F) -> T where
+    pub fn with_desugared_doc<T, F>(&self, sess: &ParseSess, f: F) -> T where
         F: FnOnce(&Attribute) -> T,
     {
         if self.is_sugared_doc {
-            let comment = self.value_str().unwrap();
+            let comment = self.value_str2(sess).unwrap();
             let meta = mk_name_value_item_str(
                 Ident::from_str("doc"),
                 dummy_spanned(Symbol::intern(&strip_doc_comment_decoration(&comment.as_str()))));
@@ -442,10 +433,10 @@ pub fn filter_by_name<'a>(attrs: &'a [Attribute], name: Symbol)
     attrs.iter().filter(move |attr| attr.check_name(name))
 }
 
-pub fn first_attr_value_str_by_name(attrs: &[Attribute], name: Symbol) -> Option<Symbol> {
+pub fn first_attr_value_str_by_name(sess: &ParseSess, attrs: &[Attribute], name: Symbol) -> Option<Symbol> {
     attrs.iter()
         .find(|at| at.check_name(name))
-        .and_then(|at| at.value_str())
+        .and_then(|at| at.value_str2(sess))
 }
 
 impl MetaItem {

@@ -101,10 +101,14 @@ where
     fn propagate(&mut self) { self.flow_state.propagate(); }
 }
 
-pub(crate) fn has_rustc_mir_with(attrs: &[ast::Attribute], name: Symbol) -> Option<MetaItem> {
+pub(crate) fn has_rustc_mir_with(
+    tcx: TyCtxt<'_, '_, '_>,
+    attrs: &[ast::Attribute],
+    name: Symbol,
+) -> Option<MetaItem> {
     for attr in attrs {
         if attr.check_name(sym::rustc_mir) {
-            let items = attr.meta_item_list();
+            let items = attr.meta_item_list2(&tcx.sess.parse_sess);
             for item in items.iter().flat_map(|l| l.iter()) {
                 match item.meta_item() {
                     Some(mi) if mi.check_name(name) => return Some(mi.clone()),
@@ -146,7 +150,7 @@ impl<'a, 'gcx: 'tcx, 'tcx: 'a, BD> DataflowAnalysis<'a, 'tcx, BD> where BD: BitD
         where P: Fn(&BD, BD::Idx) -> DebugFormatted
     {
         let name_found = |sess: &Session, attrs: &[ast::Attribute], name| -> Option<String> {
-            if let Some(item) = has_rustc_mir_with(attrs, name) {
+            if let Some(item) = has_rustc_mir_with(tcx, attrs, name) {
                 if let Some(s) = item.value_str() {
                     return Some(s.to_string())
                 } else {

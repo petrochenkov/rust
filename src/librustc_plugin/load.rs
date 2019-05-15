@@ -50,7 +50,7 @@ pub fn load_plugins(sess: &Session,
                 continue;
             }
 
-            let plugins = match attr.meta_item_list() {
+            let plugins = match attr.meta_item_list2(&sess.parse_sess) {
                 Some(xs) => xs,
                 None => continue,
             };

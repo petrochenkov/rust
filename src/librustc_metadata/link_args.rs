@@ -5,14 +5,12 @@ use rustc_target::spec::abi::Abi;
 use syntax::symbol::sym;
 
 pub fn collect<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) -> Vec<String> {
-    let mut collector = Collector {
-        args: Vec::new(),
-    };
+    let mut collector = Collector { tcx, args: Vec::new() };
     tcx.hir().krate().visit_all_item_likes(&mut collector);
 
     for attr in tcx.hir().krate().attrs.iter() {
         if attr.path == sym::link_args {
-            if let Some(linkarg) = attr.value_str() {
+            if let Some(linkarg) = attr.value_str2(&tcx.sess.parse_sess) {
                 collector.add_link_args(&linkarg.as_str());
             }
         }
@@ -21,11 +19,12 @@ pub fn collect<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) -> Vec<String> {
     return collector.args
 }
 
-struct Collector {
+struct Collector<'a, 'tcx> {
+    tcx: TyCtxt<'a, 'tcx, 'tcx>,
     args: Vec<String>,
 }
 
-impl<'tcx> ItemLikeVisitor<'tcx> for Collector {
+impl<'tcx> ItemLikeVisitor<'tcx> for Collector<'_, '_> {
     fn visit_item(&mut self, it: &'tcx hir::Item) {
         let fm = match it.node {
             hir::ItemKind::ForeignMod(ref fm) => fm,
@@ -39,7 +38,7 @@ impl<'tcx> ItemLikeVisitor<'tcx> for Collector {
 
         // First, add all of the custom #[link_args] attributes
         for m in it.attrs.iter().filter(|a| a.check_name(sym::link_args)) {
-            if let Some(linkarg) = m.value_str() {
+            if let Some(linkarg) = m.value_str2(&self.tcx.sess.parse_sess) {
                 self.add_link_args(&linkarg.as_str());
             }
         }
@@ -49,7 +48,7 @@ impl<'tcx> ItemLikeVisitor<'tcx> for Collector {
     fn visit_impl_item(&mut self, _it: &'tcx hir::ImplItem) {}
 }
 
-impl Collector {
+impl Collector<'_, '_> {
     fn add_link_args(&mut self, args: &str) {
         self.args.extend(args.split(' ').filter(|s| !s.is_empty()).map(|s| s.to_string()))
     }

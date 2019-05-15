@@ -218,7 +218,7 @@ fn should_panic(cx: &ExtCtxt<'_>, i: &ast::Item) -> ShouldPanic {
         Some(attr) => {
             let ref sd = cx.parse_sess.span_diagnostic;
 
-            match attr.meta_item_list() {
+            match attr.meta_item_list2(cx.parse_sess) {
                 // Handle #[should_panic(expected = "foo")]
                 Some(list) => {
                     let msg = list.iter()
@@ -239,7 +239,7 @@ fn should_panic(cx: &ExtCtxt<'_>, i: &ast::Item) -> ShouldPanic {
                     }
                 },
                 // Handle #[should_panic] and #[should_panic = "expected"]
-                None => ShouldPanic::Yes(attr.value_str())
+                None => ShouldPanic::Yes(attr.value_str2(cx.parse_sess))
             }
         }
         None => ShouldPanic::No,

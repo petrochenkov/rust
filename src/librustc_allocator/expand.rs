@@ -30,10 +30,8 @@ pub fn modify(
     resolver: &mut dyn Resolver,
     krate: &mut Crate,
     crate_name: String,
-    handler: &rustc_errors::Handler,
 ) {
     ExpandAllocatorDirectives {
-        handler,
         sess,
         resolver,
         found: false,
@@ -44,7 +42,6 @@ pub fn modify(
 
 struct ExpandAllocatorDirectives<'a> {
     found: bool,
-    handler: &'a rustc_errors::Handler,
     sess: &'a ParseSess,
     resolver: &'a mut dyn Resolver,
     crate_name: Option<String>,
@@ -66,20 +63,20 @@ impl MutVisitor for ExpandAllocatorDirectives<'_> {
         match item.node {
             ItemKind::Static(..) => {}
             _ => {
-                self.handler
+                self.sess.span_diagnostic
                     .span_err(item.span, "allocators must be statics");
                 return smallvec![item];
             }
         }
 
         if self.in_submod > 0 {
-            self.handler
+            self.sess.span_diagnostic
                 .span_err(item.span, "`global_allocator` cannot be used in submodules");
             return smallvec![item];
         }
 
         if self.found {
-            self.handler
+            self.sess.span_diagnostic
                 .span_err(item.span, "cannot define more than one #[global_allocator]");
             return smallvec![item];
         }

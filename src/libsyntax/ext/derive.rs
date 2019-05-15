@@ -16,7 +16,7 @@ pub fn collect_derives(cx: &mut ExtCtxt<'_>, attrs: &mut Vec<ast::Attribute>) ->
         if attr.path != sym::derive {
             return true;
         }
-        if !attr.is_meta_item_list() {
+        if !attr.is_meta_item_list(cx.parse_sess) {
             cx.span_err(attr.span,
                         "attribute must be of the form `#[derive(Trait1, Trait2, ...)]`");
             return false;
