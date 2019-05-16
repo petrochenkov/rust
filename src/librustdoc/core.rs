@@ -416,7 +416,7 @@ pub fn run_core(options: RustdocOptions) -> (clean::Crate, RenderInfo, RenderOpt
 
             // Process all of the crate attributes, extracting plugin metadata along
             // with the passes which we are supposed to run.
-            for attr in krate.module.as_ref().unwrap().attrs.lists(sym::doc) {
+            for attr in krate.module.as_ref().unwrap().attrs.lists(&sess.parse_sess, sym::doc) {
                 let diag = ctxt.sess().diagnostic();
 
                 let name = attr.name_or_empty();

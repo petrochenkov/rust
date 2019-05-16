@@ -15,12 +15,12 @@ pub const STRIP_HIDDEN: Pass = Pass {
 };
 
 /// Strip items marked `#[doc(hidden)]`
-pub fn strip_hidden(krate: clean::Crate, _: &DocContext<'_>) -> clean::Crate {
+pub fn strip_hidden<'b, 'c>(krate: clean::Crate, cx: &'b DocContext<'c>) -> clean::Crate {
     let mut retained = DefIdSet::default();
 
     // strip all #[doc(hidden)] items
     let krate = {
-        let mut stripper = Stripper{ retained: &mut retained, update_retained: true };
+        let mut stripper = Stripper{ cx, retained: &mut retained, update_retained: true };
         stripper.fold_crate(krate)
     };
 
@@ -31,14 +31,15 @@ pub fn strip_hidden(krate: clean::Crate, _: &DocContext<'_>) -> clean::Crate {
     krate
 }
 
-struct Stripper<'a> {
+struct Stripper<'a, 'b, 'c> {
+    cx: &'b DocContext<'c>,
     retained: &'a mut DefIdSet,
     update_retained: bool,
 }
 
-impl<'a> DocFolder for Stripper<'a> {
+impl DocFolder for Stripper<'_, '_, '_> {
     fn fold_item(&mut self, i: Item) -> Option<Item> {
-        if i.attrs.lists(sym::doc).has_word(sym::hidden) {
+        if i.attrs.lists(&self.cx.tcx.sess.parse_sess, sym::doc).has_word(sym::hidden) {
             debug!("strip_hidden: stripping {} {:?}", i.type_(), i.name);
             // use a dedicated hidden item for given item type if any
             match i.inner {

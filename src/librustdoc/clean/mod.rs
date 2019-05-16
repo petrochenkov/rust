@@ -30,11 +30,12 @@ use rustc::util::nodemap::{FxHashMap, FxHashSet};
 use syntax::ast::{self, AttrStyle, Ident};
 use syntax::attr;
 use syntax::ext::base::MacroKind;
-use syntax::source_map::{dummy_spanned, Spanned};
+use syntax::parse::ParseSess;
 use syntax::ptr::P;
-use syntax::symbol::keywords::{self, Keyword};
+use syntax::source_map::{dummy_spanned, Spanned};
 use syntax::symbol::{Symbol, sym};
 use syntax::symbol::InternedString;
+use syntax::symbol::keywords::{self, Keyword};
 use syntax_pos::{self, Pos, FileName};
 
 use std::collections::hash_map::Entry;
@@ -263,7 +264,7 @@ impl Clean<ExternalCrate> for CrateNum {
             if let Res::Def(DefKind::Mod, def_id) = res {
                 let attrs = cx.tcx.get_attrs(def_id).clean(cx);
                 let mut prim = None;
-                for attr in attrs.lists(sym::doc) {
+                for attr in attrs.lists(&cx.tcx.sess.parse_sess, sym::doc) {
                     if let Some(v) = attr.value_str() {
                         if attr.check_name(sym::primitive) {
                             prim = PrimitiveType::from_str(&v.as_str());
@@ -307,7 +308,7 @@ impl Clean<ExternalCrate> for CrateNum {
             if let Res::Def(DefKind::Mod, def_id) = res {
                 let attrs = cx.tcx.get_attrs(def_id).clean(cx);
                 let mut keyword = None;
-                for attr in attrs.lists(sym::doc) {
+                for attr in attrs.lists(&cx.tcx.sess.parse_sess, sym::doc) {
                     if let Some(v) = attr.value_str() {
                         if attr.check_name(sym::keyword) {
                             keyword = Keyword::from_str(&v.as_str()).ok()
@@ -669,6 +670,7 @@ impl Clean<Item> for doctree::Module {
 }
 
 pub struct ListAttributesIter<'a> {
+    sess: &'a ParseSess,
     attrs: slice::Iter<'a, ast::Attribute>,
     current_list: vec::IntoIter<ast::NestedMetaItem>,
     name: Symbol,
@@ -683,7 +685,7 @@ impl<'a> Iterator for ListAttributesIter<'a> {
         }
 
         for attr in &mut self.attrs {
-            if let Some(list) = attr.meta_item_list() {
+            if let Some(list) = attr.meta_item_list2(self.sess) {
                 if attr.check_name(self.name) {
                     self.current_list = list.into_iter();
                     if let Some(nested) = self.current_list.next() {
@@ -704,12 +706,16 @@ impl<'a> Iterator for ListAttributesIter<'a> {
 
 pub trait AttributesExt {
     /// Finds an attribute as List and returns the list of attributes nested inside.
-    fn lists<'a>(&'a self, name: Symbol) -> ListAttributesIter<'a>;
+    fn lists<'a>(&'a self, sess: &'a ParseSess, name: Symbol) -> ListAttributesIter<'a>;
+
+    // TODO
+    fn lists2<'a>(&'a self, _name: Symbol) -> ListAttributesIter<'a> { panic!() }
 }
 
 impl AttributesExt for [ast::Attribute] {
-    fn lists<'a>(&'a self, name: Symbol) -> ListAttributesIter<'a> {
+    fn lists<'a>(&'a self, sess: &'a ParseSess, name: Symbol) -> ListAttributesIter<'a> {
         ListAttributesIter {
+            sess,
             attrs: self.iter(),
             current_list: Vec::new().into_iter(),
             name,
@@ -927,7 +933,7 @@ impl Attributes {
 
         // treat #[target_feature(enable = "feat")] attributes as if they were
         // #[doc(cfg(target_feature = "feat"))] attributes as well
-        for attr in attrs.lists(sym::target_feature) {
+        for attr in attrs.lists(&sess.parse_sess, sym::target_feature) {
             if attr.check_name(sym::enable) {
                 if let Some(feat) = attr.value_str() {
                     let meta = attr::mk_name_value_item_str(Ident::from_str("target_feature"),
@@ -1041,8 +1047,8 @@ impl Hash for Attributes {
 }
 
 impl AttributesExt for Attributes {
-    fn lists<'a>(&'a self, name: Symbol) -> ListAttributesIter<'a> {
-        self.other_attrs.lists(name)
+    fn lists<'a>(&'a self, sess: &'a ParseSess, name: Symbol) -> ListAttributesIter<'a> {
+        self.other_attrs.lists(sess, name)
     }
 }
 
@@ -3945,7 +3951,7 @@ impl Clean<Vec<Item>> for doctree::Import {
         });
         // Also check whether imports were asked to be inlined, in case we're trying to re-export a
         // crate in Rust 2018+
-        let please_inline = self.attrs.lists(sym::doc).has_word(sym::inline);
+        let please_inline = self.attrs.lists(&cx.tcx.sess.parse_sess, sym::doc).has_word(sym::inline);
         let path = self.path.clean(cx);
         let inner = if self.glob {
             if !denied {

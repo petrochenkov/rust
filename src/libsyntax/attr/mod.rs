@@ -12,7 +12,7 @@ pub use ReprAttr::*;
 pub use StabilityLevel::*;
 
 use crate::ast;
-use crate::ast::{AttrId, Attribute, AttrStyle, Name, Ident, Path, PathSegment};
+use crate::ast::{AttrId, Attribute, AttrStyle, Name, Ident, Path};
 use crate::ast::{MetaItem, MetaItemKind, NestedMetaItem};
 use crate::ast::{Lit, LitKind, Expr, Item, Local, Stmt, StmtKind, GenericParam};
 use crate::mut_visit::visit_clobber;
@@ -30,7 +30,6 @@ use crate::GLOBALS;
 use log::debug;
 use syntax_pos::{FileName, Span};
 
-use std::iter;
 use std::ops::DerefMut;
 
 pub fn mark_used(attr: &Attribute) {
@@ -458,58 +457,6 @@ impl MetaItem {
         self.node.tokens(self.span).append_to_tree_and_joint_vec(&mut idents);
         TokenStream::new(idents)
     }
-
-    fn from_tokens<I>(tokens: &mut iter::Peekable<I>) -> Option<MetaItem>
-        where I: Iterator<Item = TokenTree>,
-    {
-        // FIXME: Share code with `parse_path`.
-        let path = match tokens.next() {
-            Some(TokenTree::Token(span, token @ Token::Ident(..))) |
-            Some(TokenTree::Token(span, token @ Token::ModSep)) => 'arm: {
-                let mut segments = if let Token::Ident(ident, _) = token {
-                    if let Some(TokenTree::Token(_, Token::ModSep)) = tokens.peek() {
-                        tokens.next();
-                        vec![PathSegment::from_ident(ident.with_span_pos(span))]
-                    } else {
-                        break 'arm Path::from_ident(ident.with_span_pos(span));
-                    }
-                } else {
-                    vec![PathSegment::path_root(span)]
-                };
-                loop {
-                    if let Some(TokenTree::Token(span,
-                                                    Token::Ident(ident, _))) = tokens.next() {
-                        segments.push(PathSegment::from_ident(ident.with_span_pos(span)));
-                    } else {
-                        return None;
-                    }
-                    if let Some(TokenTree::Token(_, Token::ModSep)) = tokens.peek() {
-                        tokens.next();
-                    } else {
-                        break;
-                    }
-                }
-                let span = span.with_hi(segments.last().unwrap().ident.span.hi());
-                Path { span, segments }
-            }
-            Some(TokenTree::Token(_, Token::Interpolated(nt))) => match *nt {
-                token::Nonterminal::NtIdent(ident, _) => Path::from_ident(ident),
-                token::Nonterminal::NtMeta(ref meta) => return Some(meta.clone()),
-                token::Nonterminal::NtPath(ref path) => path.clone(),
-                _ => return None,
-            },
-            _ => return None,
-        };
-        let list_closing_paren_pos = tokens.peek().map(|tt| tt.span().hi());
-        let node = MetaItemKind::from_tokens(tokens)?;
-        let hi = match node {
-            MetaItemKind::NameValue(ref lit) => lit.span.hi(),
-            MetaItemKind::List(..) => list_closing_paren_pos.unwrap_or(path.span.hi()),
-            _ => path.span.hi(),
-        };
-        let span = path.span.with_hi(hi);
-        Some(MetaItem { path, node, span })
-    }
 }
 
 impl MetaItemKind {
@@ -537,38 +484,6 @@ impl MetaItemKind {
             }
         }
     }
-
-    fn from_tokens<I>(tokens: &mut iter::Peekable<I>) -> Option<MetaItemKind>
-        where I: Iterator<Item = TokenTree>,
-    {
-        let delimited = match tokens.peek().cloned() {
-            Some(TokenTree::Token(_, token::Eq)) => {
-                tokens.next();
-                return if let Some(TokenTree::Token(span, token)) = tokens.next() {
-                    Lit::from_token(&token, span, None).map(MetaItemKind::NameValue)
-                } else {
-                    None
-                };
-            }
-            Some(TokenTree::Delimited(_, delim, ref tts)) if delim == token::Paren => {
-                tokens.next();
-                tts.clone()
-            }
-            _ => return Some(MetaItemKind::Word),
-        };
-
-        let mut tokens = delimited.into_trees().peekable();
-        let mut result = Vec::new();
-        while let Some(..) = tokens.peek() {
-            let item = NestedMetaItem::from_tokens(&mut tokens)?;
-            result.push(item);
-            match tokens.next() {
-                None | Some(TokenTree::Token(_, Token::Comma)) => {}
-                _ => return None,
-            }
-        }
-        Some(MetaItemKind::List(result))
-    }
 }
 
 impl NestedMetaItem {
@@ -584,19 +499,6 @@ impl NestedMetaItem {
             NestedMetaItem::MetaItem(ref item) => item.tokens(),
             NestedMetaItem::Literal(ref lit) => lit.tokens(),
         }
-    }
-
-    fn from_tokens<I>(tokens: &mut iter::Peekable<I>) -> Option<NestedMetaItem>
-        where I: Iterator<Item = TokenTree>,
-    {
-        if let Some(TokenTree::Token(span, token)) = tokens.peek().cloned() {
-            if let Some(lit) = Lit::from_token(&token, span, None) {
-                tokens.next();
-                return Some(NestedMetaItem::Literal(lit));
-            }
-        }
-
-        MetaItem::from_tokens(tokens).map(NestedMetaItem::MetaItem)
     }
 }
 

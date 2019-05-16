@@ -179,7 +179,7 @@ impl<'a, 'tcx> RustdocVisitor<'a, 'tcx> {
         match macro_kind {
             Some(kind) => {
                 let name = if kind == MacroKind::Derive {
-                    item.attrs.lists(sym::proc_macro_derive)
+                    item.attrs.lists(&self.cx.tcx.sess.parse_sess, sym::proc_macro_derive)
                               .filter_map(|mi| mi.ident())
                               .next()
                               .expect("proc-macro derives require a name")
@@ -189,7 +189,7 @@ impl<'a, 'tcx> RustdocVisitor<'a, 'tcx> {
                 };
 
                 let mut helpers = Vec::new();
-                for mi in item.attrs.lists(sym::proc_macro_derive) {
+                for mi in item.attrs.lists(&self.cx.tcx.sess.parse_sess, sym::proc_macro_derive) {
                     if !mi.check_name(sym::attributes) {
                         continue;
                     }
@@ -276,7 +276,7 @@ impl<'a, 'tcx> RustdocVisitor<'a, 'tcx> {
             while let Some(id) = cx.tcx.hir().get_enclosing_scope(node) {
                 node = id;
                 if cx.tcx.hir().attrs_by_hir_id(node)
-                    .lists(sym::doc).has_word(sym::hidden) {
+                    .lists(&cx.tcx.sess.parse_sess, sym::doc).has_word(sym::hidden) {
                     return true;
                 }
                 if node == hir::CRATE_HIR_ID {
@@ -297,8 +297,8 @@ impl<'a, 'tcx> RustdocVisitor<'a, 'tcx> {
 
         let use_attrs = tcx.hir().attrs_by_hir_id(id);
         // Don't inline `doc(hidden)` imports so they can be stripped at a later stage.
-        let is_no_inline = use_attrs.lists(sym::doc).has_word(sym::no_inline) ||
-                           use_attrs.lists(sym::doc).has_word(sym::hidden);
+        let is_no_inline = use_attrs.lists(&self.cx.tcx.sess.parse_sess, sym::doc).has_word(sym::no_inline) ||
+                           use_attrs.lists(&self.cx.tcx.sess.parse_sess, sym::doc).has_word(sym::hidden);
 
         // For cross-crate impl inlining we need to know whether items are
         // reachable in documentation -- a previously nonreachable item can be
@@ -306,7 +306,7 @@ impl<'a, 'tcx> RustdocVisitor<'a, 'tcx> {
         // (this is done here because we need to know this upfront).
         if !res_did.is_local() && !is_no_inline {
             let attrs = clean::inline::load_attrs(self.cx, res_did);
-            let self_is_hidden = attrs.lists(sym::doc).has_word(sym::hidden);
+            let self_is_hidden = attrs.lists(&self.cx.tcx.sess.parse_sess, sym::doc).has_word(sym::hidden);
             match res {
                 Res::Def(DefKind::Trait, did) |
                 Res::Def(DefKind::Struct, did) |

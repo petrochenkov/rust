@@ -572,7 +572,7 @@ pub fn run(mut krate: clean::Crate,
     // Crawl the crate attributes looking for attributes which control how we're
     // going to emit HTML
     if let Some(attrs) = krate.module.as_ref().map(|m| &m.attrs) {
-        for attr in attrs.lists(sym::doc) {
+        for attr in attrs.lists2(sym::doc) {
             match (attr.name_or_empty(), attr.value_str()) {
                 (sym::html_favicon_url, Some(s)) => {
                     scx.layout.favicon = s.to_string();
@@ -1389,7 +1389,7 @@ fn extern_location(e: &clean::ExternalCrate, extern_url: Option<&str>, dst: &Pat
 
     // Failing that, see if there's an attribute specifying where to find this
     // external crate
-    e.attrs.lists(sym::doc)
+    e.attrs.lists2(sym::doc)
      .filter(|a| a.check_name(sym::html_root_url))
      .filter_map(|a| a.value_str())
      .map(|url| {
@@ -1780,7 +1780,7 @@ impl<'a> Cache {
             let path = self.paths.get(&item.def_id)
                                  .map(|p| p.0[..p.0.len() - 1].join("::"))
                                  .unwrap_or("std".to_owned());
-            for alias in item.attrs.lists(sym::doc)
+            for alias in item.attrs.lists2(sym::doc)
                                    .filter(|a| a.check_name(sym::alias))
                                    .filter_map(|a| a.value_str()
                                                     .map(|s| s.to_string().replace("\"", "")))
@@ -3773,6 +3773,7 @@ const ATTRIBUTE_WHITELIST: &'static [Symbol] = &[
     sym::non_exhaustive
 ];
 
+#[allow(unused)]
 fn render_attributes(w: &mut dyn fmt::Write, it: &clean::Item) -> fmt::Result {
     let mut attrs = String::new();
 
@@ -3780,7 +3781,8 @@ fn render_attributes(w: &mut dyn fmt::Write, it: &clean::Item) -> fmt::Result {
         if !ATTRIBUTE_WHITELIST.contains(&attr.name_or_empty()) {
             continue;
         }
-        if let Some(s) = render_attribute(&attr.meta().unwrap()) {
+        // TODO
+        if let Some(s) = render_attribute(&attr.meta2(panic!()).unwrap()) {
             attrs.push_str(&format!("#[{}]\n", s));
         }
     }

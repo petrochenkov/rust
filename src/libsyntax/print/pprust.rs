@@ -661,23 +661,14 @@ pub trait PrintState<'a> {
             self.hardbreak_if_not_bol()?;
         }
         self.maybe_print_comment(attr.span.lo())?;
-        if attr.is_sugared_doc {
-            self.writer().word(attr.value_str().unwrap().as_str().to_string())?;
-            self.writer().hardbreak()
-        } else {
-            match attr.style {
-                ast::AttrStyle::Inner => self.writer().word("#![")?,
-                ast::AttrStyle::Outer => self.writer().word("#[")?,
-            }
-            if let Some(mi) = attr.meta() {
-                self.print_meta_item(&mi)?
-            } else {
-                self.print_attribute_path(&attr.path)?;
-                self.writer().space()?;
-                self.print_tts(attr.tokens.clone())?;
-            }
-            self.writer().word("]")
+        match attr.style {
+            ast::AttrStyle::Inner => self.writer().word("#![")?,
+            ast::AttrStyle::Outer => self.writer().word("#[")?,
         }
+        self.print_attribute_path(&attr.path)?;
+        self.writer().space()?;
+        self.print_tts(attr.tokens.clone())?;
+        self.writer().word("]")
     }
 
     fn print_meta_list_item(&mut self, item: &ast::NestedMetaItem) -> io::Result<()> {
