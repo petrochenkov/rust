@@ -155,6 +155,10 @@ ast_fragments! {
     ForeignItems(SmallVec<[ast::ForeignItem; 1]>) {
         "foreign item"; many fn flat_map_foreign_item; fn visit_foreign_item; fn make_foreign_items;
     }
+    // New
+    GenericParams(SmallVec<[ast::GenericParam; 1]>) {
+        "generic parameter"; many fn flat_map_generic_param; fn visit_generic_param; fn make_generic_params;
+    }
 }
 
 impl AstFragmentKind {
@@ -181,6 +185,8 @@ impl AstFragmentKind {
             ),
             AstFragmentKind::OptExpr =>
                 AstFragment::OptExpr(items.next().map(Annotatable::expect_expr)),
+            AstFragmentKind::GenericParams =>
+                AstFragment::GenericParams(items.map(Annotatable::expect_generic_param).collect()),
             AstFragmentKind::Pat | AstFragmentKind::Ty =>
                 panic!("patterns and types aren't annotatable"),
         }
@@ -189,7 +195,7 @@ impl AstFragmentKind {
 
 pub struct Invocation {
     pub kind: InvocationKind,
-    fragment_kind: AstFragmentKind,
+    pub fragment_kind: AstFragmentKind,
     pub expansion_data: ExpansionData,
 }
 
@@ -479,6 +485,9 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
             Annotatable::Expr(mut expr) => {
                 Annotatable::Expr({ cfg.visit_expr(&mut expr); expr })
             }
+            Annotatable::GenericParam(param) => {
+                Annotatable::GenericParam(cfg.flat_map_generic_param(param).pop().unwrap())
+            }
         }
     }
 
@@ -540,6 +549,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                         Annotatable::ForeignItem(item) => token::NtForeignItem(item.into_inner()),
                         Annotatable::Stmt(stmt) => token::NtStmt(stmt.into_inner()),
                         Annotatable::Expr(expr) => token::NtExpr(expr),
+                        Annotatable::GenericParam(..) => panic!("unexpected annotatable")
                     })), DUMMY_SP).into();
                     let input = self.extract_proc_macro_attr_input(attr.tokens, span);
                     let tok_result = expander.expand(self.cx, span, input, item_tok);
@@ -623,6 +633,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
             Annotatable::Expr(_) if self.cx.ecfg.proc_macro_hygiene() => return,
             Annotatable::Stmt(_) => ("statements", sym::proc_macro_hygiene),
             Annotatable::Expr(_) => ("expressions", sym::proc_macro_hygiene),
+            Annotatable::GenericParam(..) => panic!("unexpected annotatable"),
         };
         emit_feature_err(
             self.cx.parse_sess,
@@ -679,6 +690,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
             AstFragmentKind::TraitItems => return,
             AstFragmentKind::ImplItems => return,
             AstFragmentKind::ForeignItems => return,
+            AstFragmentKind::GenericParams => panic!("unexpected AST fragment kind"),
         };
         if self.cx.ecfg.proc_macro_hygiene() {
             return
@@ -767,6 +779,7 @@ impl<'a> Parser<'a> {
             },
             AstFragmentKind::Ty => AstFragment::Ty(self.parse_ty()?),
             AstFragmentKind::Pat => AstFragment::Pat(self.parse_pat(None)?),
+            AstFragmentKind::GenericParams => panic!("unexpected AST fragment kind"),
         })
     }
 
@@ -1220,9 +1233,17 @@ impl<'a, 'b> MutVisitor for InvocationCollector<'a, 'b> {
         }
     }
 
-    fn visit_generic_params(&mut self, params: &mut Vec<ast::GenericParam>) {
-        self.cfg.configure_generic_params(params);
-        noop_visit_generic_params(params, self);
+    fn flat_map_generic_param(&mut self, param: ast::GenericParam) -> SmallVec<[ast::GenericParam; 1]> {
+        let mut param = configure!(self, param);
+
+        let (attr, traits, after_derive) = self.classify_item(&mut param);
+        if attr.is_some() || !traits.is_empty() {
+            return self.collect_attr(attr, traits, Annotatable::GenericParam(param),
+                                     AstFragmentKind::GenericParams, after_derive)
+                                     .make_generic_params();
+        }
+
+        noop_flat_map_generic_param(param, self)
     }
 
     fn visit_attribute(&mut self, at: &mut ast::Attribute) {

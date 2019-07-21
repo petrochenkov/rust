@@ -10,7 +10,7 @@ extern crate test_macros;
 // should either require a feature gate or not be allowed on stable.
 
 fn _test6<#[empty_attr] T>() {}
-//~^ ERROR: unknown to the compiler
+//~^ ERROR: expected an inert attribute, found an attribute macro
 
 fn _test7() {
     match 1 {

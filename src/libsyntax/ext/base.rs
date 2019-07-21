@@ -34,6 +34,8 @@ pub enum Annotatable {
     ForeignItem(P<ast::ForeignItem>),
     Stmt(P<ast::Stmt>),
     Expr(P<ast::Expr>),
+    // New
+    GenericParam(ast::GenericParam),
 }
 
 impl HasAttrs for Annotatable {
@@ -45,6 +47,7 @@ impl HasAttrs for Annotatable {
             Annotatable::ForeignItem(ref foreign_item) => &foreign_item.attrs,
             Annotatable::Stmt(ref stmt) => stmt.attrs(),
             Annotatable::Expr(ref expr) => &expr.attrs,
+            Annotatable::GenericParam(ref param) => &param.attrs,
         }
     }
 
@@ -56,6 +59,7 @@ impl HasAttrs for Annotatable {
             Annotatable::ForeignItem(foreign_item) => foreign_item.visit_attrs(f),
             Annotatable::Stmt(stmt) => stmt.visit_attrs(f),
             Annotatable::Expr(expr) => expr.visit_attrs(f),
+            Annotatable::GenericParam(param) => param.visit_attrs(f),
         }
     }
 }
@@ -69,6 +73,7 @@ impl Annotatable {
             Annotatable::ForeignItem(ref foreign_item) => foreign_item.span,
             Annotatable::Stmt(ref stmt) => stmt.span,
             Annotatable::Expr(ref expr) => expr.span,
+            Annotatable::GenericParam(..) => DUMMY_SP,
         }
     }
 
@@ -121,6 +126,13 @@ impl Annotatable {
         match self {
             Annotatable::Expr(expr) => expr,
             _ => panic!("expected expression"),
+        }
+    }
+
+    pub fn expect_generic_param(self) -> ast::GenericParam {
+        match self {
+            Annotatable::GenericParam(i) => i,
+            _ => panic!("expected generic parameter")
         }
     }
 
@@ -313,6 +325,10 @@ pub trait MacResult {
     }
 
     fn make_ty(self: Box<Self>) -> Option<P<ast::Ty>> {
+        None
+    }
+
+    fn make_generic_params(self: Box<Self>) -> Option<SmallVec<[ast::GenericParam; 1]>> {
         None
     }
 }
@@ -514,6 +530,14 @@ impl MacResult for DummyResult {
 
     fn make_ty(self: Box<DummyResult>) -> Option<P<ast::Ty>> {
         Some(DummyResult::raw_ty(self.span, self.is_error))
+    }
+
+    fn make_generic_params(self: Box<DummyResult>) -> Option<SmallVec<[ast::GenericParam; 1]>> {
+        if self.expr_only {
+            None
+        } else {
+            Some(SmallVec::new())
+        }
     }
 }
 

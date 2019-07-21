@@ -1070,4 +1070,11 @@ impl<'a, 'b> Visitor<'a> for BuildReducedGraphVisitor<'a, 'b> {
         }
         visit::walk_attribute(self, attr);
     }
+
+    fn visit_generic_param(&mut self, param: &'a ast::GenericParam) {
+        if param.ident.as_str() == "placeholder" {
+            self.visit_invoc(param.id);
+        }
+        visit::walk_generic_param(self, param);
+    }
 }

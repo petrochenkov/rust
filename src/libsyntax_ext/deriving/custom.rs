@@ -53,6 +53,7 @@ impl MultiItemModifier for ProcMacroDerive {
                                     applied to a struct, enum, or union");
                 return Vec::new()
             }
+            Annotatable::GenericParam(..) => panic!("unexpected annotatable")
         };
         match item.node {
             ItemKind::Struct(..) |

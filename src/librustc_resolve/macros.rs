@@ -15,7 +15,7 @@ use syntax::ast::{self, Ident, ItemKind};
 use syntax::attr::{self, StabilityLevel};
 use syntax::ext::base::{self, Indeterminate};
 use syntax::ext::base::{MacroKind, SyntaxExtension};
-use syntax::ext::expand::{AstFragment, Invocation, InvocationKind};
+use syntax::ext::expand::{AstFragment, AstFragmentKind, Invocation, InvocationKind};
 use syntax::ext::hygiene::{self, ExpnId, ExpnInfo, ExpnKind};
 use syntax::ext::tt::macro_rules;
 use syntax::feature_gate::{emit_feature_err, is_builtin_attr_name};
@@ -234,6 +234,16 @@ impl<'a> base::Resolver for Resolver<'a> {
                 self.macro_def_scope(invoc.expansion_data.id).normal_ancestor_id;
             self.definitions.add_parent_module_of_macro_def(invoc.expansion_data.id,
                                                             normal_module_def_id);
+        }
+
+        match invoc.fragment_kind {
+            AstFragmentKind::GenericParams => {
+                if let Res::Def(..) = res {
+                    self.session.span_err(span, "expected an inert attribute, found an attribute macro");
+                    return Ok(Some(self.dummy_ext(kind)));
+                }
+            }
+            _ => {}
         }
 
         Ok(Some(ext))

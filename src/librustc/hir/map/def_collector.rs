@@ -179,6 +179,9 @@ impl<'a> visit::Visitor<'a> for DefCollector<'a> {
     }
 
     fn visit_generic_param(&mut self, param: &'a GenericParam) {
+        if param.ident.as_str() == "placeholder" {
+            return self.visit_macro_invoc(param.id);
+        }
         let name = param.ident.as_interned_str();
         let def_path_data = match param.kind {
             GenericParamKind::Lifetime { .. } => DefPathData::LifetimeNs(name),

@@ -1,11 +1,10 @@
-// build-pass (FIXME(62277): could be check-pass?)
-
 #![feature(stmt_expr_attributes)]
-#![warn(unused_attributes)] //~ NOTE lint level defined here
+#![warn(unused_attributes)] // NOTE lint level defined here
 
-fn foo<#[derive(Debug)] T>() { //~ WARN unused attribute
+fn foo<#[derive(Debug)] T>() { //~ ERROR `derive` may only be applied to structs, enums and unions
+                               //~^ ERROR expected an inert attribute, found an attribute macro
     match 0 {
-        #[derive(Debug)] //~ WARN unused attribute
+        #[derive(Debug)] // WARN unused attribute
         _ => (),
     }
 }
@@ -23,20 +22,20 @@ fn main() {
     println!("Hello, world!");
 
     // fold_stmt (Semi)
-    #[derive(Debug)] //~ WARN unused attribute
+    #[derive(Debug)] // WARN unused attribute
     "Hello, world!";
 
     // fold_stmt (Local)
-    #[derive(Debug)] //~ WARN unused attribute
+    #[derive(Debug)] // WARN unused attribute
     let _ = "Hello, world!";
 
     // visit_expr
     let _ = #[derive(Debug)] "Hello, world!";
-    //~^ WARN unused attribute
+    //^ WARN unused attribute
 
     let _ = [
         // filter_map_expr
-        #[derive(Debug)] //~ WARN unused attribute
+        #[derive(Debug)] // WARN unused attribute
         "Hello, world!"
     ];
 }

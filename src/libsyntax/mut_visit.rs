@@ -242,12 +242,8 @@ pub trait MutVisitor: Sized {
         noop_visit_variant_data(vdata, self);
     }
 
-    fn visit_generic_param(&mut self, param: &mut GenericParam) {
-        noop_visit_generic_param(param, self);
-    }
-
-    fn visit_generic_params(&mut self, params: &mut Vec<GenericParam>) {
-        noop_visit_generic_params(params, self);
+    fn flat_map_generic_param(&mut self, param: GenericParam) -> SmallVec<[GenericParam; 1]> {
+        noop_flat_map_generic_param(param, self)
     }
 
     fn visit_tt(&mut self, tt: &mut TokenTree) {
@@ -421,7 +417,7 @@ pub fn noop_visit_ty<T: MutVisitor>(ty: &mut P<Ty>, vis: &mut T) {
         }
         TyKind::BareFn(bft) => {
             let BareFnTy { unsafety: _, abi: _, generic_params, decl } = bft.deref_mut();
-            vis.visit_generic_params(generic_params);
+            generic_params.flat_map_in_place(|param| vis.flat_map_generic_param(param));
             vis.visit_fn_decl(decl);
         }
         TyKind::Tup(tys) => visit_vec(tys, |ty| vis.visit_ty(ty)),
@@ -702,8 +698,8 @@ pub fn noop_visit_param_bound<T: MutVisitor>(pb: &mut GenericBound, vis: &mut T)
     }
 }
 
-pub fn noop_visit_generic_param<T: MutVisitor>(param: &mut GenericParam, vis: &mut T) {
-    let GenericParam { id, ident, attrs, bounds, kind } = param;
+pub fn noop_flat_map_generic_param<T: MutVisitor>(mut param: GenericParam, vis: &mut T) -> SmallVec<[GenericParam; 1]> {
+    let GenericParam { id, ident, attrs, bounds, kind } = &mut param;
     vis.visit_id(id);
     vis.visit_ident(ident);
     visit_thin_attrs(attrs, vis);
@@ -717,10 +713,8 @@ pub fn noop_visit_generic_param<T: MutVisitor>(param: &mut GenericParam, vis: &m
             vis.visit_ty(ty);
         }
     }
-}
 
-pub fn noop_visit_generic_params<T: MutVisitor>(params: &mut Vec<GenericParam>, vis: &mut T){
-    visit_vec(params, |param| vis.visit_generic_param(param));
+    smallvec![param]
 }
 
 pub fn noop_visit_label<T: MutVisitor>(Label { ident }: &mut Label, vis: &mut T) {
@@ -734,7 +728,7 @@ fn noop_visit_lifetime<T: MutVisitor>(Lifetime { id, ident }: &mut Lifetime, vis
 
 pub fn noop_visit_generics<T: MutVisitor>(generics: &mut Generics, vis: &mut T) {
     let Generics { params, where_clause, span } = generics;
-    vis.visit_generic_params(params);
+    params.flat_map_in_place(|param| vis.flat_map_generic_param(param));
     vis.visit_where_clause(where_clause);
     vis.visit_span(span);
 }
@@ -750,7 +744,7 @@ pub fn noop_visit_where_predicate<T: MutVisitor>(pred: &mut WherePredicate, vis:
         WherePredicate::BoundPredicate(bp) => {
             let WhereBoundPredicate { span, bound_generic_params, bounded_ty, bounds } = bp;
             vis.visit_span(span);
-            vis.visit_generic_params(bound_generic_params);
+            bound_generic_params.flat_map_in_place(|param| vis.flat_map_generic_param(param));
             vis.visit_ty(bounded_ty);
             visit_vec(bounds, |bound| vis.visit_param_bound(bound));
         }
@@ -788,7 +782,7 @@ pub fn noop_visit_trait_ref<T: MutVisitor>(TraitRef { path, ref_id }: &mut Trait
 
 pub fn noop_visit_poly_trait_ref<T: MutVisitor>(p: &mut PolyTraitRef, vis: &mut T) {
     let PolyTraitRef { bound_generic_params, trait_ref, span } = p;
-    vis.visit_generic_params(bound_generic_params);
+    bound_generic_params.flat_map_in_place(|param| vis.flat_map_generic_param(param));
     vis.visit_trait_ref(trait_ref);
     vis.visit_span(span);
 }

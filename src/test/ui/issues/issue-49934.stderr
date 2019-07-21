@@ -1,50 +1,22 @@
 warning: `#[derive]` does nothing on macro invocations
-  --> $DIR/issue-49934.rs:20:5
+  --> $DIR/issue-49934.rs:19:5
    |
 LL |     #[derive(Debug)]
    |     ^^^^^^^^^^^^^^^^
    |
    = note: this may become a hard error in a future release
 
-warning: unused attribute
-  --> $DIR/issue-49934.rs:6:8
+error: `derive` may only be applied to structs, enums and unions
+  --> $DIR/issue-49934.rs:4:8
    |
 LL | fn foo<#[derive(Debug)] T>() {
    |        ^^^^^^^^^^^^^^^^
-   |
-note: lint level defined here
-  --> $DIR/issue-49934.rs:4:9
-   |
-LL | #![warn(unused_attributes)]
-   |         ^^^^^^^^^^^^^^^^^
 
-warning: unused attribute
-  --> $DIR/issue-49934.rs:8:9
+error: expected an inert attribute, found an attribute macro
+  --> $DIR/issue-49934.rs:4:17
    |
-LL |         #[derive(Debug)]
-   |         ^^^^^^^^^^^^^^^^
+LL | fn foo<#[derive(Debug)] T>() {
+   |                 ^^^^^
 
-warning: unused attribute
-  --> $DIR/issue-49934.rs:26:5
-   |
-LL |     #[derive(Debug)]
-   |     ^^^^^^^^^^^^^^^^
-
-warning: unused attribute
-  --> $DIR/issue-49934.rs:30:5
-   |
-LL |     #[derive(Debug)]
-   |     ^^^^^^^^^^^^^^^^
-
-warning: unused attribute
-  --> $DIR/issue-49934.rs:34:13
-   |
-LL |     let _ = #[derive(Debug)] "Hello, world!";
-   |             ^^^^^^^^^^^^^^^^
-
-warning: unused attribute
-  --> $DIR/issue-49934.rs:39:9
-   |
-LL |         #[derive(Debug)]
-   |         ^^^^^^^^^^^^^^^^
+error: aborting due to 2 previous errors
 

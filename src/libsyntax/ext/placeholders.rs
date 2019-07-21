@@ -66,6 +66,15 @@ pub fn placeholder(kind: AstFragmentKind, id: ast::NodeId) -> AstFragment {
             let mac = P((mac_placeholder(), ast::MacStmtStyle::Braces, ThinVec::new()));
             ast::Stmt { id, span, node: ast::StmtKind::Mac(mac) }
         }]),
+        AstFragmentKind::GenericParams => AstFragment::GenericParams(smallvec![{
+            ast::GenericParam {
+                id,
+                ident: ast::Ident::from_str("placeholder"),
+                attrs: Default::default(),
+                bounds: Default::default(),
+                kind: ast::GenericParamKind::Lifetime,
+            }
+        }])
     }
 }
 
@@ -162,6 +171,13 @@ impl<'a, 'b> MutVisitor for PlaceholderExpander<'a, 'b> {
         }
 
         stmts
+    }
+
+    fn flat_map_generic_param(&mut self, param: ast::GenericParam) -> SmallVec<[ast::GenericParam; 1]> {
+        if param.ident.as_str() == "placeholder" {
+            return self.remove(param.id).make_generic_params()
+        }
+        noop_flat_map_generic_param(param, self)
     }
 
     fn visit_pat(&mut self, pat: &mut P<ast::Pat>) {

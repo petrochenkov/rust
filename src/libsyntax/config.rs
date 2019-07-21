@@ -241,10 +241,6 @@ impl<'a> StripUnconfigured<'a> {
         items.flat_map_in_place(|item| self.configure(item));
     }
 
-    pub fn configure_generic_params(&mut self, params: &mut Vec<ast::GenericParam>) {
-        params.flat_map_in_place(|param| self.configure(param));
-    }
-
     fn configure_variant_data(&mut self, vdata: &mut ast::VariantData) {
         match vdata {
             ast::VariantData::Struct(fields, ..) | ast::VariantData::Tuple(fields, _) =>
