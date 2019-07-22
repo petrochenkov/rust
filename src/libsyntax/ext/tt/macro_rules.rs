@@ -19,6 +19,7 @@ use crate::{ast, attr, attr::TransparencyError};
 
 use errors::{DiagnosticBuilder, FatalError};
 use log::debug;
+use syntax_pos::hygiene::ExpnDef;
 use syntax_pos::Span;
 
 use rustc_data_structures::fx::FxHashMap;
@@ -459,7 +460,7 @@ pub fn compile(
                     );
                     vec![sym::allow_internal_unstable_backcompat_hack].into()
                 })
-        });
+        }).unwrap_or_default();
 
     let mut local_inner_macros = false;
     if let Some(macro_export) = attr::find_by_name(&def.attrs, sym::macro_export) {
@@ -472,17 +473,19 @@ pub fn compile(
 
     SyntaxExtension {
         kind: SyntaxExtensionKind::LegacyBang(expander),
-        span: def.span,
-        default_transparency,
-        allow_internal_unstable,
-        allow_internal_unsafe: attr::contains_name(&def.attrs, sym::allow_internal_unsafe),
-        local_inner_macros,
         stability: attr::find_stability(&sess, &def.attrs, def.span),
         deprecation: attr::find_deprecation(&sess, &def.attrs, def.span),
         helper_attrs: Vec::new(),
-        edition,
         is_builtin,
         is_derive_copy: is_builtin && def.ident.name == sym::Copy,
+        expn_def: Lrc::new(ExpnDef {
+            def_site: def.span,
+            default_transparency,
+            allow_internal_unstable,
+            allow_internal_unsafe: attr::contains_name(&def.attrs, sym::allow_internal_unsafe),
+            local_inner_macros,
+            edition,
+        })
     }
 }
 

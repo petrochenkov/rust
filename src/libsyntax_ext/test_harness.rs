@@ -7,7 +7,7 @@ use syntax::attr;
 use syntax::entry::{self, EntryPointType};
 use syntax::ext::base::{ExtCtxt, Resolver};
 use syntax::ext::expand::ExpansionConfig;
-use syntax::ext::hygiene::{ExpnId, MacroKind};
+use syntax::ext::hygiene::{ExpnId, ExpnDef, MacroKind};
 use syntax::feature_gate::Features;
 use syntax::mut_visit::{*, ExpectOne};
 use syntax::parse::ParseSess;
@@ -269,9 +269,11 @@ fn mk_main(cx: &mut TestCtxt<'_>) -> P<ast::Item> {
     //            #![main]
     //            test::test_main_static(&[..tests]);
     //        }
-    let sp = DUMMY_SP.fresh_expansion(ExpnId::root(), ExpnInfo::allow_unstable(
-        ExpnKind::Macro(MacroKind::Attr, sym::test_case), DUMMY_SP, cx.ext_cx.parse_sess.edition,
-        [sym::main, sym::test, sym::rustc_attrs][..].into(),
+    let expn_def = ExpnDef::allow_unstable(
+        cx.ext_cx.parse_sess.edition, &[sym::main, sym::test, sym::rustc_attrs]
+    );
+    let sp = DUMMY_SP.fresh_expansion(ExpnId::root(), ExpnInfo::new(
+        ExpnKind::Macro(MacroKind::Attr, sym::test_case), DUMMY_SP, expn_def
     ));
     let ecx = &cx.ext_cx;
     let test_id = Ident::with_empty_ctxt(sym::test);

@@ -15,7 +15,7 @@ use syntax::edition::Edition;
 use syntax::ext::base::{self, Indeterminate, SpecialDerives};
 use syntax::ext::base::{MacroKind, SyntaxExtension};
 use syntax::ext::expand::{AstFragment, Invocation, InvocationKind};
-use syntax::ext::hygiene::{self, ExpnId, ExpnInfo, ExpnKind};
+use syntax::ext::hygiene::{self, ExpnId, ExpnInfo, ExpnKind, ExpnDef};
 use syntax::ext::tt::macro_rules;
 use syntax::feature_gate::{emit_feature_err, is_builtin_attr_name};
 use syntax::feature_gate::GateIssue;
@@ -120,10 +120,10 @@ impl<'a> base::Resolver for Resolver<'a> {
     }
 
     fn get_module_scope(&mut self, id: ast::NodeId) -> ExpnId {
-        let span = DUMMY_SP.fresh_expansion(ExpnId::root(), ExpnInfo::default(
-            ExpnKind::Macro(MacroKind::Attr, sym::test_case), DUMMY_SP, self.session.edition()
-        ));
-        let expn_id = span.ctxt().outer_expn();
+        let expn_def = self.session.parse_sess.default_expn_def.clone();
+        let expn_id = ExpnId::fresh(ExpnId::root(), Some(ExpnInfo::new(
+            ExpnKind::Macro(MacroKind::Attr, sym::test_case), DUMMY_SP, expn_def
+        )));
         let module = self.module_map[&self.definitions.local_def_id(id)];
         self.definitions.set_invocation_parent(expn_id, module.def_id().unwrap().index);
         self.invocations.insert(expn_id, self.arenas.alloc_invocation_data(InvocationData {
@@ -855,7 +855,9 @@ impl<'a> Resolver<'a> {
                     // The macro is a built-in, replace only the expander function.
                     result.kind = ext.kind;
                     // Also reset its edition to the global one for compatibility.
-                    result.edition = self.session.edition();
+                    result.expn_def = Lrc::new(ExpnDef {
+                        edition: self.session.edition(), ..(*result.expn_def).clone()
+                    });
                 } else {
                     // The macro is from a plugin, the in-source definition is dummy,
                     // take all the data from the resolver.

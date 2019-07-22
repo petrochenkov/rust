@@ -5,6 +5,7 @@ use syntax::ptr::P;
 use syntax::source_map::{ExpnInfo, ExpnKind, dummy_spanned, respan};
 use syntax::symbol::{Ident, Symbol, kw, sym};
 use syntax_pos::DUMMY_SP;
+use syntax_pos::hygiene::ExpnDef;
 
 use std::iter;
 
@@ -55,9 +56,9 @@ pub fn inject(
     // the prelude.
     let name = names[0];
 
-    let span = DUMMY_SP.fresh_expansion(ExpnId::root(), ExpnInfo::allow_unstable(
-        ExpnKind::Macro(MacroKind::Attr, sym::std_inject), DUMMY_SP, edition,
-        [sym::prelude_import][..].into(),
+    let expn_def = ExpnDef::allow_unstable(edition, &[sym::prelude_import]);
+    let span = DUMMY_SP.fresh_expansion(ExpnId::root(), ExpnInfo::new(
+        ExpnKind::Macro(MacroKind::Attr, sym::std_inject), DUMMY_SP, expn_def
     ));
 
     krate.module.items.insert(0, P(ast::Item {
