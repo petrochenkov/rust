@@ -89,6 +89,13 @@ impl MultiItemModifier for ProcMacroDerive {
               item: Annotatable)
               -> Vec<Annotatable> {
         let item = match item {
+            Annotatable::Arg(..) |
+            Annotatable::Arm(..) |
+            Annotatable::Field(..) |
+            Annotatable::FieldPat(..) |
+            Annotatable::StructField(..) |
+            Annotatable::Variant(..)
+                => panic!("unexpected annotatable"),
             Annotatable::Item(item) => item,
             Annotatable::ImplItem(_) |
             Annotatable::TraitItem(_) |

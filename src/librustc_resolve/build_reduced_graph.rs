@@ -1273,4 +1273,58 @@ impl<'a, 'b> Visitor<'b> for BuildReducedGraphVisitor<'a, 'b> {
         }
         visit::walk_attribute(self, attr);
     }
+
+    fn visit_arg(&mut self, arg: &'b ast::Arg) {
+        if arg.is_placeholder {
+            self.visit_invoc(arg.id);
+        }
+        else {
+            visit::walk_arg(self, arg);
+        }
+    }
+
+    fn visit_arm(&mut self, arm: &'b ast::Arm) {
+        if arm.is_placeholder {
+            self.visit_invoc(arm.id);
+        }
+        else {
+            visit::walk_arm(self, arm);
+        }
+    }
+
+    fn visit_field(&mut self, f: &'b ast::Field) {
+        if f.is_placeholder {
+            self.visit_invoc(f.id);
+        }
+        else {
+            visit::walk_field(self, f);
+        }
+    }
+
+    fn visit_field_pattern(&mut self, fp: &'b ast::FieldPat) {
+        if fp.is_placeholder {
+            self.visit_invoc(fp.id);
+        }
+        else {
+            visit::walk_field_pattern(self, fp);
+        }
+    }
+
+    fn visit_struct_field(&mut self, sf: &'b ast::StructField) {
+        if sf.is_placeholder {
+            self.visit_invoc(sf.id);
+        }
+        else {
+            visit::walk_struct_field(self, sf);
+        }
+    }
+
+    fn visit_variant(&mut self, v: &'b ast::Variant) {
+        if v.is_placeholder {
+            self.visit_invoc(v.id);
+        }
+        else {
+            visit::walk_variant(self, v);
+        }
+    }
 }

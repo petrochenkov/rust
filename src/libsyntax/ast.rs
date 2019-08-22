@@ -611,6 +611,7 @@ pub struct FieldPat {
     pub attrs: ThinVec<Attribute>,
     pub id: NodeId,
     pub span: Span,
+    pub is_placeholder: bool,
 }
 
 #[derive(Clone, PartialEq, RustcEncodable, RustcDecodable, Debug, Copy)]
@@ -933,6 +934,7 @@ pub struct Arm {
     pub body: P<Expr>,
     pub span: Span,
     pub id: NodeId,
+    pub is_placeholder: bool,
 }
 
 #[derive(Clone, RustcEncodable, RustcDecodable, Debug)]
@@ -943,6 +945,7 @@ pub struct Field {
     pub is_shorthand: bool,
     pub attrs: ThinVec<Attribute>,
     pub id: NodeId,
+    pub is_placeholder: bool,
 }
 
 #[derive(Clone, PartialEq, RustcEncodable, RustcDecodable, Debug, Copy)]
@@ -1799,6 +1802,7 @@ pub struct Arg {
     pub pat: P<Pat>,
     pub id: NodeId,
     pub span: Span,
+    pub is_placeholder: bool,
 }
 
 /// Alternative representation for `Arg`s describing `self` parameter of methods.
@@ -1860,6 +1864,7 @@ impl Arg {
             span,
             ty,
             id: DUMMY_NODE_ID,
+            is_placeholder: false
         };
         match eself.node {
             SelfKind::Explicit(ty, mutbl) => arg(mutbl, ty),
@@ -2055,6 +2060,8 @@ pub struct Variant {
     pub disr_expr: Option<AnonConst>,
     /// Span
     pub span: Span,
+    /// Is a macro placeholder
+    pub is_placeholder: bool,
 }
 
 /// Part of `use` item to the right of its prefix.
@@ -2217,6 +2224,7 @@ pub struct StructField {
     pub id: NodeId,
     pub ty: P<Ty>,
     pub attrs: Vec<Attribute>,
+    pub is_placeholder: bool,
 }
 
 /// Fields and constructor ids of enum variants and structs.

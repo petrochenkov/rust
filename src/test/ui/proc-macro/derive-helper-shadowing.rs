@@ -10,6 +10,7 @@ use test_macros::empty_attr as empty_helper;
 struct S {
     // FIXME No ambiguity, attributes in non-macro positions are not resolved properly
     #[empty_helper]
+    //~^ ERROR expected an inert attribute, found an attribute macro
     field: [u8; {
         // FIXME No ambiguity, derive helpers are not put into scope for non-attributes
         use empty_helper;

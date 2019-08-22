@@ -1042,7 +1042,14 @@ impl<'a> Parser<'a> {
 
         let span = lo.to(self.token.span);
 
-        Ok(Arg { attrs: attrs.into(), id: ast::DUMMY_NODE_ID, pat, span, ty })
+        Ok(Arg {
+            attrs: attrs.into(),
+            id: ast::DUMMY_NODE_ID,
+            is_placeholder: false,
+            pat,
+            span,
+            ty,
+        })
     }
 
     /// Parses mutability (`mut` or nothing).

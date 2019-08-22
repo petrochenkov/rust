@@ -154,7 +154,10 @@ impl<'a> visit::Visitor<'a> for DefCollector<'a> {
         });
     }
 
-    fn visit_variant(&mut self, v: &'a Variant, g: &'a Generics, item_id: NodeId) {
+    fn visit_variant(&mut self, v: &'a Variant) {
+        if v.is_placeholder {
+            return self.visit_macro_invoc(v.id);
+        }
         let def = self.create_def(v.id,
                                   DefPathData::TypeNs(v.ident.as_interned_str()),
                                   v.span);
@@ -162,12 +165,11 @@ impl<'a> visit::Visitor<'a> for DefCollector<'a> {
             if let Some(ctor_hir_id) = v.data.ctor_id() {
                 this.create_def(ctor_hir_id, DefPathData::Ctor, v.span);
             }
-            visit::walk_variant(this, v, g, item_id)
+            visit::walk_variant(this, v)
         });
     }
 
-    fn visit_variant_data(&mut self, data: &'a VariantData, _: Ident,
-                          _: &'a Generics, _: NodeId, _: Span) {
+    fn visit_variant_data(&mut self, data: &'a VariantData) {
         for (index, field) in data.fields().iter().enumerate() {
             let name = field.ident.map(|ident| ident.name)
                 .unwrap_or_else(|| sym::integer(index));
@@ -293,6 +295,51 @@ impl<'a> visit::Visitor<'a> for DefCollector<'a> {
                     self.visit_macro_invoc(expr.id);
                 }
             }
+        }
+    }
+
+    fn visit_arg(&mut self, arg: &'a Arg) {
+        if arg.is_placeholder {
+            self.visit_macro_invoc(arg.id)
+        }
+        else {
+            visit::walk_arg(self, arg)
+        }
+    }
+
+    fn visit_arm(&mut self, arm: &'a Arm) {
+        if arm.is_placeholder {
+            self.visit_macro_invoc(arm.id)
+        }
+        else {
+            visit::walk_arm(self, arm)
+        }
+    }
+
+    fn visit_field(&mut self, f: &'a Field) {
+        if f.is_placeholder {
+            self.visit_macro_invoc(f.id)
+        }
+        else {
+            visit::walk_field(self, f)
+        }
+    }
+
+    fn visit_field_pattern(&mut self, fp: &'a FieldPat) {
+        if fp.is_placeholder {
+            self.visit_macro_invoc(fp.id)
+        }
+        else {
+            visit::walk_field_pattern(self, fp)
+        }
+    }
+
+    fn visit_struct_field(&mut self, sf: &'a StructField) {
+        if sf.is_placeholder {
+            self.visit_macro_invoc(sf.id)
+        }
+        else {
+            visit::walk_struct_field(self, sf)
         }
     }
 }

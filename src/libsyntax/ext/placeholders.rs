@@ -32,6 +32,16 @@ pub fn placeholder(kind: AstFragmentKind, id: ast::NodeId) -> AstFragment {
         attrs: ThinVec::new(),
         node: ast::ExprKind::Mac(mac_placeholder()),
     });
+    let ty = P(ast::Ty {
+        id,
+        node: ast::TyKind::Mac(mac_placeholder()),
+        span,
+    });
+    let pat = P(ast::Pat {
+        id,
+        node: ast::PatKind::Mac(mac_placeholder()),
+        span,
+    });
 
     match kind {
         AstFragmentKind::Expr => AstFragment::Expr(expr_placeholder()),
@@ -67,6 +77,71 @@ pub fn placeholder(kind: AstFragmentKind, id: ast::NodeId) -> AstFragment {
             let mac = P((mac_placeholder(), ast::MacStmtStyle::Braces, ThinVec::new()));
             ast::Stmt { id, span, node: ast::StmtKind::Mac(mac) }
         }]),
+        AstFragmentKind::Args => AstFragment::Args(smallvec![
+            ast::Arg {
+                attrs: Default::default(),
+                id,
+                pat,
+                span,
+                ty,
+                is_placeholder: true,
+            }
+        ]),
+        AstFragmentKind::Arms => AstFragment::Arms(smallvec![
+            ast::Arm {
+                attrs: Default::default(),
+                body: expr_placeholder(),
+                guard: None,
+                id,
+                pats: Default::default(),
+                span,
+                is_placeholder: true,
+            }
+        ]),
+        AstFragmentKind::Fields => AstFragment::Fields(smallvec![
+            ast::Field {
+                attrs: Default::default(),
+                expr: expr_placeholder(),
+                id,
+                ident,
+                is_shorthand: false,
+                span,
+                is_placeholder: true,
+            }
+        ]),
+        AstFragmentKind::FieldPats => AstFragment::FieldPats(smallvec![
+            ast::FieldPat {
+                attrs: Default::default(),
+                id,
+                ident,
+                is_shorthand: false,
+                pat,
+                span,
+                is_placeholder: true,
+            }
+        ]),
+        AstFragmentKind::StructFields => AstFragment::StructFields(smallvec![
+            ast::StructField {
+                attrs: Default::default(),
+                id,
+                ident: None,
+                span,
+                ty,
+                vis,
+                is_placeholder: true,
+            }
+        ]),
+        AstFragmentKind::Variants => AstFragment::Variants(smallvec![
+            ast::Variant {
+                attrs: Default::default(),
+                data: ast::VariantData::Struct(Default::default(), false),
+                disr_expr: None,
+                id,
+                ident,
+                span,
+                is_placeholder: true,
+            }
+        ])
     }
 }
 
@@ -105,6 +180,60 @@ impl<'a, 'b> PlaceholderExpander<'a, 'b> {
 }
 
 impl<'a, 'b> MutVisitor for PlaceholderExpander<'a, 'b> {
+    fn flat_map_arg(&mut self, arg: ast::Arg) -> SmallVec<[ast::Arg; 1]> {
+        if arg.is_placeholder {
+            self.remove(arg.id).make_args()
+        }
+        else {
+            noop_flat_map_arg(arg, self)
+        }
+    }
+
+    fn flat_map_arm(&mut self, arm: ast::Arm) -> SmallVec<[ast::Arm; 1]> {
+        if arm.is_placeholder {
+            self.remove(arm.id).make_arms()
+        }
+        else {
+            noop_flat_map_arm(arm, self)
+        }
+    }
+
+    fn flat_map_field(&mut self, field: ast::Field) -> SmallVec<[ast::Field; 1]> {
+        if field.is_placeholder {
+            self.remove(field.id).make_fields()
+        }
+        else {
+            noop_flat_map_field(field, self)
+        }
+    }
+
+    fn flat_map_field_pattern(&mut self, fp: ast::FieldPat) -> SmallVec<[ast::FieldPat; 1]> {
+        if fp.is_placeholder {
+            self.remove(fp.id).make_field_patterns()
+        }
+        else {
+            noop_flat_map_field_pattern(fp, self)
+        }
+    }
+
+    fn flat_map_struct_field(&mut self, sf: ast::StructField) -> SmallVec<[ast::StructField; 1]> {
+        if sf.is_placeholder {
+            self.remove(sf.id).make_struct_fields()
+        }
+        else {
+            noop_flat_map_struct_field(sf, self)
+        }
+    }
+
+    fn flat_map_variant(&mut self, variant: ast::Variant) -> SmallVec<[ast::Variant; 1]> {
+        if variant.is_placeholder {
+            self.remove(variant.id).make_variants()
+        }
+        else {
+            noop_flat_map_variant(variant, self)
+        }
+    }
+
     fn flat_map_item(&mut self, item: P<ast::Item>) -> SmallVec<[P<ast::Item>; 1]> {
         match item.node {
             ast::ItemKind::Mac(_) => return self.remove(item.id).make_items(),
