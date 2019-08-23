@@ -821,6 +821,11 @@ impl<'a, 'b> BuildReducedGraphVisitor<'a, 'b> {
                                        variant: &Variant,
                                        parent: Module<'a>,
                                        vis: ty::Visibility) {
+        if variant.is_placeholder {
+            self.visit_invoc(variant.id);
+            return;
+        }
+
         let expn_id = self.parent_scope.expansion;
         let ident = variant.ident;
 
@@ -1316,15 +1321,6 @@ impl<'a, 'b> Visitor<'b> for BuildReducedGraphVisitor<'a, 'b> {
         }
         else {
             visit::walk_struct_field(self, sf);
-        }
-    }
-
-    fn visit_variant(&mut self, v: &'b ast::Variant) {
-        if v.is_placeholder {
-            self.visit_invoc(v.id);
-        }
-        else {
-            visit::walk_variant(self, v);
         }
     }
 }

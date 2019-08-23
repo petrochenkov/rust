@@ -171,12 +171,16 @@ impl<'a> visit::Visitor<'a> for DefCollector<'a> {
 
     fn visit_variant_data(&mut self, data: &'a VariantData) {
         for (index, field) in data.fields().iter().enumerate() {
+            if field.is_placeholder {
+                self.visit_macro_invoc(field.id);
+                continue;
+            }
             let name = field.ident.map(|ident| ident.name)
                 .unwrap_or_else(|| sym::integer(index));
             let def = self.create_def(field.id,
                                       DefPathData::ValueNs(name.as_interned_str()),
                                       field.span);
-            self.with_parent(def, |this| this.visit_struct_field(field));
+            self.with_parent(def, |this| visit::walk_struct_field(this, field));
         }
     }
 
@@ -339,7 +343,12 @@ impl<'a> visit::Visitor<'a> for DefCollector<'a> {
             self.visit_macro_invoc(sf.id)
         }
         else {
-            visit::walk_struct_field(self, sf)
+            let name = sf.ident.map(|ident| ident.name)
+                .unwrap_or_else(|| panic!("don't know the field number in this context"));
+            let def = self.create_def(sf.id,
+                                        DefPathData::ValueNs(name.as_interned_str()),
+                                        sf.span);
+            self.with_parent(def, |this| visit::walk_struct_field(this, sf));
         }
     }
 }
