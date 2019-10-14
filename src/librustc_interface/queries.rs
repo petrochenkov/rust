@@ -115,6 +115,7 @@ impl Compiler {
                 self.session(),
                 self.cstore(),
                 krate,
+                self.codegen_backend().metadata_loader(),
                 &crate_name,
             );
 
@@ -156,6 +157,7 @@ impl Compiler {
                 self.sess.clone(),
                 self.cstore().clone(),
                 krate,
+                self.codegen_backend().metadata_loader(),
                 &crate_name,
                 plugin_info,
             ).map(|(krate, resolver)| (krate, Steal::new(Rc::new(RefCell::new(resolver)))))

@@ -12,9 +12,9 @@ use rustc::middle::cstore::DepKind;
 use rustc::mir::interpret::AllocDecodingState;
 use rustc::session::{Session, CrateDisambiguator};
 use rustc::session::config::{Sanitizer, self};
-use rustc_target::spec::{PanicStrategy, TargetTriple};
+use rustc_target::spec::PanicStrategy;
 use rustc::session::search_paths::PathKind;
-use rustc::middle::cstore::{CrateSource, ExternCrate, ExternCrateSource};
+use rustc::middle::cstore::{CrateSource, ExternCrate, ExternCrateSource, MetadataLoader};
 use rustc::util::common::record_time;
 use rustc::util::nodemap::FxHashSet;
 use rustc::hir::map::Definitions;
@@ -39,9 +39,10 @@ crate struct Library {
 }
 
 pub struct CrateLoader<'a> {
-    sess: &'a Session,
+    crate sess: &'a Session,
     cstore: &'a CStore,
-    local_crate_name: Symbol,
+    crate metadata_loader: Box<dyn MetadataLoader + Sync>,
+    crate_name: Symbol,
 }
 
 fn dump_crates(cstore: &CStore) {
@@ -99,11 +100,12 @@ impl<'a> LoadError<'a> {
 }
 
 impl<'a> CrateLoader<'a> {
-    pub fn new(sess: &'a Session, cstore: &'a CStore, local_crate_name: &str) -> Self {
+    pub fn new(sess: &'a Session, cstore: &'a CStore, metadata_loader: Box<dyn MetadataLoader + Sync>, crate_name: &str) -> Self {
         CrateLoader {
             sess,
             cstore,
-            local_crate_name: Symbol::intern(local_crate_name),
+            metadata_loader,
+            crate_name: Symbol::intern(crate_name),
         }
     }
 
@@ -151,7 +153,7 @@ impl<'a> CrateLoader<'a> {
             let prev_kind = source.dylib.as_ref().or(source.rlib.as_ref())
                                   .or(source.rmeta.as_ref())
                                   .expect("No sources for crate").1;
-            if ret.is_none() && (prev_kind == kind || prev_kind == PathKind::All) {
+            if kind.matches(prev_kind) {
                 ret = Some(cnum);
             }
         });
@@ -162,7 +164,7 @@ impl<'a> CrateLoader<'a> {
                                   span: Span,
                                   root: &CrateRoot<'_>) {
         // Check for (potential) conflicts with the local crate
-        if self.local_crate_name == root.name &&
+        if self.crate_name == root.name &&
            self.sess.local_crate_disambiguator() == root.disambiguator {
             span_fatal!(self.sess, span, E0519,
                         "the current crate is indistinguishable from one of its \
@@ -273,45 +275,48 @@ impl<'a> CrateLoader<'a> {
 
     fn load_proc_macro<'b>(
         &self,
-        locate_ctxt: &mut locator::Context<'b>,
+        locate_ctxt: &locator::Context<'b>,
         path_kind: PathKind,
     ) -> Option<(LoadResult, Option<Library>)>
     where
         'a: 'b,
     {
-        // Use a new locator Context so trying to load a proc macro doesn't affect the error
-        // message we emit
-        let mut proc_macro_locator = locate_ctxt.clone();
-
-        // Try to load a proc macro
-        proc_macro_locator.is_proc_macro = Some(true);
-
-        // Load the proc macro crate for the target
-        let (locator, target_result) = if self.sess.opts.debugging_opts.dual_proc_macros {
-            proc_macro_locator.reset();
-            let result = match self.load(&mut proc_macro_locator)? {
-                LoadResult::Previous(cnum) => return Some((LoadResult::Previous(cnum), None)),
-                LoadResult::Loaded(library) => Some(LoadResult::Loaded(library))
-            };
+        let mut locate_ctxt_target = locator::Context::new(
+            self,
+            locate_ctxt.crate_name,
+            locate_ctxt.hash,
+            locate_ctxt.extra_filename,
+            false,
+            path_kind,
+            locate_ctxt.span,
+            locate_ctxt.root,
+            Some(true),
+        );
+        let mut locate_ctxt_host = locator::Context::new(
+            self,
+            locate_ctxt.crate_name,
             // Don't look for a matching hash when looking for the host crate.
             // It won't be the same as the target crate hash
-            locate_ctxt.hash = None;
-            // Use the locate_ctxt when looking for the host proc macro crate, as that is required
-            // so we want it to affect the error message
-            (locate_ctxt, result)
+            None,
+            locate_ctxt.extra_filename,
+            true,
+            path_kind,
+            locate_ctxt.span,
+            locate_ctxt.root,
+            Some(true),
+        );
+
+        // Load the proc macro crate for the target
+        let target_result = if self.sess.opts.debugging_opts.dual_proc_macros {
+            match self.load(&mut locate_ctxt_target)? {
+                LoadResult::Previous(cnum) => return Some((LoadResult::Previous(cnum), None)),
+                LoadResult::Loaded(library) => Some(LoadResult::Loaded(library))
+            }
         } else {
-            (&mut proc_macro_locator, None)
+            None
         };
 
-        // Load the proc macro crate for the host
-
-        locator.reset();
-        locator.is_proc_macro = Some(true);
-        locator.target = &self.sess.host;
-        locator.triple = TargetTriple::from_triple(config::host_triple());
-        locator.filesearch = self.sess.host_filesearch(path_kind);
-
-        let host_result = self.load(locator)?;
+        let host_result = self.load(&mut locate_ctxt_host)?;
 
         Some(if self.sess.opts.debugging_opts.dual_proc_macros {
             let host_result = match host_result {
@@ -353,29 +358,21 @@ impl<'a> CrateLoader<'a> {
             (LoadResult::Previous(cnum), None)
         } else {
             info!("falling back to a load");
-            let mut locate_ctxt = locator::Context {
-                sess: self.sess,
-                span,
-                crate_name: name,
+            let mut locate_ctxt = locator::Context::new(
+                self,
+                name,
                 hash,
                 extra_filename,
-                filesearch: self.sess.target_filesearch(path_kind),
-                target: &self.sess.target.target,
-                triple: self.sess.opts.target_triple.clone(),
+                false,
+                path_kind,
+                span,
                 root,
-                rejected_via_hash: vec![],
-                rejected_via_triple: vec![],
-                rejected_via_kind: vec![],
-                rejected_via_version: vec![],
-                rejected_via_filename: vec![],
-                should_match_name: true,
-                is_proc_macro: Some(false),
-                metadata_loader: &*self.cstore.metadata_loader,
-            };
+                Some(false),
+            );
 
             self.load(&mut locate_ctxt).map(|r| (r, None)).or_else(|| {
                 dep_kind = DepKind::UnexportedMacrosOnly;
-                self.load_proc_macro(&mut locate_ctxt, path_kind)
+                self.load_proc_macro(&locate_ctxt, path_kind)
             }).ok_or_else(move || LoadError::LocatorError(locate_ctxt))?
         };
 
@@ -498,46 +495,41 @@ impl<'a> CrateLoader<'a> {
 
     fn read_extension_crate(&self, name: Symbol, span: Span) -> ExtensionCrate {
         info!("read extension crate `{}`", name);
-        let target_triple = self.sess.opts.target_triple.clone();
-        let host_triple = TargetTriple::from_triple(config::host_triple());
-        let is_cross = target_triple != host_triple;
         let mut target_only = false;
-        let mut locate_ctxt = locator::Context {
-            sess: self.sess,
+        let mut locate_ctxt_host = locator::Context::new(
+            self,
+            name,
+            None,
+            None,
+            true,
+            PathKind::Crate,
             span,
-            crate_name: name,
-            hash: None,
-            extra_filename: None,
-            filesearch: self.sess.host_filesearch(PathKind::Crate),
-            target: &self.sess.host,
-            triple: host_triple,
-            root: None,
-            rejected_via_hash: vec![],
-            rejected_via_triple: vec![],
-            rejected_via_kind: vec![],
-            rejected_via_version: vec![],
-            rejected_via_filename: vec![],
-            should_match_name: true,
-            is_proc_macro: None,
-            metadata_loader: &*self.cstore.metadata_loader,
-        };
-        let library = self.load(&mut locate_ctxt).or_else(|| {
-            if !is_cross {
-                return None
-            }
+            None,
+            None,
+        );
+        let mut locate_ctxt_target = locator::Context::new(
+            self,
+            name,
+            None,
+            None,
+            false,
+            PathKind::Crate,
+            span,
+            None,
+            None,
+        );
+        let library = self.load(&mut locate_ctxt_host).or_else(|| {
             // Try loading from target crates. This will abort later if we
             // try to load a plugin registrar function,
             target_only = true;
-
-            locate_ctxt.target = &self.sess.target.target;
-            locate_ctxt.triple = target_triple;
-            locate_ctxt.filesearch = self.sess.target_filesearch(PathKind::Crate);
-
-            self.load(&mut locate_ctxt)
+            self.load(&mut locate_ctxt_target)
         });
         let library = match library {
             Some(l) => l,
-            None => locate_ctxt.report_errs(),
+            None => {
+                locate_ctxt_host.report_errs();
+                // locate_ctxt_target.report_errs();
+            }
         };
 
         let (dylib, metadata) = match library {

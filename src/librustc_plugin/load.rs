@@ -2,7 +2,6 @@
 
 use rustc::session::Session;
 use rustc_metadata::creader::CrateLoader;
-use rustc_metadata::cstore::CStore;
 use crate::registry::Registry;
 
 use std::borrow::ToOwned;
@@ -25,7 +24,7 @@ pub struct PluginRegistrar {
 
 struct PluginLoader<'a> {
     sess: &'a Session,
-    reader: CrateLoader<'a>,
+    reader: &'a CrateLoader<'a>,
     plugins: Vec<PluginRegistrar>,
 }
 
@@ -37,11 +36,10 @@ fn call_malformed_plugin_attribute(sess: &Session, span: Span) {
 
 /// Read plugin metadata and dynamically load registrar functions.
 pub fn load_plugins(sess: &Session,
-                    cstore: &CStore,
                     krate: &ast::Crate,
-                    crate_name: &str,
+                    crate_loader: &CrateLoader<'_>,
                     addl_plugins: Option<Vec<String>>) -> Vec<PluginRegistrar> {
-    let mut loader = PluginLoader::new(sess, cstore, crate_name);
+    let mut loader = PluginLoader::new(sess, crate_loader);
 
     // do not report any error now. since crate attributes are
     // not touched by expansion, every use of plugin without
@@ -80,12 +78,8 @@ pub fn load_plugins(sess: &Session,
 }
 
 impl<'a> PluginLoader<'a> {
-    fn new(sess: &'a Session, cstore: &'a CStore, crate_name: &str) -> Self {
-        PluginLoader {
-            sess,
-            reader: CrateLoader::new(sess, cstore, crate_name),
-            plugins: vec![],
-        }
+    fn new(sess: &'a Session, reader: &'a CrateLoader<'a>) -> Self {
+        PluginLoader { sess, reader, plugins: Vec::new() }
     }
 
     fn load_plugin(&mut self, span: Span, name: Symbol, args: Vec<ast::NestedMetaItem>) {

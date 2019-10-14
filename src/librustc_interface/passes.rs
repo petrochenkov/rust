@@ -9,7 +9,7 @@ use rustc::hir::lowering::lower_crate;
 use rustc::hir::def_id::{CrateNum, LOCAL_CRATE};
 use rustc::lint;
 use rustc::middle::{self, reachable, resolve_lifetime, stability};
-use rustc::middle::cstore::CrateStore;
+use rustc::middle::cstore::{MetadataLoader, CrateStore};
 use rustc::ty::{self, AllArenas, Resolutions, TyCtxt, GlobalCtxt};
 use rustc::ty::steal::Steal;
 use rustc::traits;
@@ -119,6 +119,7 @@ pub fn configure_and_expand(
     sess: Lrc<Session>,
     cstore: Lrc<CStore>,
     krate: ast::Crate,
+    metadata_loader: Box<dyn MetadataLoader + Sync>,
     crate_name: &str,
     plugin_info: PluginInfo,
 ) -> Result<(ast::Crate, BoxedResolver)> {
@@ -130,7 +131,7 @@ pub fn configure_and_expand(
     let crate_name = crate_name.to_string();
     let (result, resolver) = BoxedResolver::new(static move || {
         let sess = &*sess;
-        let crate_loader = CrateLoader::new(sess, &*cstore, &crate_name);
+        let crate_loader = CrateLoader::new(sess, &*cstore, metadata_loader, &crate_name);
         let resolver_arenas = Resolver::arenas();
         let res = configure_and_expand_inner(
             sess,
@@ -226,6 +227,7 @@ pub fn register_plugins<'a>(
     sess: &'a Session,
     cstore: &'a CStore,
     mut krate: ast::Crate,
+    metadata_loader: Box<dyn MetadataLoader + Sync>,
     crate_name: &str,
 ) -> Result<(ast::Crate, PluginInfo)> {
     krate = time(sess, "attributes injection", || {
@@ -269,11 +271,11 @@ pub fn register_plugins<'a>(
     });
 
     let registrars = time(sess, "plugin loading", || {
+        let crate_loader = CrateLoader::new(sess, cstore, metadata_loader, crate_name);
         plugin::load::load_plugins(
             sess,
-            &cstore,
             &krate,
-            crate_name,
+            &crate_loader,
             Some(sess.opts.debugging_opts.extra_plugins.clone()),
         )
     });

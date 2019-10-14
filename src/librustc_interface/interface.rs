@@ -95,13 +95,11 @@ where
         config.lint_caps,
     );
 
-    let cstore = Lrc::new(CStore::new(codegen_backend.metadata_loader()));
-
     let compiler = Compiler {
         sess,
         codegen_backend,
         source_map,
-        cstore,
+        cstore : Default::default(),
         input: config.input,
         input_path: config.input_path,
         output_dir: config.output_dir,
