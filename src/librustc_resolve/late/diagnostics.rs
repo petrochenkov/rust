@@ -236,9 +236,8 @@ impl<'a> LateResolutionVisitor<'a, '_> {
         }
 
         // Try Levenshtein algorithm.
-        let levenshtein_worked = add_typo_suggestion(
-            &mut err, self.lookup_typo_candidate(path, ns, is_expected, span), ident_span
-        );
+        let suggestion = self.lookup_typo_candidate(path, ns, is_expected, span);
+        let levenshtein_worked = add_typo_suggestion(self.r, &mut err, suggestion, ident_span);
 
         // Try context-dependent help if relaxed lookup didn't work.
         if let Some(res) = res {

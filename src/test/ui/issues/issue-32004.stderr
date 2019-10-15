@@ -3,6 +3,8 @@ error[E0532]: expected unit struct/variant or constant, found tuple variant `Foo
    |
 LL |     Bar(i32),
    |     -------- `Foo::Bar` defined here
+LL |     Baz
+   |     --- similarly named unit variant `Baz` defined here
 ...
 LL |         Foo::Bar => {}
    |         ^^^^^---

@@ -866,7 +866,7 @@ impl<'a, 'b> BuildReducedGraphVisitor<'a, 'b> {
                                              def_id,
                                              expansion,
                                              span);
-                self.r.define(parent, ident, TypeNS, (module, vis, DUMMY_SP, expansion));
+                self.r.define(parent, ident, TypeNS, (module, vis, span, expansion));
             }
             Res::Def(DefKind::Struct, _)
             | Res::Def(DefKind::Union, _)
@@ -879,17 +879,17 @@ impl<'a, 'b> BuildReducedGraphVisitor<'a, 'b> {
             | Res::Def(DefKind::AssocOpaqueTy, _)
             | Res::PrimTy(..)
             | Res::ToolMod =>
-                self.r.define(parent, ident, TypeNS, (res, vis, DUMMY_SP, expansion)),
+                self.r.define(parent, ident, TypeNS, (res, vis, span, expansion)),
             Res::Def(DefKind::Fn, _)
             | Res::Def(DefKind::Method, _)
             | Res::Def(DefKind::Static, _)
             | Res::Def(DefKind::Const, _)
             | Res::Def(DefKind::AssocConst, _)
             | Res::Def(DefKind::Ctor(..), _) =>
-                self.r.define(parent, ident, ValueNS, (res, vis, DUMMY_SP, expansion)),
+                self.r.define(parent, ident, ValueNS, (res, vis, span, expansion)),
             Res::Def(DefKind::Macro(..), _)
             | Res::NonMacroAttr(..) =>
-                self.r.define(parent, ident, MacroNS, (res, vis, DUMMY_SP, expansion)),
+                self.r.define(parent, ident, MacroNS, (res, vis, span, expansion)),
             Res::Def(DefKind::TyParam, _) | Res::Def(DefKind::ConstParam, _)
             | Res::Local(..) | Res::SelfTy(..) | Res::SelfCtor(..) | Res::Err =>
                 bug!("unexpected resolution: {:?}", res)

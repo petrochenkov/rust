@@ -482,6 +482,10 @@ impl cstore::CStore {
     pub fn crate_source_untracked(&self, cnum: CrateNum) -> CrateSource {
         self.get_crate_data(cnum).source.clone()
     }
+
+    pub fn get_span_untracked(&self, def_id: DefId, sess: &Session) -> Span {
+        self.get_crate_data(def_id.krate).get_span(def_id.index, sess)
+    }
 }
 
 impl CrateStore for cstore::CStore {

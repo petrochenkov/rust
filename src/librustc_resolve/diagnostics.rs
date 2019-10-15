@@ -59,6 +59,7 @@ fn reduce_impl_span_to_impl_keyword(cm: &SourceMap, impl_span: Span) -> Span {
 }
 
 crate fn add_typo_suggestion(
+    resolver: &Resolver<'_>,
     err: &mut DiagnosticBuilder<'_>, suggestion: Option<TypoSuggestion>, span: Span
 ) -> bool {
     if let Some(suggestion) = suggestion {
@@ -68,6 +69,18 @@ crate fn add_typo_suggestion(
         err.span_suggestion(
             span, &msg, suggestion.candidate.to_string(), Applicability::MaybeIncorrect
         );
+        let def_span = suggestion.res.opt_def_id()
+            .map(|def_id| {
+                resolver.definitions.opt_span(def_id)
+                    .unwrap_or_else(|| resolver.cstore.get_span_untracked(def_id, resolver.session))
+            });
+        if let Some(def_span) = def_span {
+            err.span_label(def_span, &format!(
+                "similarly named {} `{}` defined here",
+                suggestion.res.descr(),
+                suggestion.candidate.as_str(),
+            ));
+        }
         return true;
     }
     false
@@ -651,7 +664,7 @@ impl<'a> Resolver<'a> {
         let suggestion = self.early_lookup_typo_candidate(
             ScopeSet::Macro(macro_kind), parent_scope, ident, is_expected
         );
-        add_typo_suggestion(err, suggestion, ident.span);
+        add_typo_suggestion(self, err, suggestion, ident.span);
 
         if macro_kind == MacroKind::Derive &&
            (ident.as_str() == "Send" || ident.as_str() == "Sync") {

@@ -15,6 +15,9 @@ LL | use foo3::Bar;
 error[E0423]: expected function, found trait `Bar`
   --> $DIR/privacy-ns2.rs:26:5
    |
+LL |     pub struct Baz;
+   |     --------------- similarly named unit struct `Baz` defined here
+...
 LL |     Bar();
    |     ^^^
 help: a unit struct with a similar name exists
@@ -47,6 +50,9 @@ LL | use foo3::Bar;
 error[E0573]: expected type, found function `Bar`
   --> $DIR/privacy-ns2.rs:47:17
    |
+LL |     pub struct Baz;
+   |     --------------- similarly named struct `Baz` defined here
+...
 LL |     let _x: Box<Bar>;
    |                 ^^^
 help: a struct with a similar name exists

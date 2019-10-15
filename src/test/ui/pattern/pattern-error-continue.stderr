@@ -7,6 +7,9 @@ LL |         E::V => {}
 error[E0532]: expected tuple struct/variant, found unit variant `A::D`
   --> $DIR/pattern-error-continue.rs:18:9
    |
+LL |     B(isize, isize),
+   |     --------------- similarly named tuple variant `B` defined here
+...
 LL |         A::D(_) => (),
    |         ^^^-
    |            |

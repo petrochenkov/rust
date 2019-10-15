@@ -5,10 +5,11 @@ LL | struct X {}
    | ----------- `X` defined here
 LL | 
 LL | const Y: X = X("ö");
-   |              ^
-   |              |
-   |              did you mean `X { /* fields */ }`?
-   |              help: a constant with a similar name exists: `Y`
+   | -------------^------
+   | |            |
+   | |            did you mean `X { /* fields */ }`?
+   | |            help: a constant with a similar name exists: `Y`
+   | similarly named constant `Y` defined here
 
 error: aborting due to previous error
 
