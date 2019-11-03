@@ -25,7 +25,7 @@ fn main() {
     C; //~ ERROR cannot find value `C` in this scope
     import(); //~ ERROR: cannot find function `import` in this scope
 
-    foo::<A>(); //~ ERROR: cannot find type `A` in this scope
-    foo::<C>(); //~ ERROR: cannot find type `C` in this scope
-    foo::<D>(); //~ ERROR: cannot find type `D` in this scope
+    foo::<A>(); //~ ERROR: cannot find value `A` in this scope
+    foo::<C>(); //~ ERROR: cannot find value `C` in this scope
+    foo::<D>(); //~ ERROR: cannot find value `D` in this scope
 }

@@ -32,7 +32,8 @@ pub mod foo2 {
 fn test_glob2() {
     use foo2::*;
 
-    let _x: Box<Bar>;  //~ ERROR expected type, found function `Bar`
+    let _x: Box<Bar>;  //~ ERROR wrong number of const arguments: expected 0, found 1
+    //~^ ERROR wrong number of type arguments: expected 1, found 0
 }
 
 // neither public
@@ -48,7 +49,7 @@ fn test_glob3() {
     use foo3::*;
 
     Bar();  //~ ERROR cannot find function, tuple struct or tuple variant `Bar` in this scope
-    let _x: Box<Bar>;  //~ ERROR cannot find type `Bar` in this scope
+    let _x: Box<Bar>;  //~ ERROR cannot find value `Bar` in this scope
 }
 
 fn main() {

@@ -546,6 +546,53 @@ impl<'a, 'tcx> Visitor<'tcx> for LateResolutionVisitor<'a, '_> {
             self.visit_where_predicate(p);
         }
     }
+
+    fn visit_generic_arg(&mut self, arg: &'tcx GenericArg) {
+        debug!("visit_generic_arg({:?})", arg);
+        match arg {
+            GenericArg::Type(ref ty) => {
+                // We parse const arguments as path types as we cannot distiguish them durring
+                // parsing. We try to resolve that ambiguity by attempting resolution the type
+                // namespace first, and if that fails we try again in the value namespace. If
+                // resolution in the value namespace succeeds, we have an generic const argument on
+                // our hands.
+                if let TyKind::Path(ref qself, ref path) = ty.kind {
+                    // We cannot disambiguate multi-segment paths right now as that requires type
+                    // checking.
+                    if path.segments.len() == 1 {
+                        if let None = self.resolve_qpath(
+                            ty.id,
+                            qself.as_ref(),
+                            &Segment::from_path(path),
+                            Namespace::TypeNS,
+                            ty.span,
+                            CrateLint::SimplePath(ty.id),
+                        ) {
+                            self.with_constant_rib(|this| {
+                                this.smart_resolve_path(
+                                    ty.id,
+                                    qself.as_ref(),
+                                    path,
+                                    PathSource::Expr(None)
+                                );
+
+                                if let Some(ref qself) = *qself {
+                                    this.visit_ty(&qself.ty);
+                                }
+                                this.visit_path(path, ty.id);
+                            });
+
+                            return;
+                        }
+                    }
+                }
+
+                self.visit_ty(ty);
+            }
+            GenericArg::Lifetime(lt) => self.visit_lifetime(lt),
+            GenericArg::Const(ct) => self.visit_anon_const(ct),
+        }
+    }
 }
 
 impl<'a, 'b> LateResolutionVisitor<'a, '_> {
