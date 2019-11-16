@@ -2,6 +2,6 @@
 
 extern crate foo;
 
-type Output = Option<Foo>; //~ ERROR cannot find value `Foo`
+type Output = Option<Foo>; //~ ERROR cannot find type `Foo`
 
 fn main() {}

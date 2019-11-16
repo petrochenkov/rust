@@ -42,16 +42,16 @@ LL | use foo2::Bar;
 LL | use foo3::Bar;
    |
 
-error[E0425]: cannot find value `Bar` in this scope
+error[E0412]: cannot find type `Bar` in this scope
   --> $DIR/privacy-ns1.rs:52:17
    |
 LL |     pub struct Baz;
-   |     --------------- similarly named unit struct `Baz` defined here
+   |     --------------- similarly named struct `Baz` defined here
 ...
 LL |     let _x: Box<Bar>;
    |                 ^^^
    |
-help: a unit struct with a similar name exists
+help: a struct with a similar name exists
    |
 LL |     let _x: Box<Baz>;
    |                 ^^^
@@ -78,5 +78,5 @@ LL |     let _x: Box<Bar>;
 
 error: aborting due to 5 previous errors
 
-Some errors have detailed explanations: E0107, E0423, E0425.
+Some errors have detailed explanations: E0107, E0412, E0423, E0425.
 For more information about an error, try `rustc --explain E0107`.

@@ -49,7 +49,7 @@ fn test_glob3() {
     use foo3::*;
 
     Bar();  //~ ERROR cannot find function, tuple struct or tuple variant `Bar` in this scope
-    let _x: Box<Bar>;  //~ ERROR cannot find value `Bar` in this scope
+    let _x: Box<Bar>;  //~ ERROR cannot find type `Bar` in this scope
 }
 
 fn main() {

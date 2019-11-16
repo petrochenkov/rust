@@ -560,14 +560,13 @@ impl<'a, 'tcx> Visitor<'tcx> for LateResolutionVisitor<'a, '_> {
                     // We cannot disambiguate multi-segment paths right now as that requires type
                     // checking.
                     if path.segments.len() == 1 {
-                        if let None = self.resolve_qpath(
-                            ty.id,
-                            qself.as_ref(),
-                            &Segment::from_path(path),
-                            Namespace::TypeNS,
-                            ty.span,
-                            CrateLint::SimplePath(ty.id),
-                        ) {
+                        let mut check_ns = |ns| self.resolve_ident_in_lexical_scope(
+                            path.segments[0].ident, ns, None, path.span
+                        ).is_some();
+
+                        if !check_ns(TypeNS) && check_ns(ValueNS) {
+                            // This must be equivalent to `visit_anon_const`, but we cannot call it
+                            // directly due to visitor lifetimes so we have to copy-paste some code.
                             self.with_constant_rib(|this| {
                                 this.smart_resolve_path(
                                     ty.id,

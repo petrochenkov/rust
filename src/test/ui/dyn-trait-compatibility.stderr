@@ -22,13 +22,13 @@ error[E0412]: cannot find type `dyn` in this scope
 LL | type A2 = dyn<dyn, dyn>;
    |           ^^^ not found in this scope
 
-error[E0425]: cannot find value `dyn` in this scope
+error[E0412]: cannot find type `dyn` in this scope
   --> $DIR/dyn-trait-compatibility.rs:5:15
    |
 LL | type A2 = dyn<dyn, dyn>;
    |               ^^^ not found in this scope
 
-error[E0425]: cannot find value `dyn` in this scope
+error[E0412]: cannot find type `dyn` in this scope
   --> $DIR/dyn-trait-compatibility.rs:5:20
    |
 LL | type A2 = dyn<dyn, dyn>;
@@ -48,5 +48,5 @@ LL | type A3 = dyn<<dyn as dyn>::dyn>;
 
 error: aborting due to 8 previous errors
 
-Some errors have detailed explanations: E0412, E0425, E0433.
+Some errors have detailed explanations: E0412, E0433.
 For more information about an error, try `rustc --explain E0412`.

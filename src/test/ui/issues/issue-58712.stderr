@@ -1,4 +1,4 @@
-error[E0425]: cannot find value `DeviceId` in this scope
+error[E0412]: cannot find type `DeviceId` in this scope
   --> $DIR/issue-58712.rs:6:20
    |
 LL | impl<H> AddrVec<H, DeviceId> {
@@ -12,5 +12,4 @@ LL |     pub fn device(&self) -> DeviceId {
 
 error: aborting due to 2 previous errors
 
-Some errors have detailed explanations: E0412, E0425.
-For more information about an error, try `rustc --explain E0412`.
+For more information about this error, try `rustc --explain E0412`.

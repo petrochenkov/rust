@@ -1714,6 +1714,14 @@ impl<'a> Resolver<'a> {
             }
         }
 
+        if ns == TypeNS {
+            if let Some(prim_ty) = self.primitive_type_table.primitive_types.get(&ident.name) {
+                let binding = (Res::PrimTy(*prim_ty), ty::Visibility::Public,
+                               DUMMY_SP, ExpnId::root()).to_name_binding(self.arenas);
+                return Some(LexicalScopeBinding::Item(binding));
+            }
+        }
+
         None
     }
 
