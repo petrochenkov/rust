@@ -54,6 +54,12 @@ pub use core::prelude::v1::{
 };
 
 #[cfg(not(bootstrap))]
+#[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
+#[allow(deprecated)]
+#[doc(hidden)]
+pub use core::prelude::v1::derive;
+
+#[cfg(not(bootstrap))]
 #[unstable(
     feature = "cfg_accessible",
     issue = "64797",

@@ -208,7 +208,7 @@ impl AstFragmentKind {
         self.make_from(DummyResult::any(span)).expect("couldn't create a dummy AST fragment")
     }
 
-    fn expect_from_annotatables<I: IntoIterator<Item = Annotatable>>(
+    pub fn expect_from_annotatables<I: IntoIterator<Item = Annotatable>>(
         self,
         items: I,
     ) -> AstFragment {
@@ -659,7 +659,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
         self.cx.trace_macros_diag();
     }
 
-    fn expand_invoc(
+    pub fn expand_invoc(
         &mut self,
         invoc: Invocation,
         ext: &SyntaxExtensionKind,

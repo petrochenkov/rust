@@ -1046,7 +1046,7 @@ impl<'a> Resolver<'a> {
     crate fn check_reserved_macro_name(&mut self, ident: Ident, res: Res) {
         // Reserve some names that are not quite covered by the general check
         // performed on `Resolver::builtin_attrs`.
-        if ident.name == sym::cfg || ident.name == sym::cfg_attr || ident.name == sym::derive {
+        if ident.name == sym::cfg || ident.name == sym::cfg_attr {
             let macro_kind = self.get_macro(res).map(|ext| ext.macro_kind());
             if macro_kind.is_some() && sub_namespace_match(macro_kind, Some(MacroKind::Attr)) {
                 self.session.span_err(

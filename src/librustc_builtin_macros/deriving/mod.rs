@@ -37,6 +37,51 @@ pub mod partial_ord;
 
 pub mod generic;
 
+crate struct Derive;
+
+use rustc_expand::base::InvocationRes;
+use rustc_expand::expand::{AstFragmentKind, Invocation, InvocationKind, MacroExpander};
+use rustc_expand::proc_macro::derive_paths;
+use rustc_span::hygiene::ExpnId;
+
+#[allow(unused)]
+impl MultiItemModifier for Derive {
+    fn expand(
+        &self,
+        ecx: &mut ExtCtxt<'_>,
+        _span: Span,
+        meta_item: &ast::MetaItem,
+        item: Annotatable,
+    ) -> ExpandResult<Vec<Annotatable>, Annotatable> {
+
+        let (derives, good) = derive_paths(ecx, meta_item.clone());
+        if !good {
+            return ExpandResult::Ready(vec![item]);
+        }
+
+        let invocation_kind = InvocationKind::DeriveContainer { item, derives };
+        let invoc: Invocation = panic!();
+
+        let exts = match ecx.resolver.resolve_macro_invocation(&invoc, ExpnId::root(), false) {
+            Ok(InvocationRes::DeriveContainer(exts)) => exts,
+            Ok(InvocationRes::Single(..)) => unreachable!(),
+            Err(Indeterminate) => return ExpandResult::Retry(item, String::new()),
+        };
+
+        let mut result = Vec::new();
+        for (i, ext) in exts.into_iter().enumerate() {
+            let derive_invoc_kind = InvocationKind::Derive { path: derives[i], item: item.clone() };
+            let derive_invoc: Invocation = panic!();
+            let output = match MacroExpander::new(ecx, false).expand_invoc(derive_invoc, &ext.kind) {
+                ExpandResult::Ready(output) => output,
+                ExpandResult::Retry(..) => return ExpandResult::Retry(item, String::new()),
+            };
+            result.push(AstFragmentKind::Items.expect_from_annotatables(output));
+        }
+        ExpandResult::Ready(result)
+    }
+}
+
 crate struct BuiltinDerive(
     crate fn(&mut ExtCtxt<'_>, Span, &MetaItem, &Annotatable, &mut dyn FnMut(Annotatable)),
 );

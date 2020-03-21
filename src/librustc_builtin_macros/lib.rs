@@ -87,6 +87,7 @@ pub fn register_builtin_macros(resolver: &mut dyn Resolver, edition: Edition) {
     register_attr! {
         bench: test::expand_bench,
         cfg_accessible: cfg_accessible::Expander,
+        derive: deriving::Derive,
         global_allocator: global_allocator::expand,
         test: test::expand_test,
         test_case: test::expand_test_case,

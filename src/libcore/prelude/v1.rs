@@ -69,6 +69,12 @@ pub use crate::macros::builtin::{
 };
 
 #[cfg(not(bootstrap))]
+#[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
+#[allow(deprecated)]
+#[doc(no_inline)]
+pub use crate::macros::builtin::derive;
+
+#[cfg(not(bootstrap))]
 #[unstable(
     feature = "cfg_accessible",
     issue = "64797",

@@ -1,7 +1,7 @@
 use crate::base::{self, *};
 use crate::proc_macro_server;
 
-use rustc_ast::ast::{self, ItemKind, MetaItemKind, NestedMetaItem};
+use rustc_ast::ast::{self, ItemKind, MetaItem, MetaItemKind, NestedMetaItem};
 use rustc_ast::token;
 use rustc_ast::tokenstream::{self, TokenStream};
 use rustc_data_structures::sync::Lrc;
@@ -162,6 +162,73 @@ impl MultiItemModifier for ProcMacroDerive {
     }
 }
 
+pub fn derive_paths(cx: &mut ExtCtxt<'_>, meta: MetaItem) -> (Vec<ast::Path>, bool) {
+    // 1) First let's ensure that it's a meta item.
+    let nmis = match meta.kind {
+        MetaItemKind::List(nmis) => nmis,
+        _ => {
+            cx.struct_span_err(meta.span, "malformed `derive` attribute input")
+                .span_suggestion(
+                    meta.span,
+                    "missing traits to be derived",
+                    "#[derive(Trait1, Trait2, ...)]".to_owned(),
+                    Applicability::HasPlaceholders,
+                )
+                .emit();
+            return (Vec::new(), true);
+        }
+    };
+
+    let mut error_reported_filter_map = false;
+    let mut error_reported_map = false;
+    let traits = nmis
+        .into_iter()
+        // 2) Moreover, let's ensure we have a path and not `#[derive("foo")]`.
+        .filter_map(|nmi| match nmi {
+            NestedMetaItem::Literal(lit) => {
+                error_reported_filter_map = true;
+                cx.struct_span_err(lit.span, "expected path to a trait, found literal")
+                    .help("for example, write `#[derive(Debug)]` for `Debug`")
+                    .emit();
+                None
+            }
+            NestedMetaItem::MetaItem(mi) => Some(mi),
+        })
+        // 3) Finally, we only accept `#[derive($path_0, $path_1, ..)]`
+        // but not e.g. `#[derive($path_0 = "value", $path_1(abc))]`.
+        // In this case we can still at least determine that the user
+        // wanted this trait to be derived, so let's keep it.
+        .map(|mi| {
+            let mut traits_dont_accept = |title, action| {
+                error_reported_map = true;
+                let sp = mi.span.with_lo(mi.path.span.hi());
+                cx.struct_span_err(sp, title)
+                    .span_suggestion(
+                        sp,
+                        action,
+                        String::new(),
+                        Applicability::MachineApplicable,
+                    )
+                    .emit();
+            };
+            match &mi.kind {
+                MetaItemKind::List(..) => traits_dont_accept(
+                    "traits in `#[derive(...)]` don't accept arguments",
+                    "remove the arguments",
+                ),
+                MetaItemKind::NameValue(..) => traits_dont_accept(
+                    "traits in `#[derive(...)]` don't accept values",
+                    "remove the value",
+                ),
+                MetaItemKind::Word => {}
+            }
+            mi.path
+        })
+        .collect();
+
+    (traits, !error_reported_filter_map && !error_reported_map)
+}
+
 crate fn collect_derives(cx: &mut ExtCtxt<'_>, attrs: &mut Vec<ast::Attribute>) -> Vec<ast::Path> {
     let mut result = Vec::new();
     attrs.retain(|attr| {
@@ -169,70 +236,25 @@ crate fn collect_derives(cx: &mut ExtCtxt<'_>, attrs: &mut Vec<ast::Attribute>) 
             return true;
         }
 
-        // 1) First let's ensure that it's a meta item.
-        let nmis = match attr.meta_item_list() {
+        let meta = match attr.meta() {
+            Some(meta) => meta,
             None => {
                 cx.struct_span_err(attr.span, "malformed `derive` attribute input")
-                    .span_suggestion(
-                        attr.span,
-                        "missing traits to be derived",
-                        "#[derive(Trait1, Trait2, ...)]".to_owned(),
-                        Applicability::HasPlaceholders,
-                    )
-                    .emit();
+                .span_suggestion(
+                    attr.span,
+                    "missing traits to be derived",
+                    "#[derive(Trait1, Trait2, ...)]".to_owned(),
+                    Applicability::HasPlaceholders,
+                )
+                .emit();
                 return false;
             }
-            Some(x) => x,
         };
 
-        let mut error_reported_filter_map = false;
-        let mut error_reported_map = false;
-        let traits = nmis
-            .into_iter()
-            // 2) Moreover, let's ensure we have a path and not `#[derive("foo")]`.
-            .filter_map(|nmi| match nmi {
-                NestedMetaItem::Literal(lit) => {
-                    error_reported_filter_map = true;
-                    cx.struct_span_err(lit.span, "expected path to a trait, found literal")
-                        .help("for example, write `#[derive(Debug)]` for `Debug`")
-                        .emit();
-                    None
-                }
-                NestedMetaItem::MetaItem(mi) => Some(mi),
-            })
-            // 3) Finally, we only accept `#[derive($path_0, $path_1, ..)]`
-            // but not e.g. `#[derive($path_0 = "value", $path_1(abc))]`.
-            // In this case we can still at least determine that the user
-            // wanted this trait to be derived, so let's keep it.
-            .map(|mi| {
-                let mut traits_dont_accept = |title, action| {
-                    error_reported_map = true;
-                    let sp = mi.span.with_lo(mi.path.span.hi());
-                    cx.struct_span_err(sp, title)
-                        .span_suggestion(
-                            sp,
-                            action,
-                            String::new(),
-                            Applicability::MachineApplicable,
-                        )
-                        .emit();
-                };
-                match &mi.kind {
-                    MetaItemKind::List(..) => traits_dont_accept(
-                        "traits in `#[derive(...)]` don't accept arguments",
-                        "remove the arguments",
-                    ),
-                    MetaItemKind::NameValue(..) => traits_dont_accept(
-                        "traits in `#[derive(...)]` don't accept values",
-                        "remove the value",
-                    ),
-                    MetaItemKind::Word => {}
-                }
-                mi.path
-            });
+        let (traits, good) = derive_paths(cx, meta);
 
-        result.extend(traits);
-        !error_reported_filter_map && !error_reported_map
+        result.extend(traits.into_iter());
+        good
     });
     result
 }

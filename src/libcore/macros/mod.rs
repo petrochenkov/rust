@@ -1416,6 +1416,14 @@ pub(crate) mod builtin {
         /* compiler built-in */
     }
 
+    /// Attribute macro that applies derive macros passed to it to the item it's applied to.
+    #[cfg(not(bootstrap))]
+    #[stable(feature = "rust1", since = "1.0.0")]
+    #[rustc_builtin_macro]
+    pub macro derive($item:item) {
+        /* compiler built-in */
+    }
+
     /// Unstable implementation detail of the `rustc` compiler, do not use.
     #[rustc_builtin_macro]
     #[stable(feature = "rust1", since = "1.0.0")]
