@@ -1,8 +1,20 @@
-error: expected one of `!`, `(`, `+`, `::`, `;`, `<`, or `=`, found `*=`
+error: blah
   --> $DIR/let-binop.rs:2:15
    |
 LL |     let a: i8 *= 1;
-   |               ^^ expected one of 7 possible tokens
+   |               ^^
 
-error: aborting due to previous error
+error: blah
+  --> $DIR/let-binop.rs:4:11
+   |
+LL |     let b += 1;
+   |           ^^
+
+error: blah
+  --> $DIR/let-binop.rs:6:11
+   |
+LL |     let c *= 1;
+   |           ^^
+
+error: aborting due to 3 previous errors
 

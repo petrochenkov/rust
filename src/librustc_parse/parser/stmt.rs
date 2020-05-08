@@ -216,8 +216,17 @@ impl<'a> Parser<'a> {
     }
 
     /// Parses the RHS of a local variable declaration (e.g., '= 14;').
-    fn parse_initializer(&mut self, skip_eq: bool) -> PResult<'a, Option<P<Expr>>> {
-        if self.eat(&token::Eq) || skip_eq { Ok(Some(self.parse_expr()?)) } else { Ok(None) }
+    fn parse_initializer(&mut self, eq_optional: bool) -> PResult<'a, Option<P<Expr>>> {
+        let eq_consumed = match self.token.kind {
+            token::BinOpEq(..) => {
+                self.struct_span_err(self.token.span, "blah").emit();
+                self.bump();
+                true
+            }
+            _ => self.eat(&token::Eq),
+        };
+
+        Ok(if eq_consumed || eq_optional { Some(self.parse_expr()?) } else { None })
     }
 
     /// Parses a block. No inner attributes are allowed.
