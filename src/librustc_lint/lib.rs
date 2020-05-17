@@ -276,6 +276,7 @@ fn register_builtins(store: &mut LintStore, no_interleave_lints: bool) {
         UNUSED_ALLOCATION,
         UNUSED_DOC_COMMENTS,
         UNUSED_EXTERN_CRATES,
+        UNUSED_CRATE_DEPS,
         UNUSED_FEATURES,
         UNUSED_LABELS,
         UNUSED_PARENS,

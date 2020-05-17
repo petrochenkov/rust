@@ -1,0 +1,14 @@
+warning: External crate `bar` unused in `warn_attr_dylib`. Remove the dependency or add `use bar as _;`.
+  --> $DIR/warn-attr-dylib.rs:8:1
+   |
+LL | #![warn(unused_crate_deps)]
+   | ^
+   |
+note: the lint level is defined here
+  --> $DIR/warn-attr-dylib.rs:8:9
+   |
+LL | #![warn(unused_crate_deps)]
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: 1 warning emitted
+

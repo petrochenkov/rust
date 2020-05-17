@@ -1,0 +1,14 @@
+warning: External crate `barbar` unused in `unused_aliases_dylib`. Remove the dependency or add `use barbar as _;`.
+  --> $DIR/unused-aliases-dylib.rs:9:1
+   |
+LL | #![warn(unused_crate_deps)]
+   | ^
+   |
+note: the lint level is defined here
+  --> $DIR/unused-aliases-dylib.rs:9:9
+   |
+LL | #![warn(unused_crate_deps)]
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: 1 warning emitted
+
