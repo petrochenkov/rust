@@ -936,10 +936,6 @@ impl<'a> CrateLocator<'a> {
         // Extract the dylib/rlib/rmeta triple.
         self.extract_lib(rlibs, rmetas, dylibs).map(|(_, lib)| lib)
     }
-
-    crate fn crate_name(&self) -> Symbol {
-        self.crate_name
-    }
 }
 
 // Just a small wrapper to time how long reading metadata takes.

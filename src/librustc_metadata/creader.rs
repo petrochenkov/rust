@@ -18,7 +18,6 @@ use rustc_middle::middle::cstore::{
 };
 use rustc_middle::ty::TyCtxt;
 use rustc_session::config::{self, CrateType};
-use rustc_session::lint;
 use rustc_session::output::validate_crate_name;
 use rustc_session::search_paths::PathKind;
 use rustc_session::{CrateDisambiguator, Session};
@@ -29,20 +28,12 @@ use rustc_target::spec::{PanicStrategy, TargetTriple};
 
 use log::{debug, info, log_enabled};
 use proc_macro::bridge::client::ProcMacro;
-use std::collections::BTreeSet;
 use std::path::Path;
 use std::{cmp, fs};
 
 #[derive(Clone)]
-struct ResolvedCrateMetadata {
-    /// Track names by which this crate has been referenced in imports
-    names: BTreeSet<Symbol>,
-    meta: Lrc<CrateMetadata>,
-}
-
-#[derive(Clone)]
 pub struct CStore {
-    metas: IndexVec<CrateNum, Option<ResolvedCrateMetadata>>,
+    metas: IndexVec<CrateNum, Option<Lrc<CrateMetadata>>>,
     injected_panic_runtime: Option<CrateNum>,
     /// This crate needs an allocator and either provides it itself, or finds it in a dependency.
     /// If the above is true, then this field denotes the kind of the found allocator.
@@ -136,38 +127,18 @@ impl CStore {
         let cdata = self.metas[cnum]
             .as_ref()
             .unwrap_or_else(|| panic!("Failed to get crate data for {:?}", cnum));
-        CrateMetadataRef { cdata: &cdata.meta, cstore: self }
+        CrateMetadataRef { cdata, cstore: self }
     }
 
-    fn set_crate_data(&mut self, cnum: CrateNum, name: Symbol, data: CrateMetadata) {
+    fn set_crate_data(&mut self, cnum: CrateNum, data: CrateMetadata) {
         assert!(self.metas[cnum].is_none(), "Overwriting crate metadata entry");
-        let mut names = BTreeSet::default();
-        names.insert(name);
-        self.metas[cnum] = Some(ResolvedCrateMetadata { names, meta: Lrc::new(data) });
-    }
-
-    fn add_name(&mut self, cnum: CrateNum, name: Symbol) {
-        assert!(self.metas[cnum].is_some(), "Setting name on unset entry");
-        if let Some(data) = &mut self.metas[cnum] {
-            data.names.insert(name);
-        }
+        self.metas[cnum] = Some(Lrc::new(data));
     }
 
     crate fn iter_crate_data(&self, mut f: impl FnMut(CrateNum, &CrateMetadata)) {
         for (cnum, data) in self.metas.iter_enumerated() {
             if let Some(data) = data {
-                f(cnum, &data.meta);
-            }
-        }
-    }
-
-    crate fn iter_crate_data_names(
-        &self,
-        mut f: impl FnMut(CrateNum, &CrateMetadata, &BTreeSet<Symbol>),
-    ) {
-        for (cnum, data) in self.metas.iter_enumerated() {
-            if let Some(data) = data {
-                f(cnum, &data.meta, &data.names);
+                f(cnum, data);
             }
         }
     }
@@ -360,16 +331,10 @@ impl<'a> CrateLoader<'a> {
         let host_hash = host_lib.as_ref().map(|lib| lib.metadata.get_root().hash());
         self.verify_no_symbol_conflicts(span, &crate_root);
 
-        let ext = self.sess.opts.externs.get(&name.as_str());
-        let private_dep = ext.map(|e| e.is_private_dep).unwrap_or(false);
-        let add_prelude = ext.map(|e| e.add_prelude).unwrap_or(false);
+        let private_dep =
+            self.sess.opts.externs.get(&name.as_str()).map(|e| e.is_private_dep).unwrap_or(false);
 
-        info!(
-            "register crate `{}` (private_dep = {}, add_prelude = {})",
-            crate_root.name(),
-            private_dep,
-            add_prelude
-        );
+        info!("register crate `{}` (private_dep = {})", crate_root.name(), private_dep);
 
         // Claim this crate number and cache it
         let cnum = self.cstore.alloc_new_crate_num();
@@ -403,7 +368,6 @@ impl<'a> CrateLoader<'a> {
 
         self.cstore.set_crate_data(
             cnum,
-            name,
             CrateMetadata::new(
                 self.sess,
                 metadata,
@@ -422,7 +386,7 @@ impl<'a> CrateLoader<'a> {
     }
 
     fn load_proc_macro<'b>(
-        &mut self,
+        &self,
         locator: &mut CrateLocator<'b>,
         path_kind: PathKind,
     ) -> Option<(LoadResult, Option<Library>)>
@@ -491,7 +455,7 @@ impl<'a> CrateLoader<'a> {
         mut dep_kind: DepKind,
         dep: Option<(&'b CratePaths, &'b CrateDep)>,
     ) -> Result<CrateNum, LoadError<'b>> {
-        info!("resolving crate `{}` dep {}", name, dep.is_some());
+        info!("resolving crate `{}`", name);
         let (root, hash, host_hash, extra_filename, path_kind) = match dep {
             Some((root, dep)) => (
                 Some(root),
@@ -503,10 +467,9 @@ impl<'a> CrateLoader<'a> {
             None => (None, None, None, None, PathKind::Crate),
         };
         let result = if let Some(cnum) = self.existing_match(name, hash, path_kind) {
-            self.cstore.add_name(cnum, name);
             (LoadResult::Previous(cnum), None)
         } else {
-            info!("falling back to a load for {}", name);
+            info!("falling back to a load");
             let mut locator = CrateLocator::new(
                 self.sess,
                 self.metadata_loader,
@@ -546,7 +509,7 @@ impl<'a> CrateLoader<'a> {
         }
     }
 
-    fn load(&mut self, locator: &mut CrateLocator<'_>) -> Option<LoadResult> {
+    fn load(&self, locator: &mut CrateLocator<'_>) -> Option<LoadResult> {
         let library = locator.maybe_load_library_crate()?;
 
         // In the case that we're loading a crate, but not matching
@@ -567,9 +530,6 @@ impl<'a> CrateLoader<'a> {
                     result = LoadResult::Previous(cnum);
                 }
             });
-            if let LoadResult::Previous(cnum) = result {
-                self.cstore.add_name(cnum, locator.crate_name());
-            }
             Some(result)
         } else {
             Some(LoadResult::Loaded(library))
@@ -879,46 +839,6 @@ impl<'a> CrateLoader<'a> {
         });
     }
 
-    fn report_unused_deps(&mut self, krate: &ast::Crate) {
-        // Get set of specified crates on the command line
-        let mut externs = BTreeSet::default();
-        for (name, _ext) in self.sess.opts.externs.iter() {
-            externs.insert(Symbol::intern(name));
-        }
-
-        // Remove all resolved crates which this crate references directly
-        self.cstore.iter_crate_data_names(|_, crate_data, names| {
-            info!(
-                "resolved crate `{}` names {:?} direct_extern_crate {}",
-                crate_data.name(),
-                names,
-                crate_data.direct_extern_crate()
-            );
-            if crate_data.direct_extern_crate() {
-                for name in names {
-                    externs.remove(name);
-                }
-            }
-        });
-
-        // Make a point span rather than covering the whole file
-        let spandata = krate.span.data();
-        let span = spandata.with_hi(spandata.lo);
-        // Complain about anything left over
-        for ext in externs {
-            self.sess.parse_sess.buffer_lint(
-                lint::builtin::UNUSED_CRATE_DEPS,
-                span,
-                ast::CRATE_NODE_ID,
-                &format!(
-                    "External crate `{}` unused in `{}`. Remove the dependency or add `use {} as _;`.",
-                    ext,
-                    self.local_crate_name,
-                    ext),
-            );
-        }
-    }
-
     pub fn postprocess(&mut self, krate: &ast::Crate) {
         self.inject_profiler_runtime();
         self.inject_allocator_crate(krate);
@@ -927,8 +847,6 @@ impl<'a> CrateLoader<'a> {
         if log_enabled!(log::Level::Info) {
             dump_crates(&self.cstore);
         }
-
-        self.report_unused_deps(krate);
     }
 
     pub fn process_extern_crate(

@@ -1675,10 +1675,6 @@ impl CrateMetadata {
         self.root.is_proc_macro_crate()
     }
 
-    crate fn direct_extern_crate(&self) -> bool {
-        self.extern_crate.borrow().map_or(false, |ext| ext.is_direct())
-    }
-
     crate fn name(&self) -> Symbol {
         self.root.name
     }
