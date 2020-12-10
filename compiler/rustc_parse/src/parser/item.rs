@@ -247,9 +247,29 @@ impl<'a> Parser<'a> {
             (ident, ItemKind::Static(ty, m, expr))
         } else if let Const::Yes(const_span) = self.parse_constness() {
             // CONST ITEM
-            self.recover_const_mut(const_span);
-            let (ident, ty, expr) = self.parse_item_global(None)?;
-            (ident, ItemKind::Const(def(), ty, expr))
+            if self.token.is_keyword(kw::Impl) {
+                let info = self.parse_item_impl(attrs, def())?;
+                let before_trait = match &info.1 {
+                    ItemKind::Impl { of_trait, .. } => {
+                        of_trait.as_ref().map(|tr| tr.path.span.shrink_to_lo())
+                    }
+                    _ => unreachable!(),
+                };
+                let mut err = self.struct_span_err(const_span, "const impl");
+                if let Some(before_trait) = before_trait {
+                    err.multipart_suggestion(
+                        "you might have meant to write a const trait impl",
+                        vec![(const_span, "".to_owned()), (before_trait, "const ".to_owned())],
+                        Applicability::MaybeIncorrect,
+                    );
+                }
+                err.emit();
+                info
+            } else {
+                self.recover_const_mut(const_span);
+                let (ident, ty, expr) = self.parse_item_global(None)?;
+                (ident, ItemKind::Const(def(), ty, expr))
+            }
         } else if self.check_keyword(kw::Trait) || self.check_auto_or_unsafe_trait_item() {
             // TRAIT ITEM
             self.parse_item_trait(attrs, lo)?

@@ -1,0 +1,24 @@
+error: const impl
+  --> $DIR/const-impl-recovery.rs:6:1
+   |
+LL | const impl Foo for i32 {}
+   | ^^^^^
+   |
+help: you might have meant to write a const trait impl
+   |
+LL |  impl const Foo for i32 {}
+   |--     ^^^^^
+
+error: const impl
+  --> $DIR/const-impl-recovery.rs:10:1
+   |
+LL | const impl<T: Foo> Bar for T {}
+   | ^^^^^
+   |
+help: you might have meant to write a const trait impl
+   |
+LL |  impl<T: Foo> const Bar for T {}
+   |--             ^^^^^
+
+error: aborting due to 2 previous errors
+
