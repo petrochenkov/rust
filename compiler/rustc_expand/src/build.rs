@@ -275,7 +275,12 @@ impl<'a> ExtCtxt<'a> {
     ) -> P<ast::Expr> {
         self.expr(
             span,
-            ast::ExprKind::Struct(P(ast::StructExpr { path, fields, rest: ast::StructRest::None })),
+            ast::ExprKind::Struct(P(ast::StructExpr {
+                qself: None,
+                path,
+                fields,
+                rest: ast::StructRest::None,
+            })),
         )
     }
     pub fn expr_struct_ident(

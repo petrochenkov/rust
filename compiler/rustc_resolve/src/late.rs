@@ -2288,7 +2288,7 @@ impl<'a: 'ast, 'b, 'ast> LateResolutionVisitor<'a, 'b, 'ast> {
             }
 
             ExprKind::Struct(ref se) => {
-                self.smart_resolve_path(expr.id, None, &se.path, PathSource::Struct);
+                self.smart_resolve_path(expr.id, se.qself.as_ref(), &se.path, PathSource::Struct);
                 visit::walk_expr(self, expr);
             }
 

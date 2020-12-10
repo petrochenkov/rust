@@ -1713,10 +1713,12 @@ impl<'a> State<'a> {
 
     fn print_expr_struct(
         &mut self,
+        _qself: &Option<ast::QSelf>,
         path: &ast::Path,
         fields: &[ast::ExprField],
         rest: &ast::StructRest,
     ) {
+        // TODO: print QSelf
         self.print_path(path, true, 0);
         self.s.word("{");
         self.commasep_cmnt(
@@ -1874,7 +1876,7 @@ impl<'a> State<'a> {
                 self.print_expr_repeat(element, count);
             }
             ast::ExprKind::Struct(ref se) => {
-                self.print_expr_struct(&se.path, &se.fields, &se.rest);
+                self.print_expr_struct(&se.qself, &se.path, &se.fields, &se.rest);
             }
             ast::ExprKind::Tup(ref exprs) => {
                 self.print_expr_tup(exprs);

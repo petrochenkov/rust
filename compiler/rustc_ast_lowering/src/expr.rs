@@ -237,7 +237,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                     hir::ExprKind::Struct(
                         self.arena.alloc(self.lower_qpath(
                             e.id,
-                            &None,
+                            &se.qself,
                             &se.path,
                             ParamMode::Optional,
                             ImplTraitContext::disallowed(),
@@ -1122,7 +1122,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 }));
                 let qpath = self.lower_qpath(
                     lhs.id,
-                    &None,
+                    &se.qself,
                     &se.path,
                     ParamMode::Optional,
                     ImplTraitContext::disallowed(),

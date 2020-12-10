@@ -1247,6 +1247,7 @@ pub enum StructRest {
 
 #[derive(Clone, Encodable, Decodable, Debug)]
 pub struct StructExpr {
+    pub qself: Option<QSelf>,
     pub path: Path,
     pub fields: Vec<ExprField>,
     pub rest: StructRest,
