@@ -1573,8 +1573,7 @@ impl Interner {
 /// Given that `kw` is imported, use them like `kw::keyword_name`.
 /// For example `kw::Loop` or `kw::Break`.
 pub mod kw {
-    use super::Symbol;
-    keywords!();
+    pub use super::generated_keywords::*;
 }
 
 // This module has a very short name because it's used a lot.
@@ -1587,7 +1586,7 @@ pub mod sym {
     use super::Symbol;
     use std::convert::TryInto;
 
-    define_symbols!();
+    pub use super::generated_symbols::*;
 
     // Used from a macro in `librustc_feature/accepted.rs`
     pub use super::kw::MacroRules as macro_rules;

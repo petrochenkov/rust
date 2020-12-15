@@ -162,7 +162,6 @@ fn symbols_with_errors(input: TokenStream) -> (TokenStream, Vec<syn::Error>) {
             #value,
         });
         keyword_stream.extend(quote! {
-            #[allow(non_upper_case_globals)]
             pub const #name: Symbol = Symbol::new(#counter);
         });
         counter += 1;
@@ -182,8 +181,6 @@ fn symbols_with_errors(input: TokenStream) -> (TokenStream, Vec<syn::Error>) {
             #value,
         });
         symbols_stream.extend(quote! {
-            #[allow(rustc::default_hash_types)]
-            #[allow(non_upper_case_globals)]
             pub const #name: Symbol = Symbol::new(#counter);
         });
         counter += 1;
@@ -203,21 +200,23 @@ fn symbols_with_errors(input: TokenStream) -> (TokenStream, Vec<syn::Error>) {
     }
 
     let output = quote! {
-        macro_rules! keywords {
-            () => {
-                #keyword_stream
-            }
+        #[allow(non_upper_case_globals)]
+        mod generated_keywords {
+            use super::Symbol;
+
+            #keyword_stream
         }
 
-        macro_rules! define_symbols {
-            () => {
-                #symbols_stream
+        #[allow(rustc::default_hash_types)]
+        #[allow(non_upper_case_globals)]
+        mod generated_symbols {
+            use super::Symbol;
 
-                #[allow(non_upper_case_globals)]
-                pub const digits_array: &[Symbol; 10] = &[
-                    #digits_stream
-                ];
-            }
+            #symbols_stream
+
+            pub const digits_array: &[Symbol; 10] = &[
+                #digits_stream
+            ];
         }
 
         impl Interner {
