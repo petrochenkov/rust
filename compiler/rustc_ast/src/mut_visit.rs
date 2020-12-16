@@ -1147,7 +1147,8 @@ pub fn noop_visit_pat<T: MutVisitor>(pat: &mut P<Pat>, vis: &mut T) {
             vis.visit_qself(qself);
             vis.visit_path(path);
         }
-        PatKind::Struct(path, fields, _etc) => {
+        PatKind::Struct(qself, path, fields, _etc) => {
+            vis.visit_qself(qself);
             vis.visit_path(path);
             fields.flat_map_in_place(|field| vis.flat_map_pat_field(field));
         }

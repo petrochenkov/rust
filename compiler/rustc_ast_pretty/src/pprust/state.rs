@@ -2360,8 +2360,12 @@ impl<'a> State<'a> {
             PatKind::Path(Some(ref qself), ref path) => {
                 self.print_qpath(path, qself, false);
             }
-            PatKind::Struct(ref path, ref fields, etc) => {
-                self.print_path(path, true, 0);
+            PatKind::Struct(ref qself, ref path, ref fields, etc) => {
+                if let Some(qself) = qself {
+                    self.print_qpath(path, qself, true);
+                } else {
+                    self.print_path(path, true, 0);
+                }
                 self.nbsp();
                 self.word_space("{");
                 self.commasep_cmnt(

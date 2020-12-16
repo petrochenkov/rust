@@ -1627,8 +1627,8 @@ impl<'a: 'ast, 'b, 'ast> LateResolutionVisitor<'a, 'b, 'ast> {
                 PatKind::Path(ref qself, ref path) => {
                     self.smart_resolve_path(pat.id, qself.as_ref(), path, PathSource::Pat);
                 }
-                PatKind::Struct(ref path, ..) => {
-                    self.smart_resolve_path(pat.id, None, path, PathSource::Struct);
+                PatKind::Struct(ref qself, ref path, ..) => {
+                    self.smart_resolve_path(pat.id, qself.as_ref(), path, PathSource::Struct);
                 }
                 PatKind::Or(ref ps) => {
                     // Add a new set of bindings to the stack. `Or` here records that when a

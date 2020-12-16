@@ -507,7 +507,10 @@ pub fn walk_pat<'a, V: Visitor<'a>>(visitor: &mut V, pattern: &'a Pat) {
             }
             visitor.visit_path(path, pattern.id)
         }
-        PatKind::Struct(ref path, ref fields, _) => {
+        PatKind::Struct(ref opt_qself, ref path, ref fields, _) => {
+            if let Some(ref qself) = *opt_qself {
+                visitor.visit_ty(&qself.ty);
+            }
             visitor.visit_path(path, pattern.id);
             walk_list!(visitor, visit_pat_field, fields);
         }

@@ -858,9 +858,6 @@ impl<'a> Parser<'a> {
 
     /// Parse a struct ("record") pattern (e.g. `Foo { ... }` or `Foo::Bar { ... }`).
     fn parse_pat_struct(&mut self, qself: Option<QSelf>, path: Path) -> PResult<'a, PatKind> {
-        if qself.is_some() {
-            return self.error_qpath_before_pat(&path, "{");
-        }
         self.bump();
         let (fields, etc) = self.parse_pat_fields().unwrap_or_else(|mut e| {
             e.span_label(path.span, "while parsing the fields for this pattern");
@@ -869,7 +866,7 @@ impl<'a> Parser<'a> {
             (vec![], true)
         });
         self.bump();
-        Ok(PatKind::Struct(path, fields, etc))
+        Ok(PatKind::Struct(qself, path, fields, etc))
     }
 
     /// Parse tuple struct or tuple variant pattern (e.g. `Foo(...)` or `Foo::Bar(...)`).

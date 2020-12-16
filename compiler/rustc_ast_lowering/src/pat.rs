@@ -47,10 +47,10 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                         );
                         break hir::PatKind::Path(qpath);
                     }
-                    PatKind::Struct(ref path, ref fields, etc) => {
+                    PatKind::Struct(ref qself, ref path, ref fields, etc) => {
                         let qpath = self.lower_qpath(
                             pattern.id,
-                            &None,
+                            qself,
                             path,
                             ParamMode::Optional,
                             ImplTraitContext::disallowed(),
