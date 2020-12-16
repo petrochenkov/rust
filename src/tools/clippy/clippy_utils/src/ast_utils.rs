@@ -78,6 +78,14 @@ pub fn eq_qself(l: &QSelf, r: &QSelf) -> bool {
     l.position == r.position && eq_ty(&l.ty, &r.ty)
 }
 
+pub fn eq_maybe_qself(l: &Option<QSelf>, r: &Option<QSelf>) -> bool {
+    match (l, r) {
+        (Some(l), Some(r)) => eq_qself(l, r),
+        (None, None) => true,
+        _ => false
+    }
+}
+
 pub fn eq_path(l: &Path, r: &Path) -> bool {
     over(&l.segments, &r.segments, |l, r| eq_path_seg(l, r))
 }
@@ -170,7 +178,8 @@ pub fn eq_expr(l: &Expr, r: &Expr) -> bool {
         (Path(lq, lp), Path(rq, rp)) => both(lq, rq, |l, r| eq_qself(l, r)) && eq_path(lp, rp),
         (MacCall(l), MacCall(r)) => eq_mac_call(l, r),
         (Struct(lse), Struct(rse)) => {
-            eq_path(&lse.path, &rse.path)
+            eq_maybe_qself(&lse.qself, &rse.qself) 
+                && eq_path(&lse.path, &rse.path)
                 && eq_struct_rest(&lse.rest, &rse.rest)
                 && unordered_over(&lse.fields, &rse.fields, |l, r| eq_field(l, r))
         },
