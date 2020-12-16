@@ -1713,13 +1713,16 @@ impl<'a> State<'a> {
 
     fn print_expr_struct(
         &mut self,
-        _qself: &Option<ast::QSelf>,
+        qself: &Option<ast::QSelf>,
         path: &ast::Path,
         fields: &[ast::ExprField],
         rest: &ast::StructRest,
     ) {
-        // TODO: print QSelf
-        self.print_path(path, true, 0);
+        if let Some(qself) = qself {
+            self.print_qpath(path, qself, true);
+        } else {
+            self.print_path(path, true, 0);
+        }
         self.s.word("{");
         self.commasep_cmnt(
             Consistent,
