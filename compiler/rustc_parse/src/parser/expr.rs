@@ -1259,7 +1259,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_path_start_expr(&mut self, attrs: AttrVec) -> PResult<'a, P<Expr>> {
-        let (qself, path) = if self.eat(&token::Lt) {
+        let (qself, path) = if self.eat_lt() {
             let (qself, path) = self.parse_qpath(PathStyle::Expr)?;
             (Some(qself), path)
         } else {
