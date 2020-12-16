@@ -1,8 +1,9 @@
 // Make sure that users can construct structs through associated types
+// in both expressions and patterns
 
 // check-pass
 fn main() {
-    let _ = <Bar as A>::Assoc { br: 2 };
+    let <Bar as A>::Assoc { br: _br } = <Bar as A>::Assoc { br: 2 };
 }
 
 struct Foo {
