@@ -740,6 +740,9 @@ pub fn walk_expr<'a, V: Visitor<'a>>(visitor: &mut V, expression: &'a Expr) {
             visitor.visit_anon_const(count)
         }
         ExprKind::Struct(ref se) => {
+            if let Some(ref qself) = se.qself {
+                visitor.visit_ty(&qself.ty);
+            }
             visitor.visit_path(&se.path, expression.id);
             walk_list!(visitor, visit_expr_field, &se.fields);
             match &se.rest {

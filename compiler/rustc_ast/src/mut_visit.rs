@@ -1333,7 +1333,8 @@ pub fn noop_visit_expr<T: MutVisitor>(
         }
         ExprKind::MacCall(mac) => vis.visit_mac_call(mac),
         ExprKind::Struct(se) => {
-            let StructExpr { qself: _, path, fields, rest } = se.deref_mut();
+            let StructExpr { qself, path, fields, rest } = se.deref_mut();
+            vis.visit_qself(qself);
             vis.visit_path(path);
             fields.flat_map_in_place(|field| vis.flat_map_expr_field(field));
             match rest {
