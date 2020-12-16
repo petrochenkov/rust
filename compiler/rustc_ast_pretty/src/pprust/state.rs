@@ -2345,8 +2345,12 @@ impl<'a> State<'a> {
                     self.print_pat(p);
                 }
             }
-            PatKind::TupleStruct(ref path, ref elts) => {
-                self.print_path(path, true, 0);
+            PatKind::TupleStruct(ref qself, ref path, ref elts) => {
+                if let Some(qself) = qself {
+                    self.print_qpath(path, qself, true);
+                } else {
+                    self.print_path(path, true, 0);
+                }
                 self.popen();
                 self.commasep(Inconsistent, &elts[..], |s, p| s.print_pat(p));
                 self.pclose();

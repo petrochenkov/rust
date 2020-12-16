@@ -497,7 +497,10 @@ pub fn walk_assoc_ty_constraint<'a, V: Visitor<'a>>(
 
 pub fn walk_pat<'a, V: Visitor<'a>>(visitor: &mut V, pattern: &'a Pat) {
     match pattern.kind {
-        PatKind::TupleStruct(ref path, ref elems) => {
+        PatKind::TupleStruct(ref opt_qself, ref path, ref elems) => {
+            if let Some(ref qself) = *opt_qself {
+                visitor.visit_ty(&qself.ty);
+            }
             visitor.visit_path(path, pattern.id);
             walk_list!(visitor, visit_pat, elems);
         }

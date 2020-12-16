@@ -273,13 +273,13 @@ fn transform_with_focus_on_idx(alternatives: &mut Vec<P<Pat>>, focus_idx: usize)
             |k| always_pat!(k, Tuple(ps) => ps),
         ),
         // Transform `S(pre, x, post) | ... | S(pre, y, post)` into `S(pre, x | y, post)`.
-        TupleStruct(path1, ps1) => extend_with_matching_product(
+        TupleStruct(qself1, path1, ps1) => extend_with_matching_product(
             ps1, start, alternatives,
             |k, ps1, idx| matches!(
                 k,
-                TupleStruct(path2, ps2) if eq_path(path1, path2) && eq_pre_post(ps1, ps2, idx)
+                TupleStruct(qself2, path2, ps2) if eq_maybe_qself(qself1, qself2) && eq_path(path1, path2) && eq_pre_post(ps1, ps2, idx)
             ),
-            |k| always_pat!(k, TupleStruct(_, ps) => ps),
+            |k| always_pat!(k, TupleStruct(_, _, ps) => ps),
         ),
         // Transform a record pattern `S { fp_0, ..., fp_n }`.
         Struct(qself1, path1, fps1, rest1) => extend_with_struct_pat(qself1, path1, fps1, *rest1, start, alternatives),

@@ -1613,10 +1613,10 @@ impl<'a: 'ast, 'b, 'ast> LateResolutionVisitor<'a, 'b, 'ast> {
                     self.r.record_partial_res(pat.id, PartialRes::new(res));
                     self.r.record_pat_span(pat.id, pat.span);
                 }
-                PatKind::TupleStruct(ref path, ref sub_patterns) => {
+                PatKind::TupleStruct(ref qself, ref path, ref sub_patterns) => {
                     self.smart_resolve_path(
                         pat.id,
-                        None,
+                        qself.as_ref(),
                         path,
                         PathSource::TupleStruct(
                             pat.span,

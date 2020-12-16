@@ -626,9 +626,10 @@ impl Pat {
             PatKind::Struct(_, _, fields, _) => fields.iter().for_each(|field| field.pat.walk(it)),
 
             // Sequence of patterns.
-            PatKind::TupleStruct(_, s) | PatKind::Tuple(s) | PatKind::Slice(s) | PatKind::Or(s) => {
-                s.iter().for_each(|p| p.walk(it))
-            }
+            PatKind::TupleStruct(_, _, s)
+            | PatKind::Tuple(s)
+            | PatKind::Slice(s)
+            | PatKind::Or(s) => s.iter().for_each(|p| p.walk(it)),
 
             // Trivial wrappers over inner patterns.
             PatKind::Box(s) | PatKind::Ref(s, _) | PatKind::Paren(s) => s.walk(it),
@@ -704,7 +705,7 @@ pub enum PatKind {
     Struct(Option<QSelf>, Path, Vec<PatField>, /* recovered */ bool),
 
     /// A tuple struct/variant pattern (`Variant(x, y, .., z)`).
-    TupleStruct(Path, Vec<P<Pat>>),
+    TupleStruct(Option<QSelf>, Path, Vec<P<Pat>>),
 
     /// An or-pattern `A | B | C`.
     /// Invariant: `pats.len() >= 2`.

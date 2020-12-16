@@ -1139,7 +1139,8 @@ pub fn noop_visit_pat<T: MutVisitor>(pat: &mut P<Pat>, vis: &mut T) {
             visit_opt(sub, |sub| vis.visit_pat(sub));
         }
         PatKind::Lit(e) => vis.visit_expr(e),
-        PatKind::TupleStruct(path, elems) => {
+        PatKind::TupleStruct(qself, path, elems) => {
+            vis.visit_qself(qself);
             vis.visit_path(path);
             visit_vec(elems, |elem| vis.visit_pat(elem));
         }
