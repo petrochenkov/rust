@@ -1269,7 +1269,6 @@ impl<'a> Parser<'a> {
 
         // `!`, as an operator, is prefix, so we know this isn't that.
         let (hi, kind) = if self.eat(&token::Not) {
-            // TODO: check that qself is None
             // MACRO INVOCATION expression
             let mac = MacCall {
                 path,
