@@ -7,7 +7,7 @@ use rustc_errors::{error_code, PResult};
 use rustc_span::{sym, Span};
 use std::convert::TryInto;
 
-use tracing::debug;
+use tracing::{debug, trace};
 
 // Public for rustfmt usage
 #[derive(Debug)]
@@ -32,6 +32,7 @@ impl<'a> Parser<'a> {
         let mut just_parsed_doc_comment = false;
         let start_pos = self.token_cursor.num_next_calls;
         loop {
+            trace!(?self.token, "parse_outer_attributes");
             let attr = if self.check(&token::Pound) {
                 let inner_error_reason = if just_parsed_doc_comment {
                     "an inner attribute is not permitted following an outer doc comment"
