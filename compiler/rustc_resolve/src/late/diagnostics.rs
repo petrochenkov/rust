@@ -419,22 +419,28 @@ impl<'a: 'ast, 'ast> LateResolutionVisitor<'a, '_, 'ast> {
                 return (err, candidates);
             }
 
-            // If the first argument in call is `self` suggest calling a method.
-            if let Some((call_span, args_span)) = self.call_has_self_arg(source) {
-                let mut args_snippet = String::new();
-                if let Some(args_span) = args_span {
-                    if let Ok(snippet) = self.r.session.source_map().span_to_snippet(args_span) {
-                        args_snippet = snippet;
+            // This negative condition prioritizes the "constructor is not visible here" diagnostic
+            // from `smart_resolve_context_dependent_help` over the "try calling as a method"
+            // diagnostic from here.
+            if !(ns == ValueNS && matches!(res, Some(Res::Def(DefKind::Struct, _)))) {
+                // If the first argument in call is `self` suggest calling a method.
+                if let Some((call_span, args_span)) = self.call_has_self_arg(source) {
+                    let mut args_snippet = String::new();
+                    if let Some(args_span) = args_span {
+                        if let Ok(snippet) = self.r.session.source_map().span_to_snippet(args_span)
+                        {
+                            args_snippet = snippet;
+                        }
                     }
-                }
 
-                err.span_suggestion(
-                    call_span,
-                    &format!("try calling `{}` as a method", ident),
-                    format!("self.{}({})", path_str, args_snippet),
-                    Applicability::MachineApplicable,
-                );
-                return (err, candidates);
+                    err.span_suggestion(
+                        call_span,
+                        &format!("try calling `{}` as a method", ident),
+                        format!("self.{}({})", path_str, args_snippet),
+                        Applicability::MachineApplicable,
+                    );
+                    return (err, candidates);
+                }
             }
         }
 
