@@ -1089,7 +1089,7 @@ impl<'a: 'ast, 'ast> LateResolutionVisitor<'a, '_, 'ast> {
                 err.note("can't use `Self` as a constructor, you must use the implemented struct");
             }
             (Res::Def(DefKind::TyAlias | DefKind::AssocTy, _), _) if ns == ValueNS => {
-                err.note("can't use a type alias as a tuple struct constructor");
+                err.note("can't use a type alias as a constructor");
             }
             _ => return false,
         }

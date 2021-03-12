@@ -4,7 +4,7 @@ error[E0575]: expected method or associated constant, found associated type `A::
 LL |     let <Foo as A>::Assoc(n) = <Foo as A>::Assoc(2);
    |                                ^^^^^^^^^^^^^^^^^
    |
-   = note: can't use a type alias as a tuple struct constructor
+   = note: can't use a type alias as a constructor
 
 error[E0575]: expected method or associated constant, found associated type `A::Assoc`
   --> $DIR/associated-type-tuple-struct-construction.rs:5:9
@@ -12,7 +12,7 @@ error[E0575]: expected method or associated constant, found associated type `A::
 LL |     let <Foo as A>::Assoc(n) = <Foo as A>::Assoc(2);
    |         ^^^^^^^^^^^^^^^^^
    |
-   = note: can't use a type alias as a tuple struct constructor
+   = note: can't use a type alias as a constructor
 
 error: aborting due to 2 previous errors
 
