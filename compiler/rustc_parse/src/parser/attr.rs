@@ -7,7 +7,7 @@ use rustc_errors::{error_code, PResult};
 use rustc_span::{sym, Span};
 use std::convert::TryInto;
 
-use tracing::{debug, trace};
+use tracing::debug;
 
 // Public for rustfmt usage
 #[derive(Debug)]
