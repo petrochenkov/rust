@@ -1044,7 +1044,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
     fn extract_tuple_struct_path<'a>(&mut self, expr: &'a Expr) -> Option<&'a Path> {
         // For tuple struct destructuring, it must be a non-qualified path (like in patterns).
         if let ExprKind::Path(None, path) = &expr.kind {
-            // Does the path resolves to something disallowed in a tuple struct/variant pattern?
+            // Does the path resolve to something disallowed in a tuple struct/variant pattern?
             if let Some(partial_res) = self.resolver.get_partial_res(expr.id) {
                 if partial_res.unresolved_segments() == 0
                     && !partial_res.base_res().expected_in_tuple_struct_pat()
