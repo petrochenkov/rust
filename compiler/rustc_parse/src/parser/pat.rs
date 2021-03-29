@@ -871,9 +871,8 @@ impl<'a> Parser<'a> {
 
     /// Parse tuple struct or tuple variant pattern (e.g. `Foo(...)` or `Foo::Bar(...)`).
     fn parse_pat_tuple_struct(&mut self, qself: Option<QSelf>, path: Path) -> PResult<'a, PatKind> {
-        let (fields, _) = self.parse_paren_comma_seq(|p| {
-            p.parse_pat_allow_top_alt(None, GateOr::Yes, RecoverComma::No)
-        })?;
+        let (fields, _) =
+            self.parse_paren_comma_seq(|p| p.parse_pat_allow_top_alt(None, RecoverComma::No))?;
         Ok(PatKind::TupleStruct(qself, path, fields))
     }
 
