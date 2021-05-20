@@ -926,6 +926,7 @@ symbols! {
         qreg_low4,
         qreg_low8,
         quad_precision_float,
+        qualified_path_in_patterns,
         question_mark,
         quote,
         range_inclusive_new,

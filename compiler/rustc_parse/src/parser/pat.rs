@@ -858,6 +858,10 @@ impl<'a> Parser<'a> {
 
     /// Parse a struct ("record") pattern (e.g. `Foo { ... }` or `Foo::Bar { ... }`).
     fn parse_pat_struct(&mut self, qself: Option<QSelf>, path: Path) -> PResult<'a, PatKind> {
+        if qself.is_some() {
+            // Feature gate the use of qualified paths in patterns
+            self.sess.gated_spans.gate(sym::qualified_path_in_patterns, path.span);
+        }
         self.bump();
         let (fields, etc) = self.parse_pat_fields().unwrap_or_else(|mut e| {
             e.span_label(path.span, "while parsing the fields for this pattern");
