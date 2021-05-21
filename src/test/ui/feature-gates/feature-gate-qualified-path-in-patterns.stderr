@@ -1,0 +1,12 @@
+error[E0658]: usage of qualified paths in patterns is experimental
+  --> $DIR/feature-gate-qualified-path-in-patterns.rs:3:9
+   |
+LL |     let <Foo as A>::Assoc { br } = StructStruct { br: 2 };
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: see issue #80080 <https://github.com/rust-lang/rust/issues/80080> for more information
+   = help: add `#![feature(qualified_path_in_patterns)]` to the crate attributes to enable
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0658`.
