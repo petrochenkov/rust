@@ -1,12 +1,12 @@
-# `qualified_path_patterns`
+# `more_qualified_paths`
 
-The `qualified_path_in_patterns` feature can be used in order to enable the
+The `more_qualified_paths` feature can be used in order to enable the
 use of qualified paths in patterns.
 
 ## Example
 
 ```rust
-#![feature(qualified_path_in_patterns)]
+#![feature(more_qualified_paths)]
 
 fn main() {
     // destructure through a qualified path

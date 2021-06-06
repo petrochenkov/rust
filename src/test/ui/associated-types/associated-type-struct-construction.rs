@@ -1,7 +1,7 @@
 // Make sure that users can construct structs through associated types
 // in both expressions and patterns
 
-#![feature(qualified_path_in_patterns)]
+#![feature(more_qualified_paths)]
 
 // check-pass
 fn main() {

@@ -1,6 +1,8 @@
 // Users cannot yet construct structs through associated types
 // in both expressions and patterns
 
+#![feature(more_qualified_paths)]
+
 fn main() {
     let <Foo as A>::Assoc(n) = <Foo as A>::Assoc(2);
     //~^ ERROR expected method or associated constant, found associated type

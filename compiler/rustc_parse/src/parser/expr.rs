@@ -1270,6 +1270,9 @@ impl<'a> Parser<'a> {
         // `!`, as an operator, is prefix, so we know this isn't that.
         let (hi, kind) = if self.eat(&token::Not) {
             // MACRO INVOCATION expression
+            if qself.is_some() {
+                self.struct_span_err(path.span, "macros cannot use qualified paths").emit();
+            }
             let mac = MacCall {
                 path,
                 args: self.parse_mac_args()?,
@@ -1278,6 +1281,9 @@ impl<'a> Parser<'a> {
             (self.prev_token.span, ExprKind::MacCall(mac))
         } else if self.check(&token::OpenDelim(token::Brace)) {
             if let Some(expr) = self.maybe_parse_struct_expr(qself.as_ref(), &path, &attrs) {
+                if qself.is_some() {
+                    self.sess.gated_spans.gate(sym::more_qualified_paths, path.span);
+                }
                 return expr;
             } else {
                 (path.span, ExprKind::Path(qself, path))

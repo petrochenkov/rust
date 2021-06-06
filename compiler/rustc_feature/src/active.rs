@@ -663,8 +663,8 @@ declare_features! (
     /// Allows unnamed fields of struct and union type
     (active, unnamed_fields, "1.53.0", Some(49804), None),
 
-    /// Allows struct-structs with qualified paths in patterns
-    (active, qualified_path_in_patterns, "1.54.0", Some(80080), None),
+    /// Allows qualified paths in struct expressions, struct patterns and tuple struct patterns.
+    (active, more_qualified_paths, "1.54.0", Some(80080), None),
 
     // -------------------------------------------------------------------------
     // feature-group-end: actual feature gates

@@ -860,7 +860,7 @@ impl<'a> Parser<'a> {
     fn parse_pat_struct(&mut self, qself: Option<QSelf>, path: Path) -> PResult<'a, PatKind> {
         if qself.is_some() {
             // Feature gate the use of qualified paths in patterns
-            self.sess.gated_spans.gate(sym::qualified_path_in_patterns, path.span);
+            self.sess.gated_spans.gate(sym::more_qualified_paths, path.span);
         }
         self.bump();
         let (fields, etc) = self.parse_pat_fields().unwrap_or_else(|mut e| {
@@ -877,6 +877,9 @@ impl<'a> Parser<'a> {
     fn parse_pat_tuple_struct(&mut self, qself: Option<QSelf>, path: Path) -> PResult<'a, PatKind> {
         let (fields, _) =
             self.parse_paren_comma_seq(|p| p.parse_pat_allow_top_alt(None, RecoverComma::No))?;
+        if qself.is_some() {
+            self.sess.gated_spans.gate(sym::more_qualified_paths, path.span);
+        }
         Ok(PatKind::TupleStruct(qself, path, fields))
     }
 
