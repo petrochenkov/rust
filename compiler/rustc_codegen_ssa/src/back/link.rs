@@ -1,9 +1,9 @@
-use rustc_data_structures::fx::{FxHashMap, FxHashSet};
+use rustc_data_structures::fx::{FxHashSet, FxIndexMap};
 use rustc_data_structures::temp_dir::MaybeTempDir;
 use rustc_errors::Handler;
 use rustc_fs_util::fix_windows_verbatim_for_gcc;
 use rustc_hir::def_id::CrateNum;
-use rustc_middle::middle::cstore::{DllCallingConvention, DllImport};
+use rustc_middle::middle::cstore::DllImport;
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_session::config::{self, CFGuard, CrateType, DebugInfo, LdImpl, Strip};
 use rustc_session::config::{OutputFilenames, OutputType, PrintRequest};
@@ -35,7 +35,6 @@ use object::{Architecture, BinaryFormat, Endianness, FileFlags, SectionFlags, Se
 use tempfile::Builder as TempFileBuilder;
 
 use std::ffi::OsString;
-use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Output, Stdio};
 use std::{ascii, char, env, fmt, fs, io, mem, str};
@@ -455,64 +454,39 @@ fn collate_raw_dylibs(
     sess: &Session,
     used_libraries: &[NativeLib],
 ) -> Vec<(String, Vec<DllImport>)> {
-    let mut dylib_table: FxHashMap<String, FxHashSet<DllImport>> = FxHashMap::default();
+    // Use index maps to preserve original order of imports and libraries.
+    let mut dylib_table = FxIndexMap::<String, FxIndexMap<Symbol, &DllImport>>::default();
 
     for lib in used_libraries {
         if lib.kind == NativeLibKind::RawDylib {
-            let name = lib.name.unwrap_or_else(||
-                bug!("`link` attribute with kind = \"raw-dylib\" and no name should have caused error earlier")
-            );
-            let name = if matches!(lib.verbatim, Some(true)) {
-                name.to_string()
-            } else {
-                format!("{}.dll", name)
-            };
-            dylib_table.entry(name).or_default().extend(lib.dll_imports.iter().cloned());
-        }
-    }
-
-    // Rustc already signals an error if we have two imports with the same name but different
-    // calling conventions (or function signatures), so we don't have pay attention to those
-    // when ordering.
-    // FIXME: when we add support for ordinals, figure out if we need to do anything if we
-    // have two DllImport values with the same name but different ordinals.
-    let mut result: Vec<(String, Vec<DllImport>)> = dylib_table
-        .into_iter()
-        .map(|(lib_name, import_table)| {
-            let mut imports = Vec::from_iter(import_table.into_iter());
-            imports.sort_unstable_by_key(|x: &DllImport| x.name.as_str());
-            (lib_name, imports)
-        })
-        .collect::<Vec<_>>();
-    result.sort_unstable_by(|a: &(String, Vec<DllImport>), b: &(String, Vec<DllImport>)| {
-        a.0.cmp(&b.0)
-    });
-    let result = result;
-
-    // Check for multiple imports with the same name but different calling conventions or
-    // (when relevant) argument list sizes.  Rustc only signals an error for this if the
-    // declarations are at the same scope level; if one shadows the other, we only get a lint
-    // warning.
-    for (library, imports) in &result {
-        let mut import_table: FxHashMap<Symbol, DllCallingConvention> = FxHashMap::default();
-        for import in imports {
-            if let Some(old_convention) =
-                import_table.insert(import.name, import.calling_convention)
-            {
-                if import.calling_convention != old_convention {
-                    sess.span_fatal(
-                        import.span,
-                        &format!(
-                            "multiple definitions of external function `{}` from library `{}` have different calling conventions",
-                            import.name,
-                            library,
-                    ));
+            let ext = if matches!(lib.verbatim, Some(true)) { "" } else { ".dll" };
+            let name = format!("{}{}", lib.name.expect("unnamed raw-dylib library"), ext);
+            let imports = dylib_table.entry(name.clone()).or_default();
+            for import in &lib.dll_imports {
+                if let Some(old_import) = imports.insert(import.name, import) {
+                    // FIXME: when we add support for ordinals, figure out if we need to do anything
+                    // if we have two DllImport values with the same name but different ordinals.
+                    if import.calling_convention != old_import.calling_convention {
+                        sess.span_err(
+                            import.span,
+                            &format!(
+                                "multiple declarations of external function `{}` from \
+                                 library `{}` have different calling conventions",
+                                import.name, name,
+                            ),
+                        );
+                    }
                 }
             }
         }
     }
 
-    result
+    dylib_table
+        .into_iter()
+        .map(|(name, imports)| {
+            (name, imports.into_iter().map(|(_, import)| import.clone()).collect())
+        })
+        .collect()
 }
 
 /// Create a static archive.
