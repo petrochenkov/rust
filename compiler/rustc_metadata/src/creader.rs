@@ -2,7 +2,9 @@
 
 use crate::dynamic_lib::DynamicLibrary;
 use crate::locator::{CrateError, CrateLocator, CratePaths};
-use crate::rmeta::{CrateDep, CrateMetadata, CrateNumMap, CrateRoot, MetadataBlob};
+use crate::rmeta::{
+    CrateDep, CrateFlavorMask, CrateMetadata, CrateNumMap, CrateRoot, MetadataBlob,
+};
 
 use rustc_ast::expand::allocator::AllocatorKind;
 use rustc_ast::{self as ast, *};
@@ -532,15 +534,16 @@ impl<'a> CrateLoader<'a> {
         if !name.as_str().is_ascii() {
             return Err(CrateError::NonAsciiName(name));
         }
-        let (root, hash, host_hash, extra_filename, path_kind) = match dep {
+        let (root, hash, host_hash, extra_filename, path_kind, flavor_mask) = match dep {
             Some((root, dep)) => (
                 Some(root),
                 Some(dep.hash),
                 dep.host_hash,
                 Some(&dep.extra_filename[..]),
                 PathKind::Dependency,
+                dep.flavor_mask,
             ),
-            None => (None, None, None, None, PathKind::Crate),
+            None => (None, None, None, None, PathKind::Crate, CrateFlavorMask::all()),
         };
         let result = if let Some(cnum) = self.existing_match(name, hash, path_kind) {
             (LoadResult::Previous(cnum), None)
@@ -557,6 +560,7 @@ impl<'a> CrateLoader<'a> {
                 path_kind,
                 root,
                 Some(false), // is_proc_macro
+                flavor_mask,
             );
 
             match self.load(&mut locator)? {

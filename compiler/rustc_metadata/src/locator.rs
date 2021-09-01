@@ -213,7 +213,7 @@
 //! metadata::locator or metadata::creader for all the juicy details!
 
 use crate::creader::Library;
-use crate::rmeta::{rustc_version, MetadataBlob, METADATA_HEADER};
+use crate::rmeta::{rustc_version, CrateFlavorMask, MetadataBlob, METADATA_HEADER};
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::memmap::Mmap;
@@ -254,6 +254,7 @@ crate struct CrateLocator<'a> {
     pub filesearch: FileSearch<'a>,
     root: Option<&'a CratePaths>,
     pub is_proc_macro: Option<bool>,
+    flavor_mask: CrateFlavorMask,
 
     // Mutable in-progress state or output.
     rejected_via_hash: Vec<CrateMismatch>,
@@ -304,6 +305,7 @@ impl<'a> CrateLocator<'a> {
         path_kind: PathKind,
         root: Option<&'a CratePaths>,
         is_proc_macro: Option<bool>,
+        flavor_mask: CrateFlavorMask,
     ) -> CrateLocator<'a> {
         CrateLocator {
             sess,
@@ -339,6 +341,7 @@ impl<'a> CrateLocator<'a> {
             },
             root,
             is_proc_macro,
+            flavor_mask,
             rejected_via_hash: Vec::new(),
             rejected_via_triple: Vec::new(),
             rejected_via_kind: Vec::new(),
@@ -401,11 +404,20 @@ impl<'a> CrateLocator<'a> {
                 None => return FileDoesntMatch,
                 Some(file) => file,
             };
-            let (hash, found_kind) = if file.starts_with(&rlib_prefix) && file.ends_with(".rlib") {
+            let (hash, found_kind) = if self.flavor_mask.contains(CrateFlavorMask::RLIB)
+                && file.starts_with(&rlib_prefix)
+                && file.ends_with(".rlib")
+            {
                 (&file[(rlib_prefix.len())..(file.len() - ".rlib".len())], CrateFlavor::Rlib)
-            } else if file.starts_with(&rlib_prefix) && file.ends_with(".rmeta") {
+            } else if self.flavor_mask.contains(CrateFlavorMask::RMETA)
+                && file.starts_with(&rlib_prefix)
+                && file.ends_with(".rmeta")
+            {
                 (&file[(rlib_prefix.len())..(file.len() - ".rmeta".len())], CrateFlavor::Rmeta)
-            } else if file.starts_with(&dylib_prefix) && file.ends_with(&self.target.dll_suffix) {
+            } else if self.flavor_mask.contains(CrateFlavorMask::DYLIB)
+                && file.starts_with(&dylib_prefix)
+                && file.ends_with(&self.target.dll_suffix)
+            {
                 (
                     &file[(dylib_prefix.len())..(file.len() - self.target.dll_suffix.len())],
                     CrateFlavor::Dylib,
@@ -812,6 +824,7 @@ fn find_plugin_registrar_impl<'a>(
         PathKind::Crate,
         None, // root
         None, // is_proc_macro
+        CrateFlavorMask::all(),
     );
 
     match locator.maybe_load_library_crate()? {

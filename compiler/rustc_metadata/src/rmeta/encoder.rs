@@ -1708,6 +1708,7 @@ impl EncodeContext<'a, 'tcx> {
                     host_hash: self.tcx.crate_host_hash(cnum),
                     kind: self.tcx.dep_kind(cnum),
                     extra_filename: self.tcx.extra_filename(cnum),
+                    flavor_mask: CrateFlavorMask::from_source(&self.tcx.used_crate_source(cnum)),
                 };
                 (cnum, dep)
             })

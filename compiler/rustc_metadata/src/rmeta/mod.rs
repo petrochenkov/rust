@@ -12,7 +12,9 @@ use rustc_hir::definitions::DefKey;
 use rustc_hir::lang_items;
 use rustc_index::{bit_set::FiniteBitSet, vec::IndexVec};
 use rustc_middle::hir::exports::Export;
-use rustc_middle::middle::cstore::{CrateDepKind, ForeignModule, LinkagePreference, NativeLib};
+use rustc_middle::middle::cstore::{
+    CrateDepKind, CrateSource, ForeignModule, LinkagePreference, NativeLib,
+};
 use rustc_middle::middle::exported_symbols::{ExportedSymbol, SymbolExportLevel};
 use rustc_middle::mir;
 use rustc_middle::ty::{self, ReprOptions, Ty};
@@ -240,6 +242,31 @@ crate struct CrateRoot<'tcx> {
     symbol_mangling_version: SymbolManglingVersion,
 }
 
+bitflags::bitflags! {
+    #[derive(Encodable, Decodable)]
+    pub(crate) struct CrateFlavorMask: u8 {
+        const RMETA = 1 << 0;
+        const RLIB = 1 << 1;
+        const DYLIB = 1 << 2;
+    }
+}
+
+impl CrateFlavorMask {
+    crate fn from_source(source: &CrateSource) -> CrateFlavorMask {
+        let mut mask = CrateFlavorMask::empty();
+        if source.rmeta.is_some() {
+            mask |= CrateFlavorMask::RMETA;
+        }
+        if source.rlib.is_some() {
+            mask |= CrateFlavorMask::RLIB;
+        }
+        if source.dylib.is_some() {
+            mask |= CrateFlavorMask::DYLIB;
+        }
+        mask
+    }
+}
+
 #[derive(Encodable, Decodable)]
 crate struct CrateDep {
     pub name: Symbol,
@@ -247,6 +274,7 @@ crate struct CrateDep {
     pub host_hash: Option<Svh>,
     pub kind: CrateDepKind,
     pub extra_filename: String,
+    pub flavor_mask: CrateFlavorMask,
 }
 
 #[derive(MetadataEncodable, MetadataDecodable)]
