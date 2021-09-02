@@ -245,23 +245,22 @@ crate struct CrateRoot<'tcx> {
 bitflags::bitflags! {
     #[derive(Encodable, Decodable)]
     pub(crate) struct CrateFlavorMask: u8 {
-        const RMETA = 1 << 0;
-        const RLIB = 1 << 1;
-        const DYLIB = 1 << 2;
+        const RLIB = 1 << 0;
+        const DYLIB = 1 << 1;
     }
 }
 
 impl CrateFlavorMask {
     crate fn from_source(source: &CrateSource) -> CrateFlavorMask {
         let mut mask = CrateFlavorMask::empty();
-        if source.rmeta.is_some() {
-            mask |= CrateFlavorMask::RMETA;
-        }
         if source.rlib.is_some() {
             mask |= CrateFlavorMask::RLIB;
         }
         if source.dylib.is_some() {
             mask |= CrateFlavorMask::DYLIB;
+        }
+        if mask.is_empty() && source.rmeta.is_some() {
+            mask = CrateFlavorMask::all();
         }
         mask
     }

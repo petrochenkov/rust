@@ -409,10 +409,7 @@ impl<'a> CrateLocator<'a> {
                 && file.ends_with(".rlib")
             {
                 (&file[(rlib_prefix.len())..(file.len() - ".rlib".len())], CrateFlavor::Rlib)
-            } else if self.flavor_mask.contains(CrateFlavorMask::RMETA)
-                && file.starts_with(&rlib_prefix)
-                && file.ends_with(".rmeta")
-            {
+            } else if file.starts_with(&rlib_prefix) && file.ends_with(".rmeta") {
                 (&file[(rlib_prefix.len())..(file.len() - ".rmeta".len())], CrateFlavor::Rmeta)
             } else if self.flavor_mask.contains(CrateFlavorMask::DYLIB)
                 && file.starts_with(&dylib_prefix)
