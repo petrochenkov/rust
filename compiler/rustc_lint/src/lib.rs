@@ -94,7 +94,7 @@ use unused::*;
 /// Useful for other parts of the compiler / Clippy.
 pub use builtin::SoftLints;
 pub use context::{CheckLintNameResult, EarlyContext, LateContext, LintContext, LintStore};
-pub use early::check_ast_crate;
+pub use early::check_ast_module;
 pub use late::check_crate;
 pub use passes::{EarlyLintPass, LateLintPass};
 pub use rustc_session::lint::Level::{self, *};
