@@ -53,7 +53,7 @@ use rustc_metadata::creader::{CStore, CrateLoader};
 use rustc_middle::hir::exports::ExportMap;
 use rustc_middle::span_bug;
 use rustc_middle::ty::query::Providers;
-use rustc_middle::ty::{self, DefIdTree, MainDefinition, ResolverOutputs};
+use rustc_middle::ty::{self, DefIdTree, MainDefinition, RegisteredTools, ResolverOutputs};
 use rustc_query_system::ich::StableHashingContext;
 use rustc_session::cstore::{CrateStore, MetadataLoaderDyn};
 use rustc_session::lint;
@@ -978,7 +978,7 @@ pub struct Resolver<'a> {
     macro_names: FxHashSet<Ident>,
     builtin_macros: FxHashMap<Symbol, BuiltinMacroState>,
     registered_attrs: FxHashSet<Ident>,
-    registered_tools: FxHashSet<Ident>,
+    registered_tools: RegisteredTools,
     macro_use_prelude: FxHashMap<Symbol, &'a NameBinding<'a>>,
     all_macros: FxHashMap<Symbol, Res>,
     macro_map: FxHashMap<DefId, Lrc<SyntaxExtension>>,
@@ -1472,6 +1472,7 @@ impl<'a> Resolver<'a> {
             trait_impls: self.trait_impls,
             proc_macros,
             confused_type_with_std_module,
+            registered_tools: self.registered_tools,
         }
     }
 
@@ -1495,6 +1496,7 @@ impl<'a> Resolver<'a> {
             trait_impls: self.trait_impls.clone(),
             proc_macros,
             confused_type_with_std_module: self.confused_type_with_std_module.clone(),
+            registered_tools: self.registered_tools.clone(),
         }
     }
 
