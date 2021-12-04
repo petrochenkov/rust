@@ -11,7 +11,7 @@ use rustc_hir::{
     intravisit::{walk_inf, walk_ty, NestedVisitorMap, Visitor},
     Expr, ExprKind, FnRetTy, FnSig, GenericArg, HirId, Impl, ImplItemKind, Item, ItemKind, Path, QPath, TyKind,
 };
-use rustc_lint::{LateContext, LateLintPass, LintContext};
+use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::hir::map::Map;
 use rustc_middle::ty::AssocKind;
 use rustc_semver::RustcVersion;
