@@ -918,6 +918,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         item_id: DefIndex,
         tcx: TyCtxt<'tcx>,
     ) -> ty::GenericPredicates<'tcx> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.explicit_predicates.size(), 0);
+        }
         self.root.tables.explicit_predicates.get(self, item_id).unwrap().decode((self, tcx))
     }
 
@@ -926,6 +929,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         item_id: DefIndex,
         tcx: TyCtxt<'tcx>,
     ) -> &'tcx [(ty::Predicate<'tcx>, Span)] {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.inferred_outlives.size(), 0);
+        }
         self.root
             .tables
             .inferred_outlives
@@ -939,6 +945,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         item_id: DefIndex,
         tcx: TyCtxt<'tcx>,
     ) -> ty::GenericPredicates<'tcx> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.super_predicates.size(), 0);
+        }
         self.root.tables.super_predicates.get(self, item_id).unwrap().decode((self, tcx))
     }
 
@@ -947,6 +956,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         item_id: DefIndex,
         tcx: TyCtxt<'tcx>,
     ) -> &'tcx [(ty::Predicate<'tcx>, Span)] {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.explicit_item_bounds.size(), 0);
+        }
         self.root
             .tables
             .explicit_item_bounds
@@ -956,10 +968,16 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_generics(self, item_id: DefIndex, sess: &Session) -> ty::Generics {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.generics.size(), 0);
+        }
         self.root.tables.generics.get(self, item_id).unwrap().decode((self, sess))
     }
 
     fn get_type(self, id: DefIndex, tcx: TyCtxt<'tcx>) -> Ty<'tcx> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.ty.size(), 0);
+        }
         self.root
             .tables
             .ty
@@ -973,6 +991,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_const_stability(self, id: DefIndex) -> Option<attr::ConstStability> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.const_stability.size(), 0);
+        }
         self.root.tables.const_stability.get(self, id).map(|stab| stab.decode(self))
     }
 
@@ -1008,6 +1029,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_trait_item_def_id(self, id: DefIndex) -> Option<DefId> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.trait_item_def_id.size(), 0);
+        }
         self.root.tables.trait_item_def_id.get(self, id).map(|d| d.decode(self))
     }
 
@@ -1016,6 +1040,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_impl_trait(self, id: DefIndex, tcx: TyCtxt<'tcx>) -> Option<ty::TraitRef<'tcx>> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.impl_trait_ref.size(), 0);
+        }
         self.root.tables.impl_trait_ref.get(self, id).map(|tr| tr.decode((self, tcx)))
     }
 
@@ -1028,11 +1055,17 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         tcx: TyCtxt<'tcx>,
         id: DefIndex,
     ) -> rustc_middle::ty::Const<'tcx> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.const_defaults.size(), 0);
+        }
         self.root.tables.const_defaults.get(self, id).unwrap().decode((self, tcx))
     }
 
     /// Iterates over all the stability attributes in the given crate.
     fn get_lib_features(self, tcx: TyCtxt<'tcx>) -> &'tcx [(Symbol, Option<Symbol>)] {
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.lib_features.size(), 0);
+        // }
         // FIXME: For a proc macro crate, not sure whether we should return the "host"
         // features or an empty Vec. Both don't cause ICEs.
         tcx.arena.alloc_from_iter(self.root.lib_features.decode(self))
@@ -1040,38 +1073,34 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
 
     /// Iterates over the language items in the given crate.
     fn get_lang_items(self, tcx: TyCtxt<'tcx>) -> &'tcx [(DefId, usize)] {
-        if self.root.is_proc_macro_crate() {
-            // Proc macro crates do not export any lang-items to the target.
-            &[]
-        } else {
-            tcx.arena.alloc_from_iter(
-                self.root
-                    .lang_items
-                    .decode(self)
-                    .map(|(def_index, index)| (self.local_def_id(def_index), index)),
-            )
-        }
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.lang_items.size(), 0);
+        // }
+        tcx.arena.alloc_from_iter(
+            self.root
+                .lang_items
+                .decode(self)
+                .map(|(def_index, index)| (self.local_def_id(def_index), index)),
+        )
     }
 
     /// Iterates over the diagnostic items in the given crate.
     fn get_diagnostic_items(self) -> DiagnosticItems {
-        if self.root.is_proc_macro_crate() {
-            // Proc macro crates do not export any diagnostic-items to the target.
-            Default::default()
-        } else {
-            let mut id_to_name = FxHashMap::default();
-            let name_to_id = self
-                .root
-                .diagnostic_items
-                .decode(self)
-                .map(|(name, def_index)| {
-                    let id = self.local_def_id(def_index);
-                    id_to_name.insert(id, name);
-                    (name, id)
-                })
-                .collect();
-            DiagnosticItems { id_to_name, name_to_id }
-        }
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.diagnostic_items.size(), 0);
+        // }
+        let mut id_to_name = FxHashMap::default();
+        let name_to_id = self
+            .root
+            .diagnostic_items
+            .decode(self)
+            .map(|(name, def_index)| {
+                let id = self.local_def_id(def_index);
+                id_to_name.insert(id, name);
+                (name, id)
+            })
+            .collect();
+        DiagnosticItems { id_to_name, name_to_id }
     }
 
     /// Iterates over all named children of the given module,
@@ -1084,6 +1113,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         mut callback: impl FnMut(ModChild),
         sess: &Session,
     ) {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.children.size(), 0);
+        }
         if let Some(data) = &self.root.proc_macro_data {
             // If we are loading as a proc macro, we want to return
             // the view of this crate as a proc macro crate.
@@ -1178,10 +1210,16 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn is_ctfe_mir_available(self, id: DefIndex) -> bool {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.mir_for_ctfe.size(), 0);
+        }
         self.root.tables.mir_for_ctfe.get(self, id).is_some()
     }
 
     fn is_item_mir_available(self, id: DefIndex) -> bool {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.mir.size(), 0);
+        }
         self.root.tables.mir.get(self, id).is_some()
     }
 
@@ -1195,6 +1233,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_optimized_mir(self, tcx: TyCtxt<'tcx>, id: DefIndex) -> Body<'tcx> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.mir.size(), 0);
+        }
         self.root
             .tables
             .mir
@@ -1206,6 +1247,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_mir_for_ctfe(self, tcx: TyCtxt<'tcx>, id: DefIndex) -> Body<'tcx> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.mir_for_ctfe.size(), 0);
+        }
         self.root
             .tables
             .mir_for_ctfe
@@ -1221,6 +1265,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         tcx: TyCtxt<'tcx>,
         id: DefIndex,
     ) -> Result<Option<&'tcx [thir::abstract_const::Node<'tcx>]>, ErrorReported> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.thir_abstract_consts.size(), 0);
+        }
         self.root
             .tables
             .thir_abstract_consts
@@ -1229,6 +1276,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_unused_generic_params(self, id: DefIndex) -> FiniteBitSet<u32> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.unused_generic_params.size(), 0);
+        }
         self.root
             .tables
             .unused_generic_params
@@ -1238,6 +1288,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_promoted_mir(self, tcx: TyCtxt<'tcx>, id: DefIndex) -> IndexVec<Promoted, Body<'tcx>> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.promoted_mir.size(), 0);
+        }
         self.root
             .tables
             .promoted_mir
@@ -1308,6 +1361,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_item_variances(self, id: DefIndex) -> impl Iterator<Item = ty::Variance> + 'a {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.variances.size(), 0);
+        }
         self.root.tables.variances.get(self, id).unwrap_or_else(Lazy::empty).decode(self)
     }
 
@@ -1347,6 +1403,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_struct_field_names(self, id: DefIndex, sess: &Session) -> Vec<Spanned<Symbol>> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.children.size(), 0);
+        }
         self.root
             .tables
             .children
@@ -1358,6 +1417,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_struct_field_visibilities(self, id: DefIndex) -> Vec<Visibility> {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.children.size(), 0);
+        }
         self.root
             .tables
             .children
@@ -1373,6 +1435,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         tcx: TyCtxt<'tcx>,
         id: DefIndex,
     ) -> &'tcx [DefId] {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.tables.inherent_impls.size(), 0);
+        }
         tcx.arena.alloc_from_iter(
             self.root
                 .tables
@@ -1385,10 +1450,16 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_traits(self) -> impl Iterator<Item = DefId> + 'a {
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.traits.size(), 0);
+        // }
         self.root.traits.decode(self).map(move |index| self.local_def_id(index))
     }
 
     fn get_trait_impls(self) -> impl Iterator<Item = (DefId, Option<SimplifiedType>)> + 'a {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.trait_impls.len(), 0);
+        }
         self.cdata.trait_impls.values().flat_map(move |impls| {
             impls
                 .decode(self)
@@ -1402,7 +1473,10 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         trait_def_id: DefId,
     ) -> &'tcx [(DefId, Option<SimplifiedType>)] {
         if self.root.is_proc_macro_crate() {
-            // proc-macro crates export no trait impls.
+            assert_eq!(self.trait_impls.len(), 0);
+        }
+
+        if self.trait_impls.is_empty() {
             return &[];
         }
 
@@ -1438,12 +1512,10 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_native_libraries(self, sess: &Session) -> Vec<NativeLib> {
-        if self.root.is_proc_macro_crate() {
-            // Proc macro crates do not have any *target* native libraries.
-            vec![]
-        } else {
-            self.root.native_libraries.decode((self, sess)).collect()
-        }
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.native_libraries.size(), 0);
+        // }
+        self.root.native_libraries.decode((self, sess)).collect()
     }
 
     fn get_proc_macro_quoted_span(self, index: usize, sess: &Session) -> Span {
@@ -1456,20 +1528,21 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_foreign_modules(self, tcx: TyCtxt<'tcx>) -> Lrc<FxHashMap<DefId, ForeignModule>> {
-        if self.root.is_proc_macro_crate() {
-            // Proc macro crates do not have any *target* foreign modules.
-            Lrc::new(FxHashMap::default())
-        } else {
-            let modules: FxHashMap<DefId, ForeignModule> =
-                self.root.foreign_modules.decode((self, tcx.sess)).map(|m| (m.def_id, m)).collect();
-            Lrc::new(modules)
-        }
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.foreign_modules.size(), 0);
+        // }
+        Lrc::new(
+            self.root.foreign_modules.decode((self, tcx.sess)).map(|m| (m.def_id, m)).collect(),
+        )
     }
 
     fn get_dylib_dependency_formats(
         self,
         tcx: TyCtxt<'tcx>,
     ) -> &'tcx [(CrateNum, LinkagePreference)] {
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.dylib_dependency_formats.size(), 0);
+        // }
         tcx.arena.alloc_from_iter(
             self.root.dylib_dependency_formats.decode(self).enumerate().flat_map(|(i, link)| {
                 let cnum = CrateNum::new(i + 1);
@@ -1479,12 +1552,10 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn get_missing_lang_items(self, tcx: TyCtxt<'tcx>) -> &'tcx [lang_items::LangItem] {
-        if self.root.is_proc_macro_crate() {
-            // Proc macro crates do not depend on any target weak lang-items.
-            &[]
-        } else {
-            tcx.arena.alloc_from_iter(self.root.lang_items_missing.decode(self))
-        }
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.lang_items_missing.size(), 0);
+        // }
+        tcx.arena.alloc_from_iter(self.root.lang_items_missing.decode(self))
     }
 
     fn get_fn_param_names(self, tcx: TyCtxt<'tcx>, id: DefIndex) -> &'tcx [Ident] {
@@ -1500,13 +1571,10 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         self,
         tcx: TyCtxt<'tcx>,
     ) -> &'tcx [(ExportedSymbol<'tcx>, SymbolExportLevel)] {
-        if self.root.is_proc_macro_crate() {
-            // If this crate is a custom derive crate, then we're not even going to
-            // link those in so we skip those crates.
-            &[]
-        } else {
-            tcx.arena.alloc_from_iter(self.root.exported_symbols.decode((self, tcx)))
-        }
+        // if self.root.is_proc_macro_crate() {
+        //     assert_eq!(self.root.exported_symbols.size(), 0);
+        // }
+        tcx.arena.alloc_from_iter(self.root.exported_symbols.decode((self, tcx)))
     }
 
     fn get_rendered_const(self, id: DefIndex) -> String {
@@ -1612,6 +1680,9 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn expn_hash_to_expn_id(self, sess: &Session, index_guess: u32, hash: ExpnHash) -> ExpnId {
+        if self.root.is_proc_macro_crate() {
+            assert_eq!(self.root.expn_hashes.size(), 0);
+        }
         debug_assert_eq!(ExpnId::from_hash(hash), None);
         let index_guess = ExpnIndex::from_u32(index_guess);
         let old_hash = self.root.expn_hashes.get(self, index_guess).map(|lazy| lazy.decode(self));
