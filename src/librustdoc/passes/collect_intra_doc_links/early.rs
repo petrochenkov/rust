@@ -105,6 +105,9 @@ impl IntraLinkCrateLoader<'_, '_> {
     /// having impls in them.
     fn add_foreign_traits_in_scope(&mut self) {
         for cnum in Vec::from_iter(self.resolver.cstore().crates_untracked()) {
+            self.traits_in_scope
+                .extend(self.resolver.cstore().traits_in_scope_for_rustdoc_untracked(cnum));
+
             // FIXME: Due to #78696 rustdoc can query traits in scope for any crate root.
             self.add_traits_in_scope(cnum.as_def_id());
 

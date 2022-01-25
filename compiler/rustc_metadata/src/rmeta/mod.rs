@@ -212,6 +212,7 @@ crate struct CrateRoot<'tcx> {
     foreign_modules: Lazy<[ForeignModule]>,
     traits: Lazy<[DefIndex]>,
     impls: Lazy<[TraitImpls]>,
+    traits_in_scope_for_rustdoc: Lazy<[(DefIndex, Lazy<[DefId]>)]>,
     interpret_alloc_index: Lazy<[u32]>,
     proc_macro_data: Option<ProcMacroData>,
 

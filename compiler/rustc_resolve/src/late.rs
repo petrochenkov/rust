@@ -21,10 +21,11 @@ use rustc_hir::def::Namespace::{self, *};
 use rustc_hir::def::{self, CtorKind, DefKind, PartialRes, PerNS};
 use rustc_hir::def_id::{DefId, CRATE_DEF_INDEX};
 use rustc_hir::{PrimTy, TraitCandidate};
+use rustc_middle::ty::DefIdTree;
 use rustc_middle::{bug, span_bug};
 use rustc_session::lint;
 use rustc_span::symbol::{kw, sym, Ident, Symbol};
-use rustc_span::Span;
+use rustc_span::{Span, SyntaxContext};
 use smallvec::{smallvec, SmallVec};
 
 use rustc_span::source_map::{respan, Spanned};
@@ -986,11 +987,37 @@ impl<'a: 'ast, 'b, 'ast> LateResolutionVisitor<'a, 'b, 'ast> {
                 items: ref impl_items,
                 ..
             }) => {
+                let impl_def_id = self.r.local_def_id(item.id).to_def_id();
+                let module =
+                    self.r.get_nearest_non_block_module(self.r.parent(impl_def_id).unwrap());
+                if !self.r.traits_in_scope_for_rustdoc.contains_key(&module.def_id()) {
+                    let traits = self.r.traits_in_scope(
+                        None,
+                        &ParentScope::module(module, self.r),
+                        SyntaxContext::root(),
+                        None,
+                    );
+                    self.r.traits_in_scope_for_rustdoc.insert(module.def_id(), traits);
+                }
+
                 self.compute_num_lifetime_params(item.id, generics);
                 self.resolve_implementation(generics, of_trait, &self_ty, item.id, impl_items);
             }
 
             ItemKind::Trait(box Trait { ref generics, ref bounds, ref items, .. }) => {
+                let trait_def_id = self.r.local_def_id(item.id).to_def_id();
+                let module =
+                    self.r.get_nearest_non_block_module(self.r.parent(trait_def_id).unwrap());
+                if !self.r.traits_in_scope_for_rustdoc.contains_key(&module.def_id()) {
+                    let traits = self.r.traits_in_scope(
+                        None,
+                        &ParentScope::module(module, self.r),
+                        SyntaxContext::root(),
+                        None,
+                    );
+                    self.r.traits_in_scope_for_rustdoc.insert(module.def_id(), traits);
+                }
+
                 self.compute_num_lifetime_params(item.id, generics);
                 // Create a new rib for the trait-wide type parameters.
                 self.with_generic_param_rib(generics, ItemRibKind(HasGenericParams::Yes), |this| {

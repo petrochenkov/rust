@@ -623,6 +623,8 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
         let impls = self.encode_impls();
         let impls_bytes = self.position() - i;
 
+        let traits_in_scope_for_rustdoc = self.encode_traits_in_scope_for_rustdoc();
+
         let tcx = self.tcx;
 
         // Encode MIR.
@@ -734,6 +736,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
             source_map,
             traits,
             impls,
+            traits_in_scope_for_rustdoc,
             exported_symbols,
             interpret_alloc_index,
             tables,
@@ -1833,6 +1836,20 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
             .collect();
 
         self.lazy(&all_impls)
+    }
+
+    fn encode_traits_in_scope_for_rustdoc(&mut self) -> Lazy<[(DefIndex, Lazy<[DefId]>)]> {
+        empty_proc_macro!(self);
+        let res: Vec<(DefIndex, Lazy<[DefId]>)> = self
+            .tcx
+            .resolutions(())
+            .traits_in_scope_for_rustdoc
+            .iter()
+            .map(|(module_def_id, traits)| {
+                (module_def_id.index, self.lazy(traits.into_iter().map(|tc| tc.def_id)))
+            })
+            .collect();
+        self.lazy(res)
     }
 
     // Encodes all symbols exported from this crate into the metadata.

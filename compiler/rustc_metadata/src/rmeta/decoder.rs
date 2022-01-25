@@ -1385,6 +1385,25 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         })
     }
 
+    fn get_traits_in_scope_for_rustdoc(self) -> Vec<(DefId, Vec<rustc_hir::TraitCandidate>)> {
+        self.root
+            .traits_in_scope_for_rustdoc
+            .decode(self)
+            .map(|(module_index, traits)| {
+                (
+                    self.local_def_id(module_index),
+                    traits
+                        .decode(self)
+                        .map(|def_id| rustc_hir::TraitCandidate {
+                            def_id,
+                            import_ids: Default::default(),
+                        })
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
     fn get_implementations_of_trait(
         self,
         tcx: TyCtxt<'tcx>,

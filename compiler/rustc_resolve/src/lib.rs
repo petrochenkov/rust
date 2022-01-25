@@ -1067,6 +1067,7 @@ pub struct Resolver<'a> {
     confused_type_with_std_module: FxHashMap<Span, Span>,
 
     access_levels: AccessLevels,
+    traits_in_scope_for_rustdoc: FxHashMap<DefId, Vec<TraitCandidate>>,
 }
 
 /// Nothing really interesting here; it just provides memory for the rest of the crate.
@@ -1423,6 +1424,7 @@ impl<'a> Resolver<'a> {
             proc_macros: Default::default(),
             confused_type_with_std_module: Default::default(),
             access_levels: Default::default(),
+            traits_in_scope_for_rustdoc: Default::default(),
         };
 
         let root_parent_scope = ParentScope::module(graph_root, &resolver);
@@ -1489,6 +1491,7 @@ impl<'a> Resolver<'a> {
             proc_macros,
             confused_type_with_std_module,
             registered_tools: self.registered_tools,
+            traits_in_scope_for_rustdoc: self.traits_in_scope_for_rustdoc,
         }
     }
 
@@ -1514,6 +1517,7 @@ impl<'a> Resolver<'a> {
             proc_macros,
             confused_type_with_std_module: self.confused_type_with_std_module.clone(),
             registered_tools: self.registered_tools.clone(),
+            traits_in_scope_for_rustdoc: self.traits_in_scope_for_rustdoc.clone(),
         }
     }
 

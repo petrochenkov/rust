@@ -144,6 +144,7 @@ pub struct ResolverOutputs {
     /// exist under `std`. For example, wrote `str::from_utf8` instead of `std::str::from_utf8`.
     pub confused_type_with_std_module: FxHashMap<Span, Span>,
     pub registered_tools: RegisteredTools,
+    pub traits_in_scope_for_rustdoc: FxHashMap<DefId, Vec<hir::TraitCandidate>>,
 }
 
 #[derive(Clone, Copy, Debug)]

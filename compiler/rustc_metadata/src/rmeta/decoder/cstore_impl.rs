@@ -496,6 +496,13 @@ impl CStore {
     ) -> impl Iterator<Item = (DefId, DefId, Option<SimplifiedType>)> + '_ {
         self.get_crate_data(cnum).get_trait_impls()
     }
+
+    pub fn traits_in_scope_for_rustdoc_untracked(
+        &self,
+        cnum: CrateNum,
+    ) -> Vec<(DefId, Vec<rustc_hir::TraitCandidate>)> {
+        self.get_crate_data(cnum).get_traits_in_scope_for_rustdoc()
+    }
 }
 
 impl CrateStore for CStore {
