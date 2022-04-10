@@ -4,6 +4,7 @@ use crate::rmeta::*;
 
 use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::fx::{FxHashMap, FxIndexSet};
+use rustc_data_structures::iter_from_generator;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_data_structures::sync::{join, par_iter, Lrc, ParallelIterator};
 use rustc_hir as hir;
@@ -1107,21 +1108,33 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
             // Encode this here because we don't do it in encode_def_ids.
             record!(self.tables.expn_that_defined[def_id] <- tcx.expn_that_defined(local_def_id));
         } else {
-            let direct_children = md.item_ids.iter().map(|item_id| item_id.def_id.local_def_index);
-            // Foreign items are planted into their parent modules from name resolution point of view.
-            let tcx = self.tcx;
-            let foreign_item_children = md
-                .item_ids
-                .iter()
-                .filter_map(|item_id| match tcx.hir().item(*item_id).kind {
-                    hir::ItemKind::ForeignMod { items, .. } => {
-                        Some(items.iter().map(|fi_ref| fi_ref.id.def_id.local_def_index))
+            record!(self.tables.children[def_id] <- iter_from_generator(|| {
+                for item_id in md.item_ids {
+                    match tcx.hir().item(*item_id).kind {
+                        // Foreign items are planted into their parent modules
+                        // from name resolution point of view.
+                        hir::ItemKind::ForeignMod { items, .. } => {
+                            for foreign_item in items {
+                                yield foreign_item.id.def_id.local_def_index;
+                            }
+                        }
+                        // Only encode named non-reexport children, reexports are encoded
+                        // separately and unnamed items are not used by name resolution.
+                        hir::ItemKind::ExternCrate(..) => continue,
+                        hir::ItemKind::Struct(ref vdata, _) => {
+                            yield item_id.def_id.local_def_index;
+                            // Encode constructors which take a separate slot in value namespace.
+                            if let Some(ctor_hir_id) = vdata.ctor_hir_id() {
+                                yield tcx.hir().local_def_id(ctor_hir_id).local_def_index;
+                            }
+                        }
+                        _ if tcx.def_key(item_id.def_id.to_def_id()).get_opt_name().is_some() => {
+                            yield item_id.def_id.local_def_index;
+                        }
+                        _ => continue,
                     }
-                    _ => None,
-                })
-                .flatten();
-
-            record!(self.tables.children[def_id] <- direct_children.chain(foreign_item_children));
+                }
+            }));
         }
     }
 
@@ -1493,12 +1506,17 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
         record!(self.tables.kind[def_id] <- entry_kind);
         // FIXME(eddyb) there should be a nicer way to do this.
         match item.kind {
-            hir::ItemKind::Enum(..) => record!(self.tables.children[def_id] <-
-                self.tcx.adt_def(def_id).variants().iter().map(|v| {
-                    assert!(v.def_id.is_local());
-                    v.def_id.index
-                })
-            ),
+            hir::ItemKind::Enum(..) => {
+                record!(self.tables.children[def_id] <- iter_from_generator(||
+                    for variant in tcx.adt_def(def_id).variants() {
+                        yield variant.def_id.index;
+                        // Encode constructors which take a separate slot in value namespace.
+                        if let Some(ctor_def_id) = variant.ctor_def_id {
+                            yield ctor_def_id.index;
+                        }
+                    }
+                ))
+            }
             hir::ItemKind::Struct(..) | hir::ItemKind::Union(..) => {
                 record!(self.tables.children[def_id] <-
                     self.tcx.adt_def(def_id).non_enum_variant().fields.iter().map(|f| {
@@ -2011,8 +2029,9 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 for (i, variant) in def.variants().iter_enumerated() {
                     self.encode_enum_variant_info(def, i);
 
-                    if let Some(_ctor_def_id) = variant.ctor_def_id {
+                    if let Some(ctor_def_id) = variant.ctor_def_id {
                         self.encode_enum_variant_ctor(def, i);
+                        self.encode_ident_span(ctor_def_id, variant.ident(self.tcx));
                     }
                 }
             }
@@ -2022,8 +2041,9 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
 
                 // If the struct has a constructor, encode it.
                 if let Some(ctor_hir_id) = struct_def.ctor_hir_id() {
-                    let ctor_def_id = self.tcx.hir().local_def_id(ctor_hir_id);
-                    self.encode_struct_ctor(def, ctor_def_id.to_def_id());
+                    let ctor_def_id = self.tcx.hir().local_def_id(ctor_hir_id).to_def_id();
+                    self.encode_struct_ctor(def, ctor_def_id);
+                    self.encode_ident_span(ctor_def_id, item.ident);
                 }
             }
             hir::ItemKind::Union(..) => {

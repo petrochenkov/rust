@@ -836,7 +836,15 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
     }
 
     fn opt_item_name(self, item_index: DefIndex) -> Option<Symbol> {
-        self.def_key(item_index).disambiguated_data.data.get_opt_name()
+        let def_key = self.def_key(item_index);
+        def_key.disambiguated_data.data.get_opt_name().or_else(|| {
+            if def_key.disambiguated_data.data == DefPathData::Ctor {
+                let parent_index = def_key.parent.expect("no parent for a constructor");
+                self.def_key(parent_index).disambiguated_data.data.get_opt_name()
+            } else {
+                None
+            }
+        })
     }
 
     fn item_name(self, item_index: DefIndex) -> Symbol {
@@ -1089,73 +1097,43 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         // Iterate over all children.
         if let Some(children) = self.root.tables.children.get(self, id) {
             for child_index in children.decode((self, sess)) {
-                if let Some(ident) = self.opt_item_ident(child_index, sess) {
-                    let kind = self.def_kind(child_index);
-                    let def_id = self.local_def_id(child_index);
-                    let res = Res::Def(kind, def_id);
-                    let vis = self.get_visibility(child_index);
-                    let span = self.get_span(child_index, sess);
-                    let macro_rules = match kind {
-                        DefKind::Macro(..) => match self.kind(child_index) {
-                            EntryKind::MacroDef(_, macro_rules) => macro_rules,
-                            _ => unreachable!(),
-                        },
-                        _ => false,
-                    };
+                let ident = self.item_ident(child_index, sess);
+                let kind = self.def_kind(child_index);
+                let def_id = self.local_def_id(child_index);
+                let res = Res::Def(kind, def_id);
+                let vis = self.get_visibility(child_index);
+                let span = self.get_span(child_index, sess);
+                let macro_rules = match kind {
+                    DefKind::Macro(..) => match self.kind(child_index) {
+                        EntryKind::MacroDef(_, macro_rules) => macro_rules,
+                        _ => unreachable!(),
+                    },
+                    _ => false,
+                };
 
-                    callback(ModChild { ident, res, vis, span, macro_rules });
+                callback(ModChild { ident, res, vis, span, macro_rules });
 
-                    // For non-re-export structs and variants add their constructors to children.
-                    // Re-export lists automatically contain constructors when necessary.
-                    match kind {
-                        DefKind::Struct => {
-                            if let Some((ctor_def_id, ctor_kind)) =
-                                self.get_ctor_def_id_and_kind(child_index)
-                            {
-                                let ctor_res =
-                                    Res::Def(DefKind::Ctor(CtorOf::Struct, ctor_kind), ctor_def_id);
-                                let vis = self.get_visibility(ctor_def_id.index);
-                                callback(ModChild {
-                                    ident,
-                                    res: ctor_res,
-                                    vis,
-                                    span,
-                                    macro_rules: false,
-                                });
-                            }
+                // For non-reexport variants add their fictive constructors to children.
+                // Braced variants, unlike structs, generate unusable names in value namespace,
+                // they are reserved for possible future use. It's ok to use the variant's id as
+                // a ctor id since an error will be reported on any use of such resolution anyway.
+                // Reexport lists automatically contain such constructors when necessary.
+                if kind == DefKind::Variant && self.get_ctor_def_id_and_kind(child_index).is_none()
+                {
+                    let ctor_res =
+                        Res::Def(DefKind::Ctor(CtorOf::Variant, CtorKind::Fictive), def_id);
+                    let mut vis = vis;
+                    if vis.is_public() {
+                        // For non-exhaustive variants lower the constructor visibility to
+                        // within the crate. We only need this for fictive constructors,
+                        // for other constructors correct visibilities
+                        // were already encoded in metadata.
+                        let mut attrs = self.get_item_attrs(def_id.index, sess);
+                        if attrs.any(|item| item.has_name(sym::non_exhaustive)) {
+                            vis = ty::Visibility::Restricted(self.local_def_id(CRATE_DEF_INDEX));
                         }
-                        DefKind::Variant => {
-                            // Braced variants, unlike structs, generate unusable names in
-                            // value namespace, they are reserved for possible future use.
-                            // It's ok to use the variant's id as a ctor id since an
-                            // error will be reported on any use of such resolution anyway.
-                            let (ctor_def_id, ctor_kind) = self
-                                .get_ctor_def_id_and_kind(child_index)
-                                .unwrap_or((def_id, CtorKind::Fictive));
-                            let ctor_res =
-                                Res::Def(DefKind::Ctor(CtorOf::Variant, ctor_kind), ctor_def_id);
-                            let mut vis = self.get_visibility(ctor_def_id.index);
-                            if ctor_def_id == def_id && vis.is_public() {
-                                // For non-exhaustive variants lower the constructor visibility to
-                                // within the crate. We only need this for fictive constructors,
-                                // for other constructors correct visibilities
-                                // were already encoded in metadata.
-                                let mut attrs = self.get_item_attrs(def_id.index, sess);
-                                if attrs.any(|item| item.has_name(sym::non_exhaustive)) {
-                                    let crate_def_id = self.local_def_id(CRATE_DEF_INDEX);
-                                    vis = ty::Visibility::Restricted(crate_def_id);
-                                }
-                            }
-                            callback(ModChild {
-                                ident,
-                                res: ctor_res,
-                                vis,
-                                span,
-                                macro_rules: false,
-                            });
-                        }
-                        _ => {}
                     }
+                    callback(ModChild { ident, res: ctor_res, vis, span, macro_rules: false });
                 }
             }
         }

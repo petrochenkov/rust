@@ -5,6 +5,12 @@ LL |     let _ = Some(3, 2);
    |             ^^^^ -  - supplied 2 arguments
    |             |
    |             expected 1 argument
+   |
+note: tuple variant defined here
+  --> $SRC_DIR/core/src/option.rs:LL:COL
+   |
+LL |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+   |     ^^^^
 
 error[E0061]: this enum variant takes 1 argument but 3 arguments were supplied
   --> $DIR/struct-enum-wrong-args.rs:7:13
@@ -13,6 +19,12 @@ LL |     let _ = Ok(3, 6, 2);
    |             ^^ -  -  - supplied 3 arguments
    |             |
    |             expected 1 argument
+   |
+note: tuple variant defined here
+  --> $SRC_DIR/core/src/result.rs:LL:COL
+   |
+LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+   |     ^^
 
 error[E0061]: this enum variant takes 1 argument but 0 arguments were supplied
   --> $DIR/struct-enum-wrong-args.rs:8:13
@@ -21,6 +33,12 @@ LL |     let _ = Ok();
    |             ^^-- supplied 0 arguments
    |             |
    |             expected 1 argument
+   |
+note: tuple variant defined here
+  --> $SRC_DIR/core/src/result.rs:LL:COL
+   |
+LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+   |     ^^
 
 error[E0061]: this struct takes 1 argument but 0 arguments were supplied
   --> $DIR/struct-enum-wrong-args.rs:9:13

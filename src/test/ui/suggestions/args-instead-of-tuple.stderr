@@ -4,6 +4,11 @@ error[E0061]: this enum variant takes 1 argument but 2 arguments were supplied
 LL |     let _: Result<(i32, i8), ()> = Ok(1, 2);
    |                                    ^^ -  - supplied 2 arguments
    |
+note: tuple variant defined here
+  --> $SRC_DIR/core/src/result.rs:LL:COL
+   |
+LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+   |     ^^
 help: use parentheses to construct a tuple
    |
 LL |     let _: Result<(i32, i8), ()> = Ok((1, 2));
@@ -15,6 +20,11 @@ error[E0061]: this enum variant takes 1 argument but 3 arguments were supplied
 LL |     let _: Option<(i32, i8, &'static str)> = Some(1, 2, "hi");
    |                                              ^^^^ -  -  ---- supplied 3 arguments
    |
+note: tuple variant defined here
+  --> $SRC_DIR/core/src/option.rs:LL:COL
+   |
+LL |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+   |     ^^^^
 help: use parentheses to construct a tuple
    |
 LL |     let _: Option<(i32, i8, &'static str)> = Some((1, 2, "hi"));
@@ -26,6 +36,11 @@ error[E0061]: this enum variant takes 1 argument but 0 arguments were supplied
 LL |     let _: Option<()> = Some();
    |                         ^^^^-- supplied 0 arguments
    |
+note: tuple variant defined here
+  --> $SRC_DIR/core/src/option.rs:LL:COL
+   |
+LL |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+   |     ^^^^
 help: expected the unit value `()`; create it with empty parentheses
    |
 LL |     let _: Option<()> = Some(());
