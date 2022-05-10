@@ -1,4 +1,4 @@
-macro_rules! macro_panic {
+macro_rules! macro_panic { // njn: error message span got worse
     ($not_a_function:expr, $some_argument:ident) => {
         $not_a_function($some_argument)
     }

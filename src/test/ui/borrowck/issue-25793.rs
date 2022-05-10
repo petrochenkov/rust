@@ -1,4 +1,4 @@
-#![feature(rustc_attrs)]
+#![feature(rustc_attrs)] // njn: error message span got worse
 macro_rules! width(
     ($this:expr) => {
         $this.width.unwrap()

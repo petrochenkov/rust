@@ -87,81 +87,81 @@ fn test_block() {
 #[test]
 fn test_expr() {
     // ExprKind::Box
-    assert_eq!(stringify_expr!(box expr), "box expr");
+    assert_eq!(stringify_expr!(box expr), "/*«*/ box expr /*»*/");
 
     // ExprKind::Array
-    assert_eq!(stringify_expr!([]), "[]");
-    assert_eq!(stringify_expr!([true]), "[true]");
-    assert_eq!(stringify_expr!([true,]), "[true]");
-    assert_eq!(stringify_expr!([true, true]), "[true, true]");
+    assert_eq!(stringify_expr!([]), "/*«*/ [] /*»*/");
+    assert_eq!(stringify_expr!([true]), "/*«*/ [true] /*»*/");
+    assert_eq!(stringify_expr!([true,]), "/*«*/ [true,] /*»*/");
+    assert_eq!(stringify_expr!([true, true]), "/*«*/ [true, true] /*»*/");
 
     // ExprKind::Call
-    assert_eq!(stringify_expr!(f()), "f()");
-    assert_eq!(stringify_expr!(f::<u8>()), "f::<u8>()");
-    assert_eq!(stringify_expr!(f::<1>()), "f::<1>()");
-    assert_eq!(stringify_expr!(f::<'a, u8, 1>()), "f::<'a, u8, 1>()");
-    assert_eq!(stringify_expr!(f(true)), "f(true)");
-    assert_eq!(stringify_expr!(f(true,)), "f(true)");
-    assert_eq!(stringify_expr!(()()), "()()");
+    assert_eq!(stringify_expr!(f()), "/*«*/ f() /*»*/");
+    assert_eq!(stringify_expr!(f::<u8>()), "/*«*/ f :: < u8 > () /*»*/");
+    assert_eq!(stringify_expr!(f::<1>()), "/*«*/ f :: < 1 > () /*»*/");
+    assert_eq!(stringify_expr!(f::<'a, u8, 1>()), "/*«*/ f :: < 'a, u8, 1 > () /*»*/");
+    assert_eq!(stringify_expr!(f(true)), "/*«*/ f(true) /*»*/");
+    assert_eq!(stringify_expr!(f(true,)), "/*«*/ f(true,) /*»*/");
+    assert_eq!(stringify_expr!(()()), "/*«*/ () () /*»*/");
 
     // ExprKind::MethodCall
-    assert_eq!(stringify_expr!(x.f()), "x.f()");
-    assert_eq!(stringify_expr!(x.f::<u8>()), "x.f::<u8>()");
+    assert_eq!(stringify_expr!(x.f()), "/*«*/ x.f() /*»*/");
+    assert_eq!(stringify_expr!(x.f::<u8>()), "/*«*/ x.f :: < u8 > () /*»*/");
 
     // ExprKind::Tup
-    assert_eq!(stringify_expr!(()), "()");
-    assert_eq!(stringify_expr!((true,)), "(true,)");
-    assert_eq!(stringify_expr!((true, false)), "(true, false)");
-    assert_eq!(stringify_expr!((true, false,)), "(true, false)");
+    assert_eq!(stringify_expr!(()), "/*«*/ () /*»*/");
+    assert_eq!(stringify_expr!((true,)), "/*«*/ (true,) /*»*/");
+    assert_eq!(stringify_expr!((true, false)), "/*«*/ (true, false) /*»*/");
+    assert_eq!(stringify_expr!((true, false,)), "/*«*/ (true, false,) /*»*/");
 
     // ExprKind::Binary
-    assert_eq!(stringify_expr!(true || false), "true || false");
-    assert_eq!(stringify_expr!(true || false && false), "true || false && false");
+    assert_eq!(stringify_expr!(true || false), "/*«*/ true || false /*»*/");
+    assert_eq!(stringify_expr!(true || false && false), "/*«*/ true || false && false /*»*/");
 
     // ExprKind::Unary
-    assert_eq!(stringify_expr!(*expr), "*expr");
-    assert_eq!(stringify_expr!(!expr), "!expr");
-    assert_eq!(stringify_expr!(-expr), "-expr");
+    assert_eq!(stringify_expr!(*expr), "/*«*/ * expr /*»*/");
+    assert_eq!(stringify_expr!(!expr), "/*«*/ ! expr /*»*/");
+    assert_eq!(stringify_expr!(-expr), "/*«*/ - expr /*»*/");
 
     // ExprKind::Lit
-    assert_eq!(stringify_expr!('x'), "'x'");
-    assert_eq!(stringify_expr!(1_000_i8), "1_000_i8");
-    assert_eq!(stringify_expr!(1.00000000000000001), "1.00000000000000001");
+    assert_eq!(stringify_expr!('x'), "/*«*/ 'x' /*»*/");
+    assert_eq!(stringify_expr!(1_000_i8), "/*«*/ 1_000_i8 /*»*/");
+    assert_eq!(stringify_expr!(1.00000000000000001), "/*«*/ 1.00000000000000001 /*»*/");
 
     // ExprKind::Cast
-    assert_eq!(stringify_expr!(expr as T), "expr as T");
-    assert_eq!(stringify_expr!(expr as T<u8>), "expr as T<u8>");
+    assert_eq!(stringify_expr!(expr as T), "/*«*/ expr as T /*»*/");
+    assert_eq!(stringify_expr!(expr as T<u8>), "/*«*/ expr as T < u8 > /*»*/");
 
     // ExprKind::Type
-    assert_eq!(stringify_expr!(expr: T), "expr: T");
-    assert_eq!(stringify_expr!(expr: T<u8>), "expr: T<u8>");
+    assert_eq!(stringify_expr!(expr: T), "/*«*/ expr : T /*»*/");
+    assert_eq!(stringify_expr!(expr: T<u8>), "/*«*/ expr : T < u8 > /*»*/");
 
     // ExprKind::If
-    assert_eq!(stringify_expr!(if true {}), "if true {}");
+    assert_eq!(stringify_expr!(if true {}), "/*«*/ if true {} /*»*/");
     assert_eq!(
         stringify_expr!(if true {
         } else {
         }),
-        "if true {} else {}",
+        "/*«*/ if true {} else {} /*»*/",
     );
     assert_eq!(
         stringify_expr!(if let true = true {
         } else {
         }),
-        "if let true = true {} else {}",
+        "/*«*/ if let true = true {} else {} /*»*/",
     );
     assert_eq!(
         stringify_expr!(if true {
         } else if false {
         }),
-        "if true {} else if false {}",
+        "/*«*/ if true {} else if false {} /*»*/",
     );
     assert_eq!(
         stringify_expr!(if true {
         } else if false {
         } else {
         }),
-        "if true {} else if false {} else {}",
+        "/*«*/ if true {} else if false {} else {} /*»*/",
     );
     assert_eq!(
         stringify_expr!(if true {
@@ -171,71 +171,71 @@ fn test_expr() {
         } else {
             0
         }),
-        "if true { return; } else if false { 0 } else { 0 }",
+        "/*«*/ if true { return ; } else if false { 0 } else { 0 } /*»*/",
     );
 
     // ExprKind::While
-    assert_eq!(stringify_expr!(while true {}), "while true {}");
-    assert_eq!(stringify_expr!('a: while true {}), "'a: while true {}");
-    assert_eq!(stringify_expr!(while let true = true {}), "while let true = true {}");
+    assert_eq!(stringify_expr!(while true {}), "/*«*/ while true {} /*»*/");
+    assert_eq!(stringify_expr!('a: while true {}), "/*«*/ 'a : while true {} /*»*/");
+    assert_eq!(stringify_expr!(while let true = true {}), "/*«*/ while let true = true {} /*»*/");
 
     // ExprKind::ForLoop
-    assert_eq!(stringify_expr!(for _ in x {}), "for _ in x {}");
-    assert_eq!(stringify_expr!('a: for _ in x {}), "'a: for _ in x {}");
+    assert_eq!(stringify_expr!(for _ in x {}), "/*«*/ for _ in x {} /*»*/");
+    assert_eq!(stringify_expr!('a: for _ in x {}), "/*«*/ 'a : for _ in x {} /*»*/");
 
     // ExprKind::Loop
-    assert_eq!(stringify_expr!(loop {}), "loop {}");
-    assert_eq!(stringify_expr!('a: loop {}), "'a: loop {}");
+    assert_eq!(stringify_expr!(loop {}), "/*«*/ loop {} /*»*/");
+    assert_eq!(stringify_expr!('a: loop {}), "/*«*/ 'a : loop {} /*»*/");
 
     // ExprKind::Match
-    assert_eq!(stringify_expr!(match self {}), "match self {}");
+    assert_eq!(stringify_expr!(match self {}), "/*«*/ match self {} /*»*/");
     assert_eq!(
         stringify_expr!(match self {
             Ok => 1,
         }),
-        "match self { Ok => 1, }",
+        "/*«*/ match self { Ok => 1, } /*»*/",
     );
     assert_eq!(
         stringify_expr!(match self {
             Ok => 1,
             Err => 0,
         }),
-        "match self { Ok => 1, Err => 0, }",
+        "/*«*/ match self { Ok => 1, Err => 0, } /*»*/",
     );
 
     // ExprKind::Closure
-    assert_eq!(stringify_expr!(|| {}), "|| {}");
-    assert_eq!(stringify_expr!(|x| {}), "|x| {}");
-    assert_eq!(stringify_expr!(|x: u8| {}), "|x: u8| {}");
-    assert_eq!(stringify_expr!(|| ()), "|| ()");
-    assert_eq!(stringify_expr!(move || self), "move || self");
-    assert_eq!(stringify_expr!(async || self), "async || self");
-    assert_eq!(stringify_expr!(async move || self), "async move || self");
-    assert_eq!(stringify_expr!(static || self), "static || self");
-    assert_eq!(stringify_expr!(static move || self), "static move || self");
+    assert_eq!(stringify_expr!(|| {}), "/*«*/ || {} /*»*/");
+    assert_eq!(stringify_expr!(|x| {}), "/*«*/ | x | {} /*»*/");
+    assert_eq!(stringify_expr!(|x: u8| {}), "/*«*/ | x : u8 | {} /*»*/");
+    assert_eq!(stringify_expr!(|| ()), "/*«*/ || () /*»*/");
+    assert_eq!(stringify_expr!(move || self), "/*«*/ move || self /*»*/");
+    assert_eq!(stringify_expr!(async || self), "/*«*/ async || self /*»*/");
+    assert_eq!(stringify_expr!(async move || self), "/*«*/ async move || self /*»*/");
+    assert_eq!(stringify_expr!(static || self), "/*«*/ static || self /*»*/");
+    assert_eq!(stringify_expr!(static move || self), "/*«*/ static move || self /*»*/");
     #[rustfmt::skip] // https://github.com/rust-lang/rustfmt/issues/5149
     assert_eq!(
         stringify_expr!(static async || self),
-        "static async || self",
+        "/*«*/ static async || self /*»*/",
     );
     #[rustfmt::skip] // https://github.com/rust-lang/rustfmt/issues/5149
     assert_eq!(
         stringify_expr!(static async move || self),
-        "static async move || self",
+        "/*«*/ static async move || self /*»*/",
     );
-    assert_eq!(stringify_expr!(|| -> u8 { self }), "|| -> u8 { self }");
-    assert_eq!(stringify_expr!(1 + || {}), "1 + (|| {})"); // ??
+    assert_eq!(stringify_expr!(|| -> u8 { self }), "/*«*/ || -> u8 { self } /*»*/");
+    assert_eq!(stringify_expr!(1 + || {}), "/*«*/ 1 + || {} /*»*/");
 
     // ExprKind::Block
-    assert_eq!(stringify_expr!({}), "{}");
-    assert_eq!(stringify_expr!(unsafe {}), "unsafe {}");
-    assert_eq!(stringify_expr!('a: {}), "'a: {}");
+    assert_eq!(stringify_expr!({}), "/*«*/ {} /*»*/");
+    assert_eq!(stringify_expr!(unsafe {}), "/*«*/ unsafe {} /*»*/");
+    assert_eq!(stringify_expr!('a: {}), "/*«*/ 'a : {} /*»*/");
     assert_eq!(
         stringify_expr!(
             #[attr]
             {}
         ),
-        "#[attr] {}",
+        "/*«*/ #[attr] {} /*»*/",
     );
     assert_eq!(
         stringify_expr!(
@@ -243,102 +243,106 @@ fn test_expr() {
                 #![attr]
             }
         ),
-        "{\n\
-        \x20   #![attr]\n\
-        }",
+        "/*«*/ { #! [attr] } /*»*/",
     );
 
     // ExprKind::Async
-    assert_eq!(stringify_expr!(async {}), "async {}");
-    assert_eq!(stringify_expr!(async move {}), "async move {}");
+    assert_eq!(stringify_expr!(async {}), "/*«*/ async {} /*»*/");
+    assert_eq!(stringify_expr!(async move {}), "/*«*/ async move {} /*»*/");
 
     // ExprKind::Await
-    assert_eq!(stringify_expr!(expr.await), "expr.await");
+    assert_eq!(stringify_expr!(expr.await), "/*«*/ expr.await /*»*/");
 
     // ExprKind::TryBlock
-    assert_eq!(stringify_expr!(try {}), "try {}");
+    assert_eq!(stringify_expr!(try {}), "/*«*/ try {} /*»*/");
 
     // ExprKind::Assign
-    assert_eq!(stringify_expr!(expr = true), "expr = true");
+    assert_eq!(stringify_expr!(expr = true), "/*«*/ expr = true /*»*/");
 
     // ExprKind::AssignOp
-    assert_eq!(stringify_expr!(expr += true), "expr += true");
+    assert_eq!(stringify_expr!(expr += true), "/*«*/ expr += true /*»*/");
 
     // ExprKind::Field
-    assert_eq!(stringify_expr!(expr.field), "expr.field");
-    assert_eq!(stringify_expr!(expr.0), "expr.0");
+    assert_eq!(stringify_expr!(expr.field), "/*«*/ expr.field /*»*/");
+    assert_eq!(stringify_expr!(expr.0), "/*«*/ expr.0 /*»*/");
 
     // ExprKind::Index
-    assert_eq!(stringify_expr!(expr[true]), "expr[true]");
+    assert_eq!(stringify_expr!(expr[true]), "/*«*/ expr [true] /*»*/");
 
     // ExprKind::Range
-    assert_eq!(stringify_expr!(..), "..");
-    assert_eq!(stringify_expr!(..hi), "..hi");
-    assert_eq!(stringify_expr!(lo..), "lo..");
-    assert_eq!(stringify_expr!(lo..hi), "lo..hi");
-    assert_eq!(stringify_expr!(..=hi), "..=hi");
-    assert_eq!(stringify_expr!(lo..=hi), "lo..=hi");
-    assert_eq!(stringify_expr!(-2..=-1), "-2..=-1");
+    assert_eq!(stringify_expr!(..), "/*«*/ .. /*»*/");
+    assert_eq!(stringify_expr!(..hi), "/*«*/ .. hi /*»*/");
+    assert_eq!(stringify_expr!(lo..), "/*«*/ lo .. /*»*/");
+    assert_eq!(stringify_expr!(lo..hi), "/*«*/ lo .. hi /*»*/");
+    assert_eq!(stringify_expr!(..=hi), "/*«*/ ..= hi /*»*/");
+    assert_eq!(stringify_expr!(lo..=hi), "/*«*/ lo ..= hi /*»*/");
+    assert_eq!(stringify_expr!(-2..=-1), "/*«*/ - 2 ..= - 1 /*»*/");
 
     // ExprKind::Path
-    assert_eq!(stringify_expr!(thing), "thing");
-    assert_eq!(stringify_expr!(m::thing), "m::thing");
-    assert_eq!(stringify_expr!(self::thing), "self::thing");
-    assert_eq!(stringify_expr!(crate::thing), "crate::thing");
-    assert_eq!(stringify_expr!(Self::thing), "Self::thing");
-    assert_eq!(stringify_expr!(<Self as T>::thing), "<Self as T>::thing");
-    assert_eq!(stringify_expr!(Self::<'static>), "Self::<'static>");
+    assert_eq!(stringify_expr!(thing), "/*«*/ thing /*»*/");
+    assert_eq!(stringify_expr!(m::thing), "/*«*/ m :: thing /*»*/");
+    assert_eq!(stringify_expr!(self::thing), "/*«*/ self :: thing /*»*/");
+    assert_eq!(stringify_expr!(crate::thing), "/*«*/ crate :: thing /*»*/");
+    assert_eq!(stringify_expr!(Self::thing), "/*«*/ Self :: thing /*»*/");
+    assert_eq!(stringify_expr!(<Self as T>::thing), "/*«*/ < Self as T > :: thing /*»*/");
+    assert_eq!(stringify_expr!(Self::<'static>), "/*«*/ Self :: < 'static > /*»*/");
 
     // ExprKind::AddrOf
-    assert_eq!(stringify_expr!(&expr), "&expr");
-    assert_eq!(stringify_expr!(&mut expr), "&mut expr");
-    assert_eq!(stringify_expr!(&raw const expr), "&raw const expr");
-    assert_eq!(stringify_expr!(&raw mut expr), "&raw mut expr");
+    assert_eq!(stringify_expr!(&expr), "/*«*/ & expr /*»*/");
+    assert_eq!(stringify_expr!(&mut expr), "/*«*/ & mut expr /*»*/");
+    assert_eq!(stringify_expr!(&raw const expr), "/*«*/ & raw const expr /*»*/");
+    assert_eq!(stringify_expr!(&raw mut expr), "/*«*/ & raw mut expr /*»*/");
 
     // ExprKind::Break
-    assert_eq!(stringify_expr!(break), "break");
-    assert_eq!(stringify_expr!(break 'a), "break 'a");
-    assert_eq!(stringify_expr!(break true), "break true");
-    assert_eq!(stringify_expr!(break 'a true), "break 'a true");
+    assert_eq!(stringify_expr!(break), "/*«*/ break /*»*/");
+    assert_eq!(stringify_expr!(break 'a), "/*«*/ break 'a /*»*/");
+    assert_eq!(stringify_expr!(break true), "/*«*/ break true /*»*/");
+    assert_eq!(stringify_expr!(break 'a true), "/*«*/ break 'a true /*»*/");
 
     // ExprKind::Continue
-    assert_eq!(stringify_expr!(continue), "continue");
-    assert_eq!(stringify_expr!(continue 'a), "continue 'a");
+    assert_eq!(stringify_expr!(continue), "/*«*/ continue /*»*/");
+    assert_eq!(stringify_expr!(continue 'a), "/*«*/ continue 'a /*»*/");
 
     // ExprKind::Ret
-    assert_eq!(stringify_expr!(return), "return");
-    assert_eq!(stringify_expr!(return true), "return true");
+    assert_eq!(stringify_expr!(return), "/*«*/ return /*»*/");
+    assert_eq!(stringify_expr!(return true), "/*«*/ return true /*»*/");
 
     // ExprKind::MacCall
-    assert_eq!(stringify_expr!(mac!(...)), "mac!(...)");
-    assert_eq!(stringify_expr!(mac![...]), "mac![...]");
-    assert_eq!(stringify_expr!(mac! { ... }), "mac! { ... }");
+    assert_eq!(stringify_expr!(mac!(...)), "/*«*/ mac! (...) /*»*/");
+    assert_eq!(stringify_expr!(mac![...]), "/*«*/ mac! [...] /*»*/");
+    assert_eq!(stringify_expr!(mac! { ... }), "/*«*/ mac! { ... } /*»*/");
 
     // ExprKind::Struct
-    assert_eq!(stringify_expr!(Struct {}), "Struct {}");
+    assert_eq!(stringify_expr!(Struct {}), "/*«*/ Struct {} /*»*/");
     #[rustfmt::skip] // https://github.com/rust-lang/rustfmt/issues/5151
-    assert_eq!(stringify_expr!(<Struct as Trait>::Type {}), "<Struct as Trait>::Type {}");
-    assert_eq!(stringify_expr!(Struct { .. }), "Struct { .. }");
-    assert_eq!(stringify_expr!(Struct { ..base }), "Struct { ..base }");
-    assert_eq!(stringify_expr!(Struct { x }), "Struct { x }");
-    assert_eq!(stringify_expr!(Struct { x, .. }), "Struct { x, .. }");
-    assert_eq!(stringify_expr!(Struct { x, ..base }), "Struct { x, ..base }");
-    assert_eq!(stringify_expr!(Struct { x: true }), "Struct { x: true }");
-    assert_eq!(stringify_expr!(Struct { x: true, .. }), "Struct { x: true, .. }");
-    assert_eq!(stringify_expr!(Struct { x: true, ..base }), "Struct { x: true, ..base }");
+    assert_eq!(
+        stringify_expr!(<Struct as Trait>::Type {}),
+        "/*«*/ < Struct as Trait > :: Type {} /*»*/"
+    );
+    assert_eq!(stringify_expr!(Struct { .. }), "/*«*/ Struct { .. } /*»*/");
+    assert_eq!(stringify_expr!(Struct { ..base }), "/*«*/ Struct { .. base } /*»*/");
+    assert_eq!(stringify_expr!(Struct { x }), "/*«*/ Struct { x } /*»*/");
+    assert_eq!(stringify_expr!(Struct { x, .. }), "/*«*/ Struct { x, .. } /*»*/");
+    assert_eq!(stringify_expr!(Struct { x, ..base }), "/*«*/ Struct { x, .. base } /*»*/");
+    assert_eq!(stringify_expr!(Struct { x: true }), "/*«*/ Struct { x : true } /*»*/");
+    assert_eq!(stringify_expr!(Struct { x: true, .. }), "/*«*/ Struct { x : true, .. } /*»*/");
+    assert_eq!(
+        stringify_expr!(Struct { x: true, ..base }),
+        "/*«*/ Struct { x : true, .. base } /*»*/"
+    );
 
     // ExprKind::Repeat
-    assert_eq!(stringify_expr!([(); 0]), "[(); 0]");
+    assert_eq!(stringify_expr!([(); 0]), "/*«*/ [() ; 0] /*»*/");
 
     // ExprKind::Paren
-    assert_eq!(stringify_expr!((expr)), "(expr)");
+    assert_eq!(stringify_expr!((expr)), "/*«*/ (expr) /*»*/");
 
     // ExprKind::Try
-    assert_eq!(stringify_expr!(expr?), "expr?");
+    assert_eq!(stringify_expr!(expr?), "/*«*/ expr ? /*»*/");
 
     // ExprKind::Yield
-    assert_eq!(stringify_expr!(yield), "yield");
-    assert_eq!(stringify_expr!(yield true), "yield true");
+    assert_eq!(stringify_expr!(yield), "/*«*/ yield /*»*/");
+    assert_eq!(stringify_expr!(yield true), "/*«*/ yield true /*»*/");
 }
 
 #[test]

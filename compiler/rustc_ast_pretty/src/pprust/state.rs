@@ -6,7 +6,8 @@ use crate::pp::Breaks::{Consistent, Inconsistent};
 use crate::pp::{self, Breaks};
 
 use rustc_ast::ptr::P;
-use rustc_ast::token::{self, BinOpToken, CommentKind, Delimiter, Nonterminal, Token, TokenKind};
+use rustc_ast::token::{self, BinOpToken, CommentKind, Delimiter, InvisibleSource, Nonterminal};
+use rustc_ast::token::{Token, TokenKind};
 use rustc_ast::tokenstream::{TokenStream, TokenTree};
 use rustc_ast::util::classify;
 use rustc_ast::util::comments::{gather_comments, Comment, CommentStyle};
@@ -599,7 +600,7 @@ pub trait PrintState<'a>: std::ops::Deref<Target = pp::Printer> + std::ops::Dere
                 self.end();
                 self.bclose(span, empty);
             }
-            Some(Delimiter::Invisible) => {
+            Some(Delimiter::Invisible(_)) => {
                 self.word("/*«*/");
                 let empty = tts.is_empty();
                 if !empty {
@@ -727,7 +728,6 @@ pub trait PrintState<'a>: std::ops::Deref<Target = pp::Printer> + std::ops::Dere
 
     fn nonterminal_to_string(&self, nt: &Nonterminal) -> String {
         match *nt {
-            token::NtExpr(ref e) => self.expr_to_string(e),
             token::NtMeta(ref e) => self.attr_item_to_string(e),
             token::NtTy(ref e) => self.ty_to_string(e),
             token::NtPath(ref e) => self.path_to_string(e),
@@ -786,8 +786,24 @@ pub trait PrintState<'a>: std::ops::Deref<Target = pp::Printer> + std::ops::Dere
             token::CloseDelim(Delimiter::Bracket) => "]".into(),
             token::OpenDelim(Delimiter::Brace) => "{".into(),
             token::CloseDelim(Delimiter::Brace) => "}".into(),
-            token::OpenDelim(Delimiter::Invisible) => "/*«*/".into(),
-            token::CloseDelim(Delimiter::Invisible) => "/*»*/".into(),
+            // We use comment-delimited phrases here for invisible delimiters,
+            // because these cases tend to occur in error messages. In
+            // `print_mac_common` we use `/*«*/` and `/*»*/` for compactness,
+            // because that occurs in other cases like pretty-printing.
+            token::OpenDelim(Delimiter::Invisible(src)) => match src {
+                InvisibleSource::ExprMv => "/*start of expr expansion*/",
+                InvisibleSource::FlattenNonterminals | InvisibleSource::ProcMacro => {
+                    "/*invisible open delimiter*/"
+                }
+            }
+            .into(),
+            token::CloseDelim(Delimiter::Invisible(src)) => match src {
+                InvisibleSource::ExprMv => "/*end of expr expansion*/",
+                InvisibleSource::FlattenNonterminals | InvisibleSource::ProcMacro => {
+                    "/*invisible close delimiter*/"
+                }
+            }
+            .into(),
             token::Pound => "#".into(),
             token::Dollar => "$".into(),
             token::Question => "?".into(),

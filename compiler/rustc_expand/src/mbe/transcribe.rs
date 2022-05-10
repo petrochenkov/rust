@@ -1,12 +1,14 @@
 use crate::base::ExtCtxt;
-use crate::mbe::macro_parser::{MatchedNonterminal, MatchedSeq, MatchedTokenTree, NamedMatch};
+use crate::mbe::macro_parser::{NamedMatch, NamedMatch::*};
 use crate::mbe::{self, MetaVarExpr};
 use rustc_ast::mut_visit::{self, MutVisitor};
-use rustc_ast::token::{self, Delimiter, Token, TokenKind};
-use rustc_ast::tokenstream::{DelimSpan, TokenStream, TokenTree, TreeAndSpacing};
+use rustc_ast::token::{self, Delimiter, InvisibleSource, Token, TokenKind};
+use rustc_ast::tokenstream::CanSynthesizeMissingTokens;
+use rustc_ast::tokenstream::{DelimSpan, Spacing, TokenStream, TokenTree, TreeAndSpacing};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_errors::{pluralize, PResult};
 use rustc_errors::{DiagnosticBuilder, ErrorGuaranteed};
+use rustc_parse::to_token_stream;
 use rustc_span::hygiene::{LocalExpnId, Transparency};
 use rustc_span::symbol::{sym, Ident, MacroRulesNormalizedIdent};
 use rustc_span::Span;
@@ -230,12 +232,29 @@ pub(super) fn transcribe<'a>(
                             result.push(token.into());
                         }
                         MatchedNonterminal(ref nt) => {
+                            // njn: update comment
                             // Other variables are emitted into the output stream as groups with
                             // `Delimiter::Invisible` to maintain parsing priorities.
                             // `Interpolated` is currently used for such groups in rustc parser.
                             marker.visit_span(&mut sp);
                             let token = TokenTree::token(token::Interpolated(nt.clone()), sp);
                             result.push(token.into());
+                        }
+                        MatchedExpr(ref e) => {
+                            // njn: comment about this
+                            // njn: expr_to_tokenstream?
+                            let tts = to_token_stream(
+                                e,
+                                &cx.sess.parse_sess,
+                                CanSynthesizeMissingTokens::No,
+                            );
+                            marker.visit_span(&mut sp);
+                            let tt = TokenTree::Delimited(
+                                DelimSpan::from_single(sp),
+                                Delimiter::Invisible(InvisibleSource::ExprMv),
+                                tts,
+                            );
+                            result.push((tt, Spacing::Alone));
                         }
                         MatchedSeq(..) => {
                             // We were unable to descend far enough. This is an error.
@@ -306,7 +325,7 @@ fn lookup_cur_matched<'a>(
         let mut matched = matched;
         for &(idx, _) in repeats {
             match matched {
-                MatchedTokenTree(_) | MatchedNonterminal(_) => break,
+                MatchedTokenTree(_) | MatchedNonterminal(_) | MatchedExpr(_) => break,
                 MatchedSeq(ref ads) => matched = ads.get(idx).unwrap(),
             }
         }
@@ -396,7 +415,9 @@ fn lockstep_iter_size(
             let name = MacroRulesNormalizedIdent::new(name);
             match lookup_cur_matched(name, interpolations, repeats) {
                 Some(matched) => match matched {
-                    MatchedTokenTree(_) | MatchedNonterminal(_) => LockstepIterSize::Unconstrained,
+                    MatchedTokenTree(_) | MatchedNonterminal(_) | MatchedExpr(_) => {
+                        LockstepIterSize::Unconstrained
+                    }
                     MatchedSeq(ref ads) => LockstepIterSize::Constraint(ads.len(), name),
                 },
                 _ => LockstepIterSize::Unconstrained,
@@ -443,7 +464,8 @@ fn count_repetitions<'a>(
         sp: &DelimSpan,
     ) -> PResult<'a, usize> {
         match matched {
-            MatchedTokenTree(_) | MatchedNonterminal(_) => {
+            // njn: flip order of these arms, and in similar matches above
+            MatchedTokenTree(_) | MatchedNonterminal(_) | MatchedExpr(_) => {
                 if declared_lhs_depth == 0 {
                     return Err(cx.struct_span_err(
                         sp.entire(),

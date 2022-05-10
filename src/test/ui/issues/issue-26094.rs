@@ -1,4 +1,4 @@
-macro_rules! some_macro {
+macro_rules! some_macro { // njn: error message span got much worse, weird
     ($other: expr) => ({
         $other(None) //~ NOTE argument unexpected
     })

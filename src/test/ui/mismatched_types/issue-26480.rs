@@ -1,4 +1,4 @@
-extern "C" {
+extern "C" { // njn: error message spans got worse
     fn write(fildes: i32, buf: *const i8, nbyte: u64) -> i64;
 }
 

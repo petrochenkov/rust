@@ -250,9 +250,9 @@ pub fn to_token_stream(
     synthesize_tokens: CanSynthesizeMissingTokens,
 ) -> TokenStream {
     if let Some(tokens) = prepend_attrs(&node.attrs(), node.tokens()) {
-        return tokens;
+        tokens
     } else if matches!(synthesize_tokens, CanSynthesizeMissingTokens::Yes) {
-        return fake_token_stream(sess, node);
+        fake_token_stream(sess, node)
     } else {
         panic!("Missing tokens for nt {:?} at {:?}: {:?}", node, node.span(), node.pretty_print());
     }
@@ -304,15 +304,15 @@ pub fn nt_to_tokenstream(
         Nonterminal::NtMeta(ref attr) => convert_tokens(attr.tokens.as_ref()),
         Nonterminal::NtPath(ref path) => convert_tokens(path.tokens.as_ref()),
         Nonterminal::NtVis(ref vis) => convert_tokens(vis.tokens.as_ref()),
-        Nonterminal::NtExpr(ref expr) | Nonterminal::NtLiteral(ref expr) => {
+        Nonterminal::NtLiteral(ref expr) => {
             prepend_attrs(&expr.attrs, expr.tokens.as_ref())
         }
     };
 
     if let Some(tokens) = tokens {
-        return tokens;
+        tokens
     } else if matches!(synthesize_tokens, CanSynthesizeMissingTokens::Yes) {
-        return nt_fake_token_stream(sess, nt);
+        nt_fake_token_stream(sess, nt)
     } else {
         panic!(
             "Missing tokens for nt {:?} at {:?}: {:?}",

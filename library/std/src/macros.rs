@@ -313,14 +313,37 @@ macro_rules! dbg {
         // of temporaries - https://stackoverflow.com/a/48732525/1063961
         match $val {
             tmp => {
+                let val = $crate::stringify!($val);
+                // Remove the invisible delimiter markers we get from expanding
+                // an `expr`.
+                // njn: perhaps stringify! should strip outer invisible delims
+                let len1 = "/*«*/ ".len();
+                let len2 = "/*»*/ ".len();
+                let val = &val[len1..val.len() - len2];
                 $crate::eprintln!("[{}:{}] {} = {:#?}",
-                    $crate::file!(), $crate::line!(), $crate::stringify!($val), &tmp);
+                    $crate::file!(), $crate::line!(), val, &tmp);
                 tmp
             }
         }
     };
     ($($val:expr),+ $(,)?) => {
-        ($($crate::dbg!($val)),+,)
+        ($(
+            // Use of `match` here is intentional because it affects the lifetimes
+            // of temporaries - https://stackoverflow.com/a/48732525/1063961
+            match $val {
+                tmp => {
+                    // Remove the invisible delimiter markers we get from expanding
+                    // an `expr`.
+                    let val = $crate::stringify!($val);
+                    let len1 = "/*«*/ ".len();
+                    let len2 = "/*»*/ ".len();
+                    let val = &val[len1..val.len() - len2];
+                    $crate::eprintln!("[{}:{}] {} = {:#?}",
+                        $crate::file!(), $crate::line!(), val, &tmp);
+                    tmp
+                }
+            }
+        ),+,)
     };
 }
 

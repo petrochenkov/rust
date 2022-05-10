@@ -415,18 +415,67 @@ impl<'a> Parser<'a> {
 
     /// Matches `meta_item_inner : (meta_item | UNSUFFIXED_LIT) ;`.
     fn parse_meta_item_inner(&mut self) -> PResult<'a, ast::NestedMetaItem> {
+        // njn: this whole try-then-cancel only works because
+        // parse_unsuffixed_lit doesn't consume any tokens when it fails; it
+        // only considers the next token
+
+        //eprintln!("AAA {:?}", self.token);
+
+        //eprintln!("\nparse_meta_item_inner A {:?}", self.token);
         match self.parse_unsuffixed_lit() {
             Ok(lit) => return Ok(ast::NestedMetaItem::Literal(lit)),
             Err(err) => err.cancel(),
         }
+        //eprintln!("parse_meta_item_inner B {:?}", self.token);
+        //eprintln!("BBB {:?}", self.token);
 
+        // njn: nonterminal-expansion.rs's good error relies on being able to
+        // distinguish the nonterminal type
         match self.parse_meta_item() {
             Ok(mi) => return Ok(ast::NestedMetaItem::MetaItem(mi)),
             Err(err) => err.cancel(),
         }
 
+        //eprintln!("parse_meta_item_inner C {:?}", self.token);
+
+        // njn: skip past any invisibles to get the token that should have been
+        // a literal
+        //eprintln!("CCC {:?}", self.token);
+        //let span = self.token.span;
+        /*
+        while matches!(
+            self.token.kind,
+            token::OpenDelim(Delimiter::Invisible(InvisibleSource::ExprMv))
+        ) {
+            self.bump();
+        }
+        */
+        /*
+        let mut num_invisibles = 0;
+        // njn: convert to a while loop
+        loop {
+            if self.look_ahead(num_invisibles, |t| {
+                matches!(t.kind, token::OpenDelim(Delimiter::Invisible(InvisibleSource::ExprMv)))
+            }) {
+                num_invisibles += 1;
+            } else {
+                break;
+            }
+        }
+        self.look_ahead(num_invisibles, |t| {
+            // njn: ugh, by only printing the first token, we have this diff:
+            //
+            // -error: expected unsuffixed literal or identifier, found `concat!("nonexistent")`
+            // +error: expected unsuffixed literal or identifier, found `concat`
+            let found = pprust::token_to_string(t);
+            let msg = format!("expected unsuffixed literal or identifier, found `{found}`");
+            //eprintln!("DDD {}, {:?}, {:?}", msg, span, self.token.span);
+            Err(self.struct_span_err(self.token.span, &msg))
+        })
+        */
         let found = pprust::token_to_string(&self.token);
         let msg = format!("expected unsuffixed literal or identifier, found `{found}`");
+        //eprintln!("DDD {}, {:?}, {:?}", msg, span, self.token.span);
         Err(self.struct_span_err(self.token.span, &msg))
     }
 }
