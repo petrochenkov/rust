@@ -951,9 +951,9 @@ impl<'a> Parser<'a> {
     fn parse_dot_or_call_expr(&mut self, attrs: Option<AttrWrapper>) -> PResult<'a, P<Expr>> {
         let attrs = self.parse_or_use_outer_attributes(attrs)?;
         self.collect_tokens_for_expr(attrs, |this, attrs| {
-            let base = this.parse_bottom_expr();
-            let (span, base) = this.interpolated_or_expr_span(base)?;
-            this.parse_dot_or_call_expr_with(base, span, attrs)
+            let lo = this.token.span;
+            let base = this.parse_bottom_expr()?;
+            this.parse_dot_or_call_expr_with(base, lo, attrs)
         })
     }
 

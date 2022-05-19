@@ -1493,7 +1493,7 @@ macro_rules! atomic_int {
         #[deprecated(
             since = "1.34.0",
             note = "the `new` function is now preferred",
-            suggestion = $atomic_new,
+            // suggestion = $atomic_new,
         )]
         pub const $atomic_init: $atomic_type = $atomic_type::new(0);
 
