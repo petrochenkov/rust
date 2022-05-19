@@ -1454,7 +1454,7 @@ impl<'a> Parser<'a> {
         self.maybe_recover_from_bad_qpath(expr, true)
     }
 
-    fn parse_invisibles_expr(&mut self) -> PResult<'a, P<Expr>> {
+    pub fn parse_invisibles_expr(&mut self) -> PResult<'a, P<Expr>> {
         self.expect(&token::OpenDelim(Delimiter::Invisible(InvisibleSource::ExprMv)))?;
         let expr = self.parse_expr()?;
         self.expect(&token::CloseDelim(Delimiter::Invisible(InvisibleSource::ExprMv)))?;

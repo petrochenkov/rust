@@ -1,4 +1,4 @@
-error: expected unsuffixed literal or identifier, found `/*start of expr expansion*/`
+error: expected unsuffixed literal within expr expansion
   --> $DIR/nonterminal-expansion.rs:5:22
    |
 LL |         #[repr(align($n))]

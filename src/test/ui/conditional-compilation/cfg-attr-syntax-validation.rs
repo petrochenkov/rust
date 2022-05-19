@@ -28,8 +28,8 @@ struct S9;
 macro_rules! generate_s10 {
     ($expr: expr) => {
         #[cfg(feature = $expr)]
-        //~^ ERROR expected unsuffixed literal or identifier, found `/*start of expr expansion*/`
-        //~| ERROR expected unsuffixed literal or identifier, found `/*start of expr expansion*/`
+        //~^ ERROR unexpected token: `/*start of expr expansion*/`
+        //~| ERROR unexpected token: `/*start of expr expansion*/`
         struct S10;
     }
 }

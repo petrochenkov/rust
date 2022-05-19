@@ -489,6 +489,19 @@ impl Token {
         }
     }
 
+    // njn: comment
+    pub fn can_begin_unsuffixed_literal(&self) -> bool {
+        match self.uninterpolate().kind {
+            Literal(..) => true,
+            Ident(name, false) if name.is_bool_lit() => true,
+            // njn: not sure whether to handle this here or in the caller
+            //OpenDelim(Delimiter::Invisible(InvisibleSource::ExprMv)) => true,
+            Interpolated(ref nt) => matches!(**nt, NtLiteral(_)),
+            Dot => true, // not valid, but accepted for recovery
+            _ => false,
+        }
+    }
+
     // A convenience function for matching on identifiers during parsing.
     // Turns interpolated identifier (`$i: ident`) or lifetime (`$l: lifetime`) token
     // into the regular identifier or lifetime token it refers to,
