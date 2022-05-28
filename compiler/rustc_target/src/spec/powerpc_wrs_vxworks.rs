@@ -1,10 +1,16 @@
 use crate::abi::Endian;
-use crate::spec::{LinkerFlavor, Target, TargetOptions};
+use crate::spec::{CoarseGrainedLinkerFlavor, Target, TargetOptions};
 
 pub fn target() -> Target {
     let mut base = super::vxworks_base::opts();
-    base.pre_link_args.entry(LinkerFlavor::Gcc).or_default().push("-m32".into());
-    base.pre_link_args.entry(LinkerFlavor::Gcc).or_default().push("--secure-plt".into());
+    base.pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default()
+        .push("-m32".into());
+    base.pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default()
+        .push("--secure-plt".into());
     base.max_atomic_width = Some(32);
 
     Target {

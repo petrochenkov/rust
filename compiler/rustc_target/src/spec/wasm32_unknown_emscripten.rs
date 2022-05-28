@@ -1,10 +1,13 @@
 use super::{cvs, wasm_base};
-use super::{LinkArgs, LinkerFlavor, PanicStrategy, Target, TargetOptions};
+use super::{CoarseGrainedLinkerFlavor, LinkArgs, PanicStrategy, Target, TargetOptions};
 
 pub fn target() -> Target {
     let mut options = wasm_base::options();
 
-    let clang_args = options.pre_link_args.entry(LinkerFlavor::Gcc).or_default();
+    let clang_args = options
+        .pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default();
 
     // Rust really needs a way for users to specify exports and imports in
     // the source code. --export-dynamic isn't the right tool for this job,
@@ -15,7 +18,7 @@ pub fn target() -> Target {
 
     let mut post_link_args = LinkArgs::new();
     post_link_args.insert(
-        LinkerFlavor::Em,
+        CoarseGrainedLinkerFlavor::TargetLinker,
         vec![
             "-s".into(),
             "ERROR_ON_UNDEFINED_SYMBOLS=1".into(),
@@ -29,7 +32,6 @@ pub fn target() -> Target {
 
     let opts = TargetOptions {
         os: "emscripten".into(),
-        linker_flavor: LinkerFlavor::Em,
         // emcc emits two files - a .js file to instantiate the wasm and supply platform
         // functionality, and a .wasm file.
         exe_suffix: ".js".into(),

@@ -7,8 +7,8 @@ use std::io;
 use std::mem;
 use std::process::{self, Output};
 
+use rustc_session::config::LldFlavor;
 use rustc_span::symbol::Symbol;
-use rustc_target::spec::LldFlavor;
 
 #[derive(Clone)]
 pub struct Command {

@@ -1,15 +1,14 @@
-use crate::spec::{LinkArgs, LinkerFlavor, LldFlavor, PanicStrategy, TargetOptions, TlsModel};
+use crate::spec::{CoarseGrainedLinkerFlavor, LinkArgs, PanicStrategy, TargetOptions, TlsModel};
 
 pub fn opts() -> TargetOptions {
     let mut pre_link_args = LinkArgs::new();
     pre_link_args.insert(
-        LinkerFlavor::Lld(LldFlavor::Ld),
+        CoarseGrainedLinkerFlavor::TargetLinker,
         vec!["--build-id".into(), "--hash-style=gnu".into(), "--Bstatic".into()],
     );
 
     TargetOptions {
         os: "hermit".into(),
-        linker_flavor: LinkerFlavor::Lld(LldFlavor::Ld),
         linker: Some("rust-lld".into()),
         executables: true,
         has_thread_local: true,

@@ -1,8 +1,11 @@
-use crate::spec::{LinkerFlavor, SanitizerSet, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, SanitizerSet, Target};
 
 pub fn target() -> Target {
     let mut base = super::illumos_base::opts();
-    base.pre_link_args.insert(LinkerFlavor::Gcc, vec!["-m64".into(), "-std=c99".into()]);
+    base.pre_link_args.insert(
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
+        vec!["-m64".into(), "-std=c99".into()],
+    );
     base.cpu = "x86-64".into();
     base.max_atomic_width = Some(64);
     base.supported_sanitizers = SanitizerSet::ADDRESS | SanitizerSet::CFI;

@@ -14,10 +14,11 @@ use rustc_hir::def_id::{CrateNum, LOCAL_CRATE};
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::middle::exported_symbols::{ExportedSymbol, SymbolExportInfo, SymbolExportKind};
 use rustc_middle::ty::TyCtxt;
+use rustc_session::config::LegacyLinkerFlavor;
 use rustc_session::config::{self, CrateType, DebugInfo, LinkerPluginLto, Lto, OptLevel, Strip};
 use rustc_session::Session;
 use rustc_span::symbol::Symbol;
-use rustc_target::spec::{LinkOutputKind, LinkerFlavor, LldFlavor};
+use rustc_target::spec::{CoarseGrainedLinkerFlavor, LinkOutputKind};
 
 use cc::windows_registry;
 
@@ -40,10 +41,11 @@ pub fn disable_localization(linker: &mut Command) {
 pub fn get_linker<'a>(
     sess: &'a Session,
     linker: &Path,
-    flavor: LinkerFlavor,
+    full_flavor: LegacyLinkerFlavor,
     self_contained: bool,
     target_cpu: &'a str,
 ) -> Box<dyn Linker + 'a> {
+    let flavor = *full_flavor;
     let msvc_tool = windows_registry::find_tool(&sess.opts.target_triple.triple(), "link.exe");
 
     // If our linker looks like a batch script on Windows then to execute this
@@ -56,9 +58,12 @@ pub fn get_linker<'a>(
     // emscripten itself.
     let mut cmd = match linker.to_str() {
         Some(linker) if cfg!(windows) && linker.ends_with(".bat") => Command::bat_script(linker),
-        _ => match flavor {
-            LinkerFlavor::Lld(f) => Command::lld(linker, f),
-            LinkerFlavor::Msvc if sess.opts.cg.linker.is_none() && sess.target.linker.is_none() => {
+        _ => match full_flavor {
+            LegacyLinkerFlavor::Lld(f) => Command::lld(linker, f),
+            _ if sess.target.is_like_msvc
+                && sess.opts.cg.linker.is_none()
+                && sess.target.linker.is_none() =>
+            {
                 Command::new(msvc_tool.as_ref().map_or(linker, |t| t.path()))
             }
             _ => Command::new(linker),
@@ -69,9 +74,7 @@ pub fn get_linker<'a>(
     // To comply with the Windows App Certification Kit,
     // MSVC needs to link with the Store versions of the runtime libraries (vcruntime, msvcrt, etc).
     let t = &sess.target;
-    if (flavor == LinkerFlavor::Msvc || flavor == LinkerFlavor::Lld(LldFlavor::Link))
-        && t.vendor == "uwp"
-    {
+    if sess.target.is_like_msvc && t.vendor == "uwp" {
         if let Some(ref tool) = msvc_tool {
             let original_path = tool.path();
             if let Some(ref root_lib_path) = original_path.ancestors().nth(4) {
@@ -126,30 +129,24 @@ pub fn get_linker<'a>(
     // FIXME: Move `/LIBPATH` addition for uwp targets from the linker construction
     // to the linker args construction.
     assert!(cmd.get_args().is_empty() || sess.target.vendor == "uwp");
-    match flavor {
-        LinkerFlavor::Lld(LldFlavor::Link) | LinkerFlavor::Msvc => {
-            Box::new(MsvcLinker { cmd, sess }) as Box<dyn Linker>
-        }
-        LinkerFlavor::Em => Box::new(EmLinker { cmd, sess }) as Box<dyn Linker>,
-        LinkerFlavor::Gcc => {
-            Box::new(GccLinker { cmd, sess, target_cpu, hinted_static: false, is_ld: false })
-                as Box<dyn Linker>
-        }
-
-        LinkerFlavor::Lld(LldFlavor::Ld)
-        | LinkerFlavor::Lld(LldFlavor::Ld64)
-        | LinkerFlavor::Ld => {
-            Box::new(GccLinker { cmd, sess, target_cpu, hinted_static: false, is_ld: true })
-                as Box<dyn Linker>
-        }
-
-        LinkerFlavor::Lld(LldFlavor::Wasm) => Box::new(WasmLd::new(cmd, sess)) as Box<dyn Linker>,
-
-        LinkerFlavor::PtxLinker => Box::new(PtxLinker { cmd, sess }) as Box<dyn Linker>,
-
-        LinkerFlavor::BpfLinker => Box::new(BpfLinker { cmd, sess }) as Box<dyn Linker>,
-
-        LinkerFlavor::L4Bender => Box::new(L4Bender::new(cmd, sess)) as Box<dyn Linker>,
+    if flavor == CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler {
+        Box::new(GccLinker { cmd, sess, target_cpu, hinted_static: false, is_ld: false })
+            as Box<dyn Linker>
+    } else if sess.target.is_like_msvc {
+        Box::new(MsvcLinker { cmd, sess }) as Box<dyn Linker>
+    } else if sess.target.os == "emscripten" {
+        Box::new(EmLinker { cmd, sess }) as Box<dyn Linker>
+    } else if sess.target.is_like_wasm {
+        Box::new(WasmLd::new(cmd, sess)) as Box<dyn Linker>
+    } else if sess.target.arch == "nvptx64" {
+        Box::new(PtxLinker { cmd, sess }) as Box<dyn Linker>
+    } else if sess.target.arch == "bpf" {
+        Box::new(BpfLinker { cmd, sess }) as Box<dyn Linker>
+    } else if sess.target.os == "l4re" {
+        Box::new(L4Bender::new(cmd, sess)) as Box<dyn Linker>
+    } else {
+        Box::new(GccLinker { cmd, sess, target_cpu, hinted_static: false, is_ld: true })
+            as Box<dyn Linker>
     }
 }
 

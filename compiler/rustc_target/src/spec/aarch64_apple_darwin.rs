@@ -1,4 +1,4 @@
-use crate::spec::{FramePointer, LinkerFlavor, SanitizerSet, Target, TargetOptions};
+use crate::spec::{CoarseGrainedLinkerFlavor, FramePointer, SanitizerSet, Target, TargetOptions};
 
 pub fn target() -> Target {
     let mut base = super::apple_base::opts("macos");
@@ -8,7 +8,10 @@ pub fn target() -> Target {
     // FIXME: The leak sanitizer currently fails the tests, see #88132.
     base.supported_sanitizers = SanitizerSet::ADDRESS | SanitizerSet::CFI | SanitizerSet::THREAD;
 
-    base.pre_link_args.insert(LinkerFlavor::Gcc, vec!["-arch".into(), "arm64".into()]);
+    base.pre_link_args.insert(
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
+        vec!["-arch".into(), "arm64".into()],
+    );
     base.link_env_remove.to_mut().extend(super::apple_base::macos_link_env_remove());
 
     // Clang automatically chooses a more specific target based on

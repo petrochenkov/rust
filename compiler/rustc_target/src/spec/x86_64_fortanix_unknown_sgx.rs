@@ -2,7 +2,7 @@ use std::{borrow::Cow, iter};
 
 use crate::spec::cvs;
 
-use super::{LinkerFlavor, LldFlavor, Target, TargetOptions};
+use super::{CoarseGrainedLinkerFlavor, Target, TargetOptions};
 
 pub fn target() -> Target {
     const PRE_LINK_ARGS: &[&str] = &[
@@ -58,7 +58,6 @@ pub fn target() -> Target {
         env: "sgx".into(),
         vendor: "fortanix".into(),
         abi: "fortanix".into(),
-        linker_flavor: LinkerFlavor::Lld(LldFlavor::Ld),
         executables: true,
         linker: Some("rust-lld".into()),
         max_atomic_width: Some(64),
@@ -67,7 +66,7 @@ pub fn target() -> Target {
         llvm_args: cvs!["--x86-experimental-lvi-inline-asm-hardening"],
         position_independent_executables: true,
         pre_link_args: iter::once((
-            LinkerFlavor::Lld(LldFlavor::Ld),
+            CoarseGrainedLinkerFlavor::TargetLinker,
             PRE_LINK_ARGS.iter().cloned().map(Cow::from).collect(),
         ))
         .collect(),

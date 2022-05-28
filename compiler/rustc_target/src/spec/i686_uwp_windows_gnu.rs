@@ -1,16 +1,17 @@
-use crate::spec::{FramePointer, LinkerFlavor, LldFlavor, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, FramePointer, Target};
 
 pub fn target() -> Target {
     let mut base = super::windows_uwp_gnu_base::opts();
     base.cpu = "pentium4".into();
-    base.pre_link_args.insert(LinkerFlavor::Lld(LldFlavor::Ld), vec!["-m".into(), "i386pe".into()]);
+    base.pre_link_args
+        .insert(CoarseGrainedLinkerFlavor::TargetLinker, vec!["-m".into(), "i386pe".into()]);
     base.max_atomic_width = Some(64);
     base.frame_pointer = FramePointer::Always; // Required for backtraces
 
     // Mark all dynamic libraries and executables as compatible with the larger 4GiB address
     // space available to x86 Windows binaries on x86_64.
     base.pre_link_args
-        .entry(LinkerFlavor::Gcc)
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
         .or_default()
         .push("-Wl,--large-address-aware".into());
 

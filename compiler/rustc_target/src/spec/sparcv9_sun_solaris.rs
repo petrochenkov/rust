@@ -1,10 +1,11 @@
 use crate::abi::Endian;
-use crate::spec::{LinkerFlavor, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, Target};
 
 pub fn target() -> Target {
     let mut base = super::solaris_base::opts();
     base.endian = Endian::Big;
-    base.pre_link_args.insert(LinkerFlavor::Gcc, vec!["-m64".into()]);
+    base.pre_link_args
+        .insert(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler, vec!["-m64".into()]);
     // llvm calls this "v9"
     base.cpu = "v9".into();
     base.vendor = "sun".into();

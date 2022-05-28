@@ -1,4 +1,4 @@
-use crate::spec::{cvs, LinkArgs, LinkerFlavor, RelocModel, Target, TargetOptions};
+use crate::spec::{cvs, CoarseGrainedLinkerFlavor, LinkArgs, RelocModel, Target, TargetOptions};
 
 /// A base target for Nintendo 3DS devices using the devkitARM toolchain.
 ///
@@ -7,7 +7,7 @@ use crate::spec::{cvs, LinkArgs, LinkerFlavor, RelocModel, Target, TargetOptions
 pub fn target() -> Target {
     let mut pre_link_args = LinkArgs::new();
     pre_link_args.insert(
-        LinkerFlavor::Gcc,
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
         vec![
             "-specs=3dsx.specs".into(),
             "-mtune=mpcore".into(),
@@ -27,7 +27,6 @@ pub fn target() -> Target {
             env: "newlib".into(),
             vendor: "nintendo".into(),
             abi: "eabihf".into(),
-            linker_flavor: LinkerFlavor::Gcc,
             cpu: "mpcore".into(),
             executables: true,
             families: cvs!["unix"],

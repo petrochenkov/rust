@@ -1,5 +1,5 @@
 use super::crt_objects::CrtObjectsFallback;
-use super::{cvs, LinkerFlavor, LldFlavor, PanicStrategy, RelocModel, TargetOptions, TlsModel};
+use super::{cvs, CoarseGrainedLinkerFlavor, PanicStrategy, RelocModel, TargetOptions, TlsModel};
 use std::collections::BTreeMap;
 
 pub fn options() -> TargetOptions {
@@ -56,8 +56,8 @@ pub fn options() -> TargetOptions {
     arg("--no-demangle");
 
     let mut pre_link_args = BTreeMap::new();
-    pre_link_args.insert(LinkerFlavor::Lld(LldFlavor::Wasm), lld_args);
-    pre_link_args.insert(LinkerFlavor::Gcc, clang_args);
+    pre_link_args.insert(CoarseGrainedLinkerFlavor::TargetLinker, lld_args);
+    pre_link_args.insert(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler, clang_args);
 
     TargetOptions {
         is_like_wasm: true,
@@ -101,7 +101,6 @@ pub fn options() -> TargetOptions {
 
         // we use the LLD shipped with the Rust toolchain by default
         linker: Some("rust-lld".into()),
-        lld_flavor: LldFlavor::Wasm,
         linker_is_gnu: false,
 
         pre_link_args,

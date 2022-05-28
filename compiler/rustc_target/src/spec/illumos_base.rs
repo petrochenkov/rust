@@ -1,9 +1,9 @@
-use crate::spec::{cvs, FramePointer, LinkArgs, LinkerFlavor, TargetOptions};
+use crate::spec::{cvs, CoarseGrainedLinkerFlavor, FramePointer, LinkArgs, TargetOptions};
 
 pub fn opts() -> TargetOptions {
     let mut late_link_args = LinkArgs::new();
     late_link_args.insert(
-        LinkerFlavor::Gcc,
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
         vec![
             // The illumos libc contains a stack unwinding implementation, as
             // does libgcc_s.  The latter implementation includes several

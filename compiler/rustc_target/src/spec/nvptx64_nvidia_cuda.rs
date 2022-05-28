@@ -1,4 +1,4 @@
-use crate::spec::{LinkerFlavor, MergeFunctions, PanicStrategy, Target, TargetOptions};
+use crate::spec::{MergeFunctions, PanicStrategy, Target, TargetOptions};
 
 pub fn target() -> Target {
     Target {
@@ -10,7 +10,6 @@ pub fn target() -> Target {
         options: TargetOptions {
             os: "cuda".into(),
             vendor: "nvidia".into(),
-            linker_flavor: LinkerFlavor::PtxLinker,
             // The linker can be installed from `crates.io`.
             linker: Some("rust-ptx-linker".into()),
             linker_is_gnu: false,

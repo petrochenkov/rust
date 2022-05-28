@@ -28,12 +28,11 @@
 // build scripts / gcc flags.
 
 use crate::spec::TargetOptions;
-use crate::spec::{FramePointer, LinkerFlavor, LldFlavor, PanicStrategy, RelocModel};
+use crate::spec::{FramePointer, PanicStrategy, RelocModel};
 
 pub fn opts() -> TargetOptions {
     // See rust-lang/rfcs#1645 for a discussion about these defaults
     TargetOptions {
-        linker_flavor: LinkerFlavor::Lld(LldFlavor::Ld),
         executables: true,
         // In most cases, LLD is good enough
         linker: Some("rust-lld".into()),

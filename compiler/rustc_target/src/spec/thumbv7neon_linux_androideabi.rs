@@ -1,4 +1,4 @@
-use crate::spec::{LinkerFlavor, Target, TargetOptions};
+use crate::spec::{CoarseGrainedLinkerFlavor, Target, TargetOptions};
 
 // This target if is for the Android v7a ABI in thumb mode with
 // NEON unconditionally enabled and, therefore, with 32 FPU registers
@@ -10,7 +10,10 @@ use crate::spec::{LinkerFlavor, Target, TargetOptions};
 
 pub fn target() -> Target {
     let mut base = super::android_base::opts();
-    base.pre_link_args.entry(LinkerFlavor::Gcc).or_default().push("-march=armv7-a".into());
+    base.pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default()
+        .push("-march=armv7-a".into());
     Target {
         llvm_target: "armv7-none-linux-android".into(),
         pointer_width: 32,

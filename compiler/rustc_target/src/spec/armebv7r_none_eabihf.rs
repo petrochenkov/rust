@@ -1,7 +1,7 @@
 // Targets the Cortex-R4F/R5F processor (ARMv7-R)
 
 use crate::abi::Endian;
-use crate::spec::{LinkerFlavor, LldFlavor, PanicStrategy, RelocModel};
+use crate::spec::{PanicStrategy, RelocModel};
 use crate::spec::{Target, TargetOptions};
 
 pub fn target() -> Target {
@@ -13,7 +13,6 @@ pub fn target() -> Target {
         options: TargetOptions {
             abi: "eabihf".into(),
             endian: Endian::Big,
-            linker_flavor: LinkerFlavor::Lld(LldFlavor::Ld),
             executables: true,
             linker: Some("rust-lld".into()),
             relocation_model: RelocModel::Static,

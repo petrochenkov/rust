@@ -1,9 +1,12 @@
-use crate::spec::{LinkerFlavor, Target, TargetOptions};
+use crate::spec::{CoarseGrainedLinkerFlavor, Target, TargetOptions};
 
 pub fn target() -> Target {
     let mut base = super::linux_gnu_base::opts();
     base.cpu = "ppc64le".into();
-    base.pre_link_args.entry(LinkerFlavor::Gcc).or_default().push("-m64".into());
+    base.pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default()
+        .push("-m64".into());
     base.max_atomic_width = Some(64);
 
     Target {

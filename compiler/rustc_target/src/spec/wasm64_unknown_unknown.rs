@@ -8,13 +8,15 @@
 //! (e.g. trying to create a TCP stream or something like that).
 
 use super::wasm_base;
-use super::{LinkerFlavor, LldFlavor, Target};
+use super::{CoarseGrainedLinkerFlavor, Target};
 
 pub fn target() -> Target {
     let mut options = wasm_base::options();
     options.os = "unknown".into();
-    options.linker_flavor = LinkerFlavor::Lld(LldFlavor::Wasm);
-    let clang_args = options.pre_link_args.get_mut(&LinkerFlavor::Gcc).unwrap();
+    let clang_args = options
+        .pre_link_args
+        .get_mut(&CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .unwrap();
 
     // Make sure clang uses LLD as its linker and is configured appropriately
     // otherwise
@@ -24,7 +26,7 @@ pub fn target() -> Target {
     // type, so unconditionally pass this.
     clang_args.push("-Wl,--no-entry".into());
 
-    let lld_args = options.pre_link_args.get_mut(&LinkerFlavor::Lld(LldFlavor::Wasm)).unwrap();
+    let lld_args = options.pre_link_args.get_mut(&CoarseGrainedLinkerFlavor::TargetLinker).unwrap();
     lld_args.push("--no-entry".into());
     lld_args.push("-mwasm64".into());
 

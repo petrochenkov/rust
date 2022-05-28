@@ -5,8 +5,7 @@
 // features.
 
 use super::{
-    CodeModel, LinkerFlavor, LldFlavor, PanicStrategy, RelocModel, RelroLevel, StackProbeType,
-    Target, TargetOptions,
+    CodeModel, PanicStrategy, RelocModel, RelroLevel, StackProbeType, Target, TargetOptions,
 };
 
 pub fn target() -> Target {
@@ -19,7 +18,6 @@ pub fn target() -> Target {
         static_position_independent_executables: true,
         relro_level: RelroLevel::Full,
         relocation_model: RelocModel::Pic,
-        linker_flavor: LinkerFlavor::Lld(LldFlavor::Ld),
         linker: Some("rust-lld".into()),
         features:
             "-mmx,-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-3dnow,-3dnowa,-avx,-avx2,+soft-float"

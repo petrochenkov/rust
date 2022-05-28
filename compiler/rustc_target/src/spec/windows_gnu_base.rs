@@ -1,10 +1,10 @@
 use crate::spec::crt_objects::{self, CrtObjectsFallback};
-use crate::spec::{cvs, LinkArgs, LinkerFlavor, LldFlavor, TargetOptions};
+use crate::spec::{cvs, CoarseGrainedLinkerFlavor, LinkArgs, TargetOptions};
 
 pub fn opts() -> TargetOptions {
     let mut pre_link_args = LinkArgs::new();
     pre_link_args.insert(
-        LinkerFlavor::Gcc,
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
         vec![
             // Tell GCC to avoid linker plugins, because we are not bundling
             // them with Windows installer, and Rust does its own LTO anyways.
@@ -37,16 +37,20 @@ pub fn opts() -> TargetOptions {
         "-luser32".into(),
         "-lkernel32".into(),
     ];
-    late_link_args.insert(LinkerFlavor::Gcc, mingw_libs.clone());
-    late_link_args.insert(LinkerFlavor::Lld(LldFlavor::Ld), mingw_libs);
+    late_link_args
+        .insert(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler, mingw_libs.clone());
+    late_link_args.insert(CoarseGrainedLinkerFlavor::TargetLinker, mingw_libs);
     let dynamic_unwind_libs = vec![
         // If any of our crates are dynamically linked then we need to use
         // the shared libgcc_s-dw2-1.dll. This is required to support
         // unwinding across DLL boundaries.
         "-lgcc_s".into(),
     ];
-    late_link_args_dynamic.insert(LinkerFlavor::Gcc, dynamic_unwind_libs.clone());
-    late_link_args_dynamic.insert(LinkerFlavor::Lld(LldFlavor::Ld), dynamic_unwind_libs);
+    late_link_args_dynamic.insert(
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
+        dynamic_unwind_libs.clone(),
+    );
+    late_link_args_dynamic.insert(CoarseGrainedLinkerFlavor::TargetLinker, dynamic_unwind_libs);
     let static_unwind_libs = vec![
         // If all of our crates are statically linked then we can get away
         // with statically linking the libgcc unwinding code. This allows
@@ -56,8 +60,11 @@ pub fn opts() -> TargetOptions {
         "-lgcc_eh".into(),
         "-l:libpthread.a".into(),
     ];
-    late_link_args_static.insert(LinkerFlavor::Gcc, static_unwind_libs.clone());
-    late_link_args_static.insert(LinkerFlavor::Lld(LldFlavor::Ld), static_unwind_libs);
+    late_link_args_static.insert(
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
+        static_unwind_libs.clone(),
+    );
+    late_link_args_static.insert(CoarseGrainedLinkerFlavor::TargetLinker, static_unwind_libs);
 
     TargetOptions {
         os: "windows".into(),

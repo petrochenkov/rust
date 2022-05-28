@@ -1,13 +1,15 @@
 use crate::spec::TargetOptions;
-use crate::spec::{FramePointer, LinkerFlavor, SanitizerSet, StackProbeType, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, FramePointer, SanitizerSet, StackProbeType, Target};
 
 pub fn target() -> Target {
     let mut base = super::apple_base::opts("macos");
     base.cpu = "core2".into();
     base.max_atomic_width = Some(128); // core2 support cmpxchg16b
     base.frame_pointer = FramePointer::Always;
-    base.pre_link_args
-        .insert(LinkerFlavor::Gcc, vec!["-m64".into(), "-arch".into(), "x86_64".into()]);
+    base.pre_link_args.insert(
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
+        vec!["-m64".into(), "-arch".into(), "x86_64".into()],
+    );
     base.link_env_remove.to_mut().extend(super::apple_base::macos_link_env_remove());
     // don't use probe-stack=inline-asm until rust#83139 and rust#84667 are resolved
     base.stack_probes = StackProbeType::Call;

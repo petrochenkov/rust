@@ -1,10 +1,11 @@
-use crate::spec::{LinkerFlavor, StackProbeType, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, StackProbeType, Target};
 
 pub fn target() -> Target {
     let mut base = super::haiku_base::opts();
     base.cpu = "x86-64".into();
     base.max_atomic_width = Some(64);
-    base.pre_link_args.insert(LinkerFlavor::Gcc, vec!["-m64".into()]);
+    base.pre_link_args
+        .insert(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler, vec!["-m64".into()]);
     // don't use probe-stack=inline-asm until rust#83139 and rust#84667 are resolved
     base.stack_probes = StackProbeType::Call;
     // This option is required to build executables on Haiku x86_64

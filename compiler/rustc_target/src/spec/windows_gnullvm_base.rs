@@ -1,8 +1,8 @@
-use crate::spec::{cvs, LinkArgs, LinkerFlavor, TargetOptions};
+use crate::spec::{cvs, CoarseGrainedLinkerFlavor, LinkArgs, TargetOptions};
 
 pub fn opts() -> TargetOptions {
     let pre_link_args = LinkArgs::from([(
-        LinkerFlavor::Gcc,
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
         vec![
             // We cannot use `-nodefaultlibs` because compiler-rt has to be passed
             // as a path since it's not added to linker search path by the default.
@@ -13,7 +13,7 @@ pub fn opts() -> TargetOptions {
         ],
     )]);
     let late_link_args = LinkArgs::from([(
-        LinkerFlavor::Gcc,
+        CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler,
         // Order of `late_link_args*` does not matter with LLD.
         vec![
             "-lmingw32".into(),

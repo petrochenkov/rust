@@ -1,4 +1,4 @@
-use crate::spec::{LinkArgs, LinkerFlavor, LldFlavor, TargetOptions};
+use crate::spec::{CoarseGrainedLinkerFlavor, LinkArgs, TargetOptions};
 
 pub fn opts() -> TargetOptions {
     let base = super::windows_gnu_base::opts();
@@ -21,8 +21,9 @@ pub fn opts() -> TargetOptions {
         "-lmingwex".into(),
         "-lmingw32".into(),
     ];
-    late_link_args.insert(LinkerFlavor::Gcc, mingw_libs.clone());
-    late_link_args.insert(LinkerFlavor::Lld(LldFlavor::Ld), mingw_libs);
+    late_link_args
+        .insert(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler, mingw_libs.clone());
+    late_link_args.insert(CoarseGrainedLinkerFlavor::TargetLinker, mingw_libs);
 
     TargetOptions {
         abi: "uwp".into(),

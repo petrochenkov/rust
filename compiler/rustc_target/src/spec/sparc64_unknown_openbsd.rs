@@ -1,11 +1,14 @@
 use crate::abi::Endian;
-use crate::spec::{LinkerFlavor, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, Target};
 
 pub fn target() -> Target {
     let mut base = super::openbsd_base::opts();
     base.endian = Endian::Big;
     base.cpu = "v9".into();
-    base.pre_link_args.entry(LinkerFlavor::Gcc).or_default().push("-m64".into());
+    base.pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default()
+        .push("-m64".into());
     base.max_atomic_width = Some(64);
 
     Target {

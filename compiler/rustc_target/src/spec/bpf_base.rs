@@ -1,11 +1,10 @@
 use crate::abi::Endian;
-use crate::spec::{LinkerFlavor, MergeFunctions, PanicStrategy, TargetOptions};
+use crate::spec::{MergeFunctions, PanicStrategy, TargetOptions};
 
 pub fn opts(endian: Endian) -> TargetOptions {
     TargetOptions {
         allow_asm: true,
         endian,
-        linker_flavor: LinkerFlavor::BpfLinker,
         atomic_cas: false,
         executables: true,
         dynamic_linking: true,

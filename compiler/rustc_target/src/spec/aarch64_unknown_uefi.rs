@@ -2,7 +2,7 @@
 // uefi-base module for generic UEFI options.
 
 use super::uefi_msvc_base;
-use crate::spec::{LinkerFlavor, LldFlavor, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, Target};
 
 pub fn target() -> Target {
     let mut base = uefi_msvc_base::opts();
@@ -10,10 +10,8 @@ pub fn target() -> Target {
     base.max_atomic_width = Some(64);
 
     let pre_link_args_msvc = vec!["/machine:arm64".into()];
-
-    base.pre_link_args.get_mut(&LinkerFlavor::Msvc).unwrap().extend(pre_link_args_msvc.clone());
     base.pre_link_args
-        .get_mut(&LinkerFlavor::Lld(LldFlavor::Link))
+        .get_mut(&CoarseGrainedLinkerFlavor::TargetLinker)
         .unwrap()
         .extend(pre_link_args_msvc);
 

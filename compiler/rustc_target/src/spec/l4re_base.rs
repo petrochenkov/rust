@@ -1,10 +1,9 @@
-use crate::spec::{cvs, LinkerFlavor, PanicStrategy, TargetOptions};
+use crate::spec::{cvs, PanicStrategy, TargetOptions};
 
 pub fn opts() -> TargetOptions {
     TargetOptions {
         os: "l4re".into(),
         env: "uclibc".into(),
-        linker_flavor: LinkerFlavor::L4Bender,
         executables: true,
         panic_strategy: PanicStrategy::Abort,
         linker: Some("l4-bender".into()),

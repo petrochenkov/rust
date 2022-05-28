@@ -73,16 +73,15 @@
 //! you know what you're getting in to!
 
 use super::wasm_base;
-use super::{crt_objects, LinkerFlavor, LldFlavor, Target};
+use super::{crt_objects, CoarseGrainedLinkerFlavor, Target};
 
 pub fn target() -> Target {
     let mut options = wasm_base::options();
 
     options.os = "wasi".into();
-    options.linker_flavor = LinkerFlavor::Lld(LldFlavor::Wasm);
     options
         .pre_link_args
-        .entry(LinkerFlavor::Gcc)
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
         .or_insert(Vec::new())
         .push("--target=wasm32-wasi".into());
 

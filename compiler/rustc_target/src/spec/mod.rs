@@ -88,95 +88,6 @@ mod windows_msvc_base;
 mod windows_uwp_gnu_base;
 mod windows_uwp_msvc_base;
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum LinkerFlavor {
-    Em,
-    Gcc,
-    L4Bender,
-    Ld,
-    Msvc,
-    Lld(LldFlavor),
-    PtxLinker,
-    BpfLinker,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum LldFlavor {
-    Wasm,
-    Ld64,
-    Ld,
-    Link,
-}
-
-impl LldFlavor {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            LldFlavor::Wasm => "wasm",
-            LldFlavor::Ld64 => "darwin",
-            LldFlavor::Ld => "gnu",
-            LldFlavor::Link => "link",
-        }
-    }
-
-    fn from_str(s: &str) -> Option<Self> {
-        Some(match s {
-            "darwin" => LldFlavor::Ld64,
-            "gnu" => LldFlavor::Ld,
-            "link" => LldFlavor::Link,
-            "wasm" => LldFlavor::Wasm,
-            _ => return None,
-        })
-    }
-}
-
-impl ToJson for LldFlavor {
-    fn to_json(&self) -> Json {
-        self.as_str().to_json()
-    }
-}
-
-impl ToJson for LinkerFlavor {
-    fn to_json(&self) -> Json {
-        self.desc().to_json()
-    }
-}
-macro_rules! flavor_mappings {
-    ($((($($flavor:tt)*), $string:expr),)*) => (
-        impl LinkerFlavor {
-            pub const fn one_of() -> &'static str {
-                concat!("one of: ", $($string, " ",)*)
-            }
-
-            pub fn from_str(s: &str) -> Option<Self> {
-                Some(match s {
-                    $($string => $($flavor)*,)*
-                    _ => return None,
-                })
-            }
-
-            pub fn desc(&self) -> &str {
-                match *self {
-                    $($($flavor)* => $string,)*
-                }
-            }
-        }
-    )
-}
-
-flavor_mappings! {
-    ((LinkerFlavor::Em), "em"),
-    ((LinkerFlavor::Gcc), "gcc"),
-    ((LinkerFlavor::L4Bender), "l4-bender"),
-    ((LinkerFlavor::Ld), "ld"),
-    ((LinkerFlavor::Msvc), "msvc"),
-    ((LinkerFlavor::PtxLinker), "ptx-linker"),
-    ((LinkerFlavor::BpfLinker), "bpf-linker"),
-    ((LinkerFlavor::Lld(LldFlavor::Wasm)), "wasm-ld"),
-    ((LinkerFlavor::Lld(LldFlavor::Ld64)), "ld64.lld"),
-    ((LinkerFlavor::Lld(LldFlavor::Ld)), "ld.lld"),
-    ((LinkerFlavor::Lld(LldFlavor::Link)), "lld-link"),
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Encodable, Decodable, HashStable_Generic)]
 pub enum PanicStrategy {
     Unwind,
@@ -464,7 +375,30 @@ impl fmt::Display for LinkOutputKind {
     }
 }
 
-pub type LinkArgs = BTreeMap<LinkerFlavor, Vec<StaticCow<str>>>;
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum CoarseGrainedLinkerFlavor {
+    TargetLinker,
+    TargetLinkerCalledThroughCCompiler,
+}
+
+impl CoarseGrainedLinkerFlavor {
+    fn desc(self) -> &'static str {
+        match self {
+            CoarseGrainedLinkerFlavor::TargetLinker => "aaa",
+            CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler => "bbb",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<CoarseGrainedLinkerFlavor> {
+        match s {
+            "aaa" => Some(CoarseGrainedLinkerFlavor::TargetLinker),
+            "bbb" => Some(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler),
+            _ => None,
+        }
+    }
+}
+
+pub type LinkArgs = BTreeMap<CoarseGrainedLinkerFlavor, Vec<StaticCow<str>>>;
 
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum SplitDebuginfo {
@@ -1144,16 +1078,9 @@ pub struct TargetOptions {
     pub abi: StaticCow<str>,
     /// Vendor name to use for conditional compilation (`target_vendor`). Defaults to "unknown".
     pub vendor: StaticCow<str>,
-    /// Default linker flavor used if `-C linker-flavor` or `-C linker` are not passed
-    /// on the command line. Defaults to `LinkerFlavor::Gcc`.
-    pub linker_flavor: LinkerFlavor,
 
     /// Linker to invoke
     pub linker: Option<StaticCow<str>>,
-
-    /// LLD flavor used if `lld` (or `rust-lld`) is specified as a linker
-    /// without clarifying its flavor in any way.
-    pub lld_flavor: LldFlavor,
 
     /// Linker arguments that are passed *before* any user-defined libraries.
     pub pre_link_args: LinkArgs,
@@ -1470,9 +1397,7 @@ impl Default for TargetOptions {
             env: "".into(),
             abi: "".into(),
             vendor: "unknown".into(),
-            linker_flavor: LinkerFlavor::Gcc,
             linker: option_env!("CFG_DEFAULT_LINKER").map(|s| s.into()),
-            lld_flavor: LldFlavor::Ld,
             pre_link_args: LinkArgs::new(),
             post_link_args: LinkArgs::new(),
             link_script: None,
@@ -1874,31 +1799,6 @@ impl Target {
                         .map(|s| s.to_string().into());
                 }
             } );
-            ($key_name:ident, LldFlavor) => ( {
-                let name = (stringify!($key_name)).replace("_", "-");
-                obj.remove(&name).and_then(|o| o.as_str().and_then(|s| {
-                    if let Some(flavor) = LldFlavor::from_str(&s) {
-                        base.$key_name = flavor;
-                    } else {
-                        return Some(Err(format!(
-                            "'{}' is not a valid value for lld-flavor. \
-                             Use 'darwin', 'gnu', 'link' or 'wasm.",
-                            s)))
-                    }
-                    Some(Ok(()))
-                })).unwrap_or(Ok(()))
-            } );
-            ($key_name:ident, LinkerFlavor) => ( {
-                let name = (stringify!($key_name)).replace("_", "-");
-                obj.remove(&name).and_then(|o| o.as_str().and_then(|s| {
-                    match LinkerFlavor::from_str(s) {
-                        Some(linker_flavor) => base.$key_name = linker_flavor,
-                        _ => return Some(Err(format!("'{}' is not a valid value for linker-flavor. \
-                                                      Use {}", s, LinkerFlavor::one_of()))),
-                    }
-                    Some(Ok(()))
-                })).unwrap_or(Ok(()))
-            } );
             ($key_name:ident, StackProbeType) => ( {
                 let name = (stringify!($key_name)).replace("_", "-");
                 obj.remove(&name).and_then(|o| match StackProbeType::from_json(&o) {
@@ -1981,7 +1881,7 @@ impl Target {
                         JSON object with fields per linker-flavor.", name))?;
                     let mut args = LinkArgs::new();
                     for (k, v) in obj {
-                        let flavor = LinkerFlavor::from_str(&k).ok_or_else(|| {
+                        let flavor = CoarseGrainedLinkerFlavor::from_str(&k).ok_or_else(|| {
                             format!("{}: '{}' is not a valid value for linker-flavor. \
                                      Use 'em', 'gcc', 'ld' or 'msvc'", name, k)
                         })?;
@@ -2067,9 +1967,7 @@ impl Target {
         key!(env);
         key!(abi);
         key!(vendor);
-        key!(linker_flavor, LinkerFlavor)?;
         key!(linker, optional);
-        key!(lld_flavor, LldFlavor)?;
         key!(pre_link_objects, link_objects);
         key!(post_link_objects, link_objects);
         key!(pre_link_objects_fallback, link_objects);
@@ -2314,9 +2212,7 @@ impl ToJson for Target {
         target_option_val!(env);
         target_option_val!(abi);
         target_option_val!(vendor);
-        target_option_val!(linker_flavor);
         target_option_val!(linker);
-        target_option_val!(lld_flavor);
         target_option_val!(pre_link_objects);
         target_option_val!(post_link_objects);
         target_option_val!(pre_link_objects_fallback);

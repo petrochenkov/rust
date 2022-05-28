@@ -1,12 +1,15 @@
 use crate::abi::Endian;
-use crate::spec::{LinkerFlavor, RelocModel, Target, TargetOptions};
+use crate::spec::{CoarseGrainedLinkerFlavor, RelocModel, Target, TargetOptions};
 
 pub fn target() -> Target {
     let mut base = super::freebsd_base::opts();
-    base.pre_link_args.entry(LinkerFlavor::Gcc).or_default().push("-m32".into());
+    base.pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default()
+        .push("-m32".into());
     // Extra hint to linker that we are generating secure-PLT code.
     base.pre_link_args
-        .entry(LinkerFlavor::Gcc)
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
         .or_default()
         .push("--target=powerpc-unknown-freebsd13.0".into());
     base.max_atomic_width = Some(32);

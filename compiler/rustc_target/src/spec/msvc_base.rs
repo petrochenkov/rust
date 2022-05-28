@@ -1,4 +1,4 @@
-use crate::spec::{LinkArgs, LinkerFlavor, LldFlavor, SplitDebuginfo, TargetOptions};
+use crate::spec::{CoarseGrainedLinkerFlavor, LinkArgs, SplitDebuginfo, TargetOptions};
 
 pub fn opts() -> TargetOptions {
     let pre_link_args_msvc = vec![
@@ -7,15 +7,12 @@ pub fn opts() -> TargetOptions {
         "/NOLOGO".into(),
     ];
     let mut pre_link_args = LinkArgs::new();
-    pre_link_args.insert(LinkerFlavor::Msvc, pre_link_args_msvc.clone());
-    pre_link_args.insert(LinkerFlavor::Lld(LldFlavor::Link), pre_link_args_msvc);
+    pre_link_args.insert(CoarseGrainedLinkerFlavor::TargetLinker, pre_link_args_msvc);
 
     TargetOptions {
-        linker_flavor: LinkerFlavor::Msvc,
         executables: true,
         is_like_windows: true,
         is_like_msvc: true,
-        lld_flavor: LldFlavor::Link,
         linker_is_gnu: false,
         pre_link_args,
         abi_return_struct_as_int: true,

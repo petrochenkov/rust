@@ -1,4 +1,4 @@
-use crate::spec::{LinkerFlavor, LldFlavor, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, Target};
 
 pub fn target() -> Target {
     let mut base = super::windows_msvc_base::opts();
@@ -14,9 +14,8 @@ pub fn target() -> Target {
         // https://docs.microsoft.com/en-us/cpp/build/reference/safeseh-image-has-safe-exception-handlers
         "/SAFESEH".into(),
     ];
-    base.pre_link_args.entry(LinkerFlavor::Msvc).or_default().extend(pre_link_args_msvc.clone());
     base.pre_link_args
-        .entry(LinkerFlavor::Lld(LldFlavor::Link))
+        .entry(CoarseGrainedLinkerFlavor::TargetLinker)
         .or_default()
         .extend(pre_link_args_msvc);
     // Workaround for #95429

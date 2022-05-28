@@ -9,6 +9,7 @@ use rustc_hir::def_id::CrateNum;
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::middle::exported_symbols::SymbolExportKind;
 use rustc_session::config::{self, CFGuard, CrateType, DebugInfo, LdImpl, Strip};
+use rustc_session::config::{LegacyLinkerFlavor, LldFlavor};
 use rustc_session::config::{OutputFilenames, OutputType, PrintRequest, SplitDwarfKind};
 use rustc_session::cstore::DllImport;
 use rustc_session::output::{check_file_is_writeable, invalid_output_for_target, out_filename};
@@ -20,7 +21,8 @@ use rustc_session::{filesearch, Session};
 use rustc_span::symbol::Symbol;
 use rustc_span::DebuggerVisualizerFile;
 use rustc_target::spec::crt_objects::{CrtObjects, CrtObjectsFallback};
-use rustc_target::spec::{LinkOutputKind, LinkerFlavor, LldFlavor, SplitDebuginfo};
+use rustc_target::spec::CoarseGrainedLinkerFlavor;
+use rustc_target::spec::{LinkOutputKind, SplitDebuginfo};
 use rustc_target::spec::{PanicStrategy, RelocModel, RelroLevel, SanitizerSet, Target};
 
 use super::archive::{find_library, ArchiveBuilder};
@@ -665,10 +667,11 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
     tmpdir: &Path,
 ) {
     info!("preparing {:?} to {:?}", crate_type, out_filename);
-    let (linker_path, flavor) = linker_and_flavor(sess);
+    let (linker_path, full_flavor) = linker_and_flavor(sess);
+    let flavor = *full_flavor;
     let mut cmd = linker_with_args::<B>(
         &linker_path,
-        flavor,
+        full_flavor,
         sess,
         crate_type,
         tmpdir,
@@ -719,7 +722,7 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
         // versions of gcc seem to use different quotes in the error message so
         // don't check for them.
         if sess.target.linker_is_gnu
-            && flavor != LinkerFlavor::Ld
+            && flavor == CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler
             && unknown_arg_regex.is_match(&out)
             && out.contains("-no-pie")
             && cmd.get_args().iter().any(|e| e.to_string_lossy() == "-no-pie")
@@ -738,7 +741,7 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
         // Detect '-static-pie' used with an older version of gcc or clang not supporting it.
         // Fallback from '-static-pie' to '-static' in that case.
         if sess.target.linker_is_gnu
-            && flavor != LinkerFlavor::Ld
+            && flavor == CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler
             && unknown_arg_regex.is_match(&out)
             && (out.contains("-static-pie") || out.contains("--no-dynamic-linker"))
             && cmd.get_args().iter().any(|e| e.to_string_lossy() == "-static-pie")
@@ -873,7 +876,6 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
                 // install the Visual Studio build tools.
                 if let Some(code) = prog.status.code() {
                     if sess.target.is_like_msvc
-                        && flavor == LinkerFlavor::Msvc
                         // Respect the command line override
                         && sess.opts.cg.linker.is_none()
                         // Match exactly "link.exe"
@@ -1139,94 +1141,103 @@ pub fn ignored_for_lto(sess: &Session, info: &CrateInfo, cnum: CrateNum) -> bool
         && (info.compiler_builtins == Some(cnum) || info.is_no_builtins.contains(&cnum))
 }
 
-// This functions tries to determine the appropriate linker (and corresponding LinkerFlavor) to use
-pub fn linker_and_flavor(sess: &Session) -> (PathBuf, LinkerFlavor) {
-    fn infer_from(
-        sess: &Session,
-        linker: Option<PathBuf>,
-        flavor: Option<LinkerFlavor>,
-    ) -> Option<(PathBuf, LinkerFlavor)> {
-        match (linker, flavor) {
-            (Some(linker), Some(flavor)) => Some((linker, flavor)),
-            // only the linker flavor is known; use the default linker for the selected flavor
-            (None, Some(flavor)) => Some((
-                PathBuf::from(match flavor {
-                    LinkerFlavor::Em => {
-                        if cfg!(windows) {
-                            "emcc.bat"
-                        } else {
-                            "emcc"
-                        }
-                    }
-                    LinkerFlavor::Gcc => {
-                        if cfg!(any(target_os = "solaris", target_os = "illumos")) {
-                            // On historical Solaris systems, "cc" may have
-                            // been Sun Studio, which is not flag-compatible
-                            // with "gcc".  This history casts a long shadow,
-                            // and many modern illumos distributions today
-                            // ship GCC as "gcc" without also making it
-                            // available as "cc".
-                            "gcc"
-                        } else {
-                            "cc"
-                        }
-                    }
-                    LinkerFlavor::Ld => "ld",
-                    LinkerFlavor::Msvc => "link.exe",
-                    LinkerFlavor::Lld(_) => "lld",
-                    LinkerFlavor::PtxLinker => "rust-ptx-linker",
-                    LinkerFlavor::BpfLinker => "bpf-linker",
-                    LinkerFlavor::L4Bender => "l4-bender",
-                }),
-                flavor,
-            )),
-            (Some(linker), None) => {
-                let stem = linker.file_stem().and_then(|stem| stem.to_str()).unwrap_or_else(|| {
-                    sess.fatal("couldn't extract file stem from specified linker")
-                });
+fn flavor_from_linker_str(linker: &Path, sess: &Session) -> Option<LegacyLinkerFlavor> {
+    let stem = linker
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or_else(|| sess.fatal("couldn't extract file stem from specified linker"));
 
-                let flavor = if stem == "emcc" {
-                    LinkerFlavor::Em
-                } else if stem == "gcc"
-                    || stem.ends_with("-gcc")
-                    || stem == "clang"
-                    || stem.ends_with("-clang")
-                {
-                    LinkerFlavor::Gcc
-                } else if stem == "wasm-ld" || stem.ends_with("-wasm-ld") {
-                    LinkerFlavor::Lld(LldFlavor::Wasm)
-                } else if stem == "ld" || stem == "ld.lld" || stem.ends_with("-ld") {
-                    LinkerFlavor::Ld
-                } else if stem == "link" || stem == "lld-link" {
-                    LinkerFlavor::Msvc
-                } else if stem == "lld" || stem == "rust-lld" {
-                    LinkerFlavor::Lld(sess.target.lld_flavor)
-                } else {
-                    // fall back to the value in the target spec
-                    sess.target.linker_flavor
-                };
+    Some(if stem == "emcc" {
+        LegacyLinkerFlavor::Em
+    } else if stem == "gcc"
+        || stem.ends_with("-gcc")
+        || stem == "clang"
+        || stem.ends_with("-clang")
+        || stem == "cc"
+        || stem.ends_with("-cc")
+        || stem == "c++"
+        || stem.ends_with("-c++")
+    {
+        LegacyLinkerFlavor::Gcc
+    } else if stem == "wasm-ld" || stem.ends_with("-wasm-ld") {
+        LegacyLinkerFlavor::Lld(LldFlavor::Wasm)
+    } else if stem == "ld" || stem == "ld.lld" || stem.ends_with("-ld") {
+        LegacyLinkerFlavor::Ld
+    } else if stem == "link" || stem == "lld-link" {
+        LegacyLinkerFlavor::Msvc
+    } else if stem == "lld" || stem == "rust-lld" {
+        LegacyLinkerFlavor::Lld(LldFlavor::from_sess(sess))
+    } else if stem == "l4-bender" {
+        LegacyLinkerFlavor::L4Bender
+    } else if stem == "rust-ptx-linker" {
+        LegacyLinkerFlavor::PtxLinker
+    } else if stem == "bpf-linker" {
+        LegacyLinkerFlavor::BpfLinker
+    } else {
+        return None;
+    })
+}
 
-                Some((linker, flavor))
+fn flavor_to_linker_str(flavor: LegacyLinkerFlavor) -> PathBuf {
+    PathBuf::from(match flavor {
+        LegacyLinkerFlavor::Em => {
+            if cfg!(windows) {
+                "emcc.bat"
+            } else {
+                "emcc"
             }
-            (None, None) => None,
         }
-    }
+        LegacyLinkerFlavor::Gcc => {
+            if cfg!(any(target_os = "solaris", target_os = "illumos")) {
+                // On historical Solaris systems, "cc" may have
+                // been Sun Studio, which is not flag-compatible
+                // with "gcc".  This history casts a long shadow,
+                // and many modern illumos distributions today
+                // ship GCC as "gcc" without also making it
+                // available as "cc".
+                "gcc"
+            } else {
+                "cc"
+            }
+        }
+        LegacyLinkerFlavor::Ld => "ld",
+        LegacyLinkerFlavor::Msvc => "link.exe",
+        LegacyLinkerFlavor::Lld(_) => "lld",
+        LegacyLinkerFlavor::PtxLinker => "rust-ptx-linker",
+        LegacyLinkerFlavor::BpfLinker => "bpf-linker",
+        LegacyLinkerFlavor::L4Bender => "l4-bender",
+    })
+}
 
-    // linker and linker flavor specified via command line have precedence over what the target
-    // specification specifies
-    if let Some(ret) = infer_from(sess, sess.opts.cg.linker.clone(), sess.opts.cg.linker_flavor) {
-        return ret;
+// This functions tries to determine the appropriate linker (and corresponding LegacyLinkerFlavor) to use
+pub fn linker_and_flavor(sess: &Session) -> (PathBuf, LegacyLinkerFlavor) {
+    if let (Some(linker), Some(flavor)) = (&sess.opts.cg.linker, sess.opts.cg.linker_flavor) {
+        return (linker.to_owned(), flavor);
     }
-
-    if let Some(ret) = infer_from(
-        sess,
-        sess.target.linker.as_deref().map(PathBuf::from),
-        Some(sess.target.linker_flavor),
-    ) {
-        return ret;
+    if let (None, Some(flavor)) = (&sess.opts.cg.linker, sess.opts.cg.linker_flavor) {
+        return (flavor_to_linker_str(flavor), flavor);
     }
-
-    bug!("Not enough information provided to determine how to invoke the linker");
+    if let (Some(linker), None) = (&sess.opts.cg.linker, sess.opts.cg.linker_flavor) {
+        if let Some(flavor) = flavor_from_linker_str(linker, sess) {
+            return (linker.to_owned(), flavor);
+        }
+        if let Some(default_linker) = &sess.target.linker {
+            if let Some(flavor) = flavor_from_linker_str(Path::new(default_linker.as_ref()), sess) {
+                return (linker.to_owned(), flavor);
+            }
+        }
+        // FIXME: From system
+        return (linker.to_owned(), LegacyLinkerFlavor::Gcc);
+    }
+    if let Some(default_linker) = &sess.target.linker {
+        if let Some(flavor) = flavor_from_linker_str(Path::new(default_linker.as_ref()), sess) {
+            return (PathBuf::from(default_linker.clone().into_owned()), flavor);
+        }
+        // FIXME: From system
+        return (PathBuf::from(default_linker.clone().into_owned()), LegacyLinkerFlavor::Gcc);
+    }
+    // FIXME: From system
+    return (PathBuf::from("cc"), LegacyLinkerFlavor::Gcc);
 }
 
 /// Returns a pair of boolean indicating whether we should preserve the object and
@@ -1588,7 +1599,7 @@ fn add_post_link_objects(
 
 /// Add arbitrary "pre-link" args defined by the target spec or from command line.
 /// FIXME: Determine where exactly these args need to be inserted.
-fn add_pre_link_args(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
+fn add_pre_link_args(cmd: &mut dyn Linker, sess: &Session, flavor: CoarseGrainedLinkerFlavor) {
     if let Some(args) = sess.target.pre_link_args.get(&flavor) {
         cmd.args(args.iter().map(Deref::deref));
     }
@@ -1628,7 +1639,7 @@ fn add_user_defined_link_args(cmd: &mut dyn Linker, sess: &Session) {
 fn add_late_link_args(
     cmd: &mut dyn Linker,
     sess: &Session,
-    flavor: LinkerFlavor,
+    flavor: CoarseGrainedLinkerFlavor,
     crate_type: CrateType,
     codegen_results: &CodegenResults,
 ) {
@@ -1652,7 +1663,7 @@ fn add_late_link_args(
 
 /// Add arbitrary "post-link" args defined by the target spec.
 /// FIXME: Determine where exactly these args need to be inserted.
-fn add_post_link_args(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
+fn add_post_link_args(cmd: &mut dyn Linker, sess: &Session, flavor: CoarseGrainedLinkerFlavor) {
     if let Some(args) = sess.target.post_link_args.get(&flavor) {
         cmd.args(args.iter().map(Deref::deref));
     }
@@ -1851,18 +1862,19 @@ fn add_rpath_args(
 /// e.g `--foo=yes --foo=no` may be equivalent to `--foo=no`.
 fn linker_with_args<'a, B: ArchiveBuilder<'a>>(
     path: &Path,
-    flavor: LinkerFlavor,
+    full_flavor: LegacyLinkerFlavor,
     sess: &'a Session,
     crate_type: CrateType,
     tmpdir: &Path,
     out_filename: &Path,
     codegen_results: &CodegenResults,
 ) -> Command {
+    let flavor = *full_flavor;
     let crt_objects_fallback = crt_objects_fallback(sess, crate_type);
     let cmd = &mut *super::linker::get_linker(
         sess,
         path,
-        flavor,
+        full_flavor,
         crt_objects_fallback,
         &codegen_results.crate_info.target_cpu,
     );
@@ -2015,7 +2027,7 @@ fn add_order_independent_options(
     sess: &Session,
     link_output_kind: LinkOutputKind,
     crt_objects_fallback: bool,
-    flavor: LinkerFlavor,
+    flavor: CoarseGrainedLinkerFlavor,
     crate_type: CrateType,
     codegen_results: &CodegenResults,
     out_filename: &Path,
@@ -2056,11 +2068,11 @@ fn add_order_independent_options(
         });
     }
 
-    if flavor == LinkerFlavor::PtxLinker {
+    if sess.target.arch == "nvptx64" {
         // Provide the linker with fallback to internal `target-cpu`.
         cmd.arg("--fallback-arch");
         cmd.arg(&codegen_results.crate_info.target_cpu);
-    } else if flavor == LinkerFlavor::BpfLinker {
+    } else if sess.target.arch == "bpf" {
         cmd.arg("--cpu");
         cmd.arg(&codegen_results.crate_info.target_cpu);
         cmd.arg("--cpu-features");
@@ -2597,13 +2609,13 @@ fn are_upstream_rust_objects_already_included(sess: &Session) -> bool {
     }
 }
 
-fn add_apple_sdk(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
+fn add_apple_sdk(cmd: &mut dyn Linker, sess: &Session, flavor: CoarseGrainedLinkerFlavor) {
     let arch = &sess.target.arch;
     let os = &sess.target.os;
     let llvm_target = &sess.target.llvm_target;
     if sess.target.vendor != "apple"
         || !matches!(os.as_ref(), "ios" | "tvos")
-        || flavor != LinkerFlavor::Gcc
+        || flavor == CoarseGrainedLinkerFlavor::TargetLinker
     {
         return;
     }
@@ -2687,9 +2699,9 @@ fn get_apple_sdk_root(sdk_name: &str) -> Result<String, String> {
     }
 }
 
-fn add_gcc_ld_path(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
+fn add_gcc_ld_path(cmd: &mut dyn Linker, sess: &Session, flavor: CoarseGrainedLinkerFlavor) {
     if let Some(ld_impl) = sess.opts.debugging_opts.gcc_ld {
-        if let LinkerFlavor::Gcc = flavor {
+        if flavor == CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler {
             match ld_impl {
                 LdImpl::Lld => {
                     let tools_path = sess.get_tools_search_paths(false);
@@ -2705,7 +2717,9 @@ fn add_gcc_ld_path(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
                         arg.push(gcc_ld_dir);
                         arg
                     });
-                    cmd.arg(format!("-Wl,-rustc-lld-flavor={}", sess.target.lld_flavor.as_str()));
+
+                    let lld_flavor = LldFlavor::from_sess(sess);
+                    cmd.arg(format!("-Wl,-rustc-lld-flavor={}", lld_flavor.as_str()));
                 }
             }
         } else {

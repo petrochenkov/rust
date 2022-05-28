@@ -12,8 +12,9 @@ use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 
 use rustc_data_structures::stable_hasher::ToStableHashKey;
 use rustc_target::abi::{Align, TargetDataLayout};
-use rustc_target::spec::{LinkerFlavor, SplitDebuginfo, Target, TargetTriple, TargetWarnings};
+use rustc_target::spec::CoarseGrainedLinkerFlavor;
 use rustc_target::spec::{PanicStrategy, SanitizerSet, TARGETS};
+use rustc_target::spec::{SplitDebuginfo, Target, TargetTriple, TargetWarnings};
 
 use crate::parse::{CrateCheckConfig, CrateConfig};
 use rustc_feature::UnstableFeatures;
@@ -35,6 +36,121 @@ use std::hash::Hash;
 use std::iter::{self, FromIterator};
 use std::path::{Path, PathBuf};
 use std::str::{self, FromStr};
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum LegacyLinkerFlavor {
+    Em,
+    Gcc,
+    L4Bender,
+    Ld,
+    Msvc,
+    Lld(LldFlavor),
+    PtxLinker,
+    BpfLinker,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum LldFlavor {
+    Wasm,
+    Ld64,
+    Ld,
+    Link,
+}
+
+impl LldFlavor {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LldFlavor::Wasm => "wasm",
+            LldFlavor::Ld64 => "darwin",
+            LldFlavor::Ld => "gnu",
+            LldFlavor::Link => "link",
+        }
+    }
+
+    pub fn from_sess(sess: &Session) -> LldFlavor {
+        if sess.target.is_like_msvc {
+            LldFlavor::Link
+        } else if sess.target.is_like_osx {
+            LldFlavor::Ld64
+        } else if sess.target.is_like_wasm {
+            LldFlavor::Wasm
+        } else {
+            LldFlavor::Ld
+        }
+    }
+
+    // fn from_str(s: &str) -> Option<Self> {
+    //     Some(match s {
+    //         "darwin" => LldFlavor::Ld64,
+    //         "gnu" => LldFlavor::Ld,
+    //         "link" => LldFlavor::Link,
+    //         "wasm" => LldFlavor::Wasm,
+    //         _ => return None,
+    //     })
+    // }
+}
+
+// impl ToJson for LldFlavor {
+//     fn to_json(&self) -> Json {
+//         self.as_str().to_json()
+//     }
+// }
+
+// impl ToJson for LegacyLinkerFlavor {
+//     fn to_json(&self) -> Json {
+//         self.desc().to_json()
+//     }
+// }
+
+macro_rules! flavor_mappings {
+    ($((($($flavor:tt)*), $string:expr),)*) => (
+        impl LegacyLinkerFlavor {
+            pub const fn one_of() -> &'static str {
+                concat!("one of: ", $($string, " ",)*)
+            }
+
+            pub fn from_str(s: &str) -> Option<Self> {
+                Some(match s {
+                    $($string => $($flavor)*,)*
+                    _ => return None,
+                })
+            }
+
+            // pub fn desc(&self) -> &str {
+            //     match *self {
+            //         $($($flavor)* => $string,)*
+            //     }
+            // }
+        }
+    )
+}
+
+flavor_mappings! {
+    ((LegacyLinkerFlavor::Em), "em"),
+    ((LegacyLinkerFlavor::Gcc), "gcc"),
+    ((LegacyLinkerFlavor::L4Bender), "l4-bender"),
+    ((LegacyLinkerFlavor::Ld), "ld"),
+    ((LegacyLinkerFlavor::Msvc), "msvc"),
+    ((LegacyLinkerFlavor::PtxLinker), "ptx-linker"),
+    ((LegacyLinkerFlavor::BpfLinker), "bpf-linker"),
+    ((LegacyLinkerFlavor::Lld(LldFlavor::Wasm)), "wasm-ld"),
+    ((LegacyLinkerFlavor::Lld(LldFlavor::Ld64)), "ld64.lld"),
+    ((LegacyLinkerFlavor::Lld(LldFlavor::Ld)), "ld.lld"),
+    ((LegacyLinkerFlavor::Lld(LldFlavor::Link)), "lld-link"),
+}
+
+impl std::ops::Deref for LegacyLinkerFlavor {
+    type Target = CoarseGrainedLinkerFlavor;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            LegacyLinkerFlavor::Gcc => {
+                &CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler
+            }
+            _ => &CoarseGrainedLinkerFlavor::TargetLinker,
+        }
+    }
+}
 
 /// The different settings that the `-C strip` flag can have.
 #[derive(Clone, Copy, PartialEq, Hash, Debug)]
@@ -2388,7 +2504,7 @@ pub fn build_session_options(matches: &getopts::Matches) -> Options {
         }
     }
 
-    if cg.linker_flavor == Some(LinkerFlavor::L4Bender)
+    if cg.linker_flavor == Some(LegacyLinkerFlavor::L4Bender)
         && !nightly_options::is_unstable_enabled(matches)
     {
         early_error(

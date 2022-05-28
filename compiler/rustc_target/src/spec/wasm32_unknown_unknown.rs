@@ -11,13 +11,12 @@
 //! Group nowadays at <https://github.com/rustwasm>.
 
 use super::wasm_base;
-use super::{LinkerFlavor, LldFlavor, Target};
+use super::{CoarseGrainedLinkerFlavor, Target};
 use crate::spec::abi::Abi;
 
 pub fn target() -> Target {
     let mut options = wasm_base::options();
     options.os = "unknown".into();
-    options.linker_flavor = LinkerFlavor::Lld(LldFlavor::Wasm);
 
     // This is a default for backwards-compatibility with the original
     // definition of this target oh-so-long-ago. Once the "wasm" ABI is
@@ -29,7 +28,10 @@ pub fn target() -> Target {
     // code on this target due to this ABI mismatch.
     options.default_adjusted_cabi = Some(Abi::Wasm);
 
-    let clang_args = options.pre_link_args.entry(LinkerFlavor::Gcc).or_default();
+    let clang_args = options
+        .pre_link_args
+        .entry(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler)
+        .or_default();
 
     // Make sure clang uses LLD as its linker and is configured appropriately
     // otherwise
@@ -47,7 +49,8 @@ pub fn target() -> Target {
     clang_args.push("-Wl,--export-dynamic".into());
 
     // Add the flags to wasm-ld's args too.
-    let lld_args = options.pre_link_args.entry(LinkerFlavor::Lld(LldFlavor::Wasm)).or_default();
+    let lld_args =
+        options.pre_link_args.entry(CoarseGrainedLinkerFlavor::TargetLinker).or_default();
     lld_args.push("--no-entry".into());
     lld_args.push("--export-dynamic".into());
 

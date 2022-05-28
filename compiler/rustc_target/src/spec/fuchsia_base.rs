@@ -1,11 +1,11 @@
 use crate::spec::{
-    crt_objects, cvs, LinkArgs, LinkOutputKind, LinkerFlavor, LldFlavor, TargetOptions,
+    crt_objects, cvs, CoarseGrainedLinkerFlavor, LinkArgs, LinkOutputKind, TargetOptions,
 };
 
 pub fn opts() -> TargetOptions {
     let mut pre_link_args = LinkArgs::new();
     pre_link_args.insert(
-        LinkerFlavor::Lld(LldFlavor::Ld),
+        CoarseGrainedLinkerFlavor::TargetLinker,
         vec![
             "--build-id".into(),
             "--hash-style=gnu".into(),
@@ -23,7 +23,6 @@ pub fn opts() -> TargetOptions {
 
     TargetOptions {
         os: "fuchsia".into(),
-        linker_flavor: LinkerFlavor::Lld(LldFlavor::Ld),
         linker: Some("rust-lld".into()),
         dynamic_linking: true,
         executables: true,

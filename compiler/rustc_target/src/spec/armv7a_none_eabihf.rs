@@ -5,12 +5,11 @@
 // changes (list in `armv7a_none_eabi.rs`) to bring it closer to the bare-metal
 // `thumb` & `aarch64` targets.
 
-use super::{LinkerFlavor, LldFlavor, PanicStrategy, RelocModel, Target, TargetOptions};
+use super::{PanicStrategy, RelocModel, Target, TargetOptions};
 
 pub fn target() -> Target {
     let opts = TargetOptions {
         abi: "eabihf".into(),
-        linker_flavor: LinkerFlavor::Lld(LldFlavor::Ld),
         linker: Some("rust-lld".into()),
         features: "+v7,+vfp3,-d32,+thumb2,-neon,+strict-align".into(),
         executables: true,

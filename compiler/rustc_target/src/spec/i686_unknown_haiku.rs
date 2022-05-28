@@ -1,10 +1,11 @@
-use crate::spec::{LinkerFlavor, StackProbeType, Target};
+use crate::spec::{CoarseGrainedLinkerFlavor, StackProbeType, Target};
 
 pub fn target() -> Target {
     let mut base = super::haiku_base::opts();
     base.cpu = "pentium4".into();
     base.max_atomic_width = Some(64);
-    base.pre_link_args.insert(LinkerFlavor::Gcc, vec!["-m32".into()]);
+    base.pre_link_args
+        .insert(CoarseGrainedLinkerFlavor::TargetLinkerCalledThroughCCompiler, vec!["-m32".into()]);
     // don't use probe-stack=inline-asm until rust#83139 and rust#84667 are resolved
     base.stack_probes = StackProbeType::Call;
 
