@@ -12,7 +12,6 @@ use rustc_hir::def_id::LocalDefId;
 use rustc_hir::def_id::CRATE_DEF_ID;
 use rustc_middle::middle::privacy::AccessLevel;
 use rustc_middle::ty::DefIdTree;
-use rustc_middle::ty::Visibility;
 use rustc_span::sym;
 
 pub struct AccessLevelsVisitor<'r, 'a> {
@@ -106,27 +105,14 @@ impl<'r, 'a> AccessLevelsVisitor<'r, 'a> {
     ) -> Option<AccessLevel> {
         let old_level = self.r.access_levels.get_access_level(def_id);
         if old_level < access_level {
-            self.set_access_level_wrapper(def_id, access_level);
+            let mut access_levels = std::mem::take(&mut self.r.access_levels);
+            access_levels.set_access_level(def_id, access_level, &*self.r);
+            self.r.access_levels = access_levels;
             self.changed = true;
             access_level
         } else {
             old_level
         }
-    }
-
-    fn set_access_level_wrapper(
-        &mut self,
-        id: LocalDefId,
-        access_level: Option<AccessLevel>,
-    ) -> Option<AccessLevel> {
-        if let Some(tag) = access_level {
-            let mut effective_vis =
-                self.r.access_levels.get_effective_vis(id).copied().unwrap_or_default();
-
-            effective_vis.update(Some(Visibility::Public), tag, &*self.r);
-            self.r.access_levels.set_effective_vis(id, effective_vis);
-        }
-        self.r.access_levels.get_access_level(id)
     }
 }
 
