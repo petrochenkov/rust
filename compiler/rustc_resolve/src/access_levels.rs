@@ -1,5 +1,4 @@
 use crate::imports::ImportKind;
-use crate::NameBinding;
 use crate::NameBindingKind;
 use crate::Resolver;
 use rustc_ast::ast;
@@ -50,37 +49,29 @@ impl<'r, 'a> AccessLevelsVisitor<'r, 'a> {
         if !module_level.is_some() {
             return;
         }
-        // Set the given binding access level to `AccessLevel::Public` and
-        // sets the rest of the `use` chain to `AccessLevel::Exported` until
-        // we hit the actual exported item.
-        let set_import_binding_access_level =
-            |this: &mut Self, mut binding: &NameBinding<'a>, mut access_level| {
-                while let NameBindingKind::Import { binding: nested_binding, import, .. } =
-                    binding.kind
-                {
-                    this.set_access_level(import.id, access_level);
-                    if let ImportKind::Single { additional_ids, .. } = import.kind {
-                        this.set_access_level(additional_ids.0, access_level);
-                        this.set_access_level(additional_ids.1, access_level);
-                    }
-
-                    access_level = Some(AccessLevel::Exported);
-                    binding = nested_binding;
-                }
-            };
 
         let module = self.r.get_module(module_id.to_def_id()).unwrap();
         let resolutions = self.r.resolutions(module);
 
         for (.., name_resolution) in resolutions.borrow().iter() {
-            if let Some(binding) = name_resolution.borrow().binding() && binding.vis.is_public() && !binding.is_ambiguity() {
-                let access_level = match binding.is_import() {
-                    true => {
-                        set_import_binding_access_level(self, binding, module_level);
-                        Some(AccessLevel::Exported)
-                    },
-                    false => module_level,
-                };
+            if let Some(mut binding) = name_resolution.borrow().binding() && binding.vis.is_public() && !binding.is_ambiguity()
+            {
+                // Set the given binding access level to `AccessLevel::Public` and
+                // sets the rest of the `use` chain to `AccessLevel::Exported` until
+                // we hit the actual exported item.
+                let mut access_level = module_level;
+                while let NameBindingKind::Import { binding: next_binding, import, .. } =
+                    binding.kind
+                {
+                    self.set_access_level(import.id, access_level);
+                    if let ImportKind::Single { additional_ids, .. } = import.kind {
+                        self.set_access_level(additional_ids.0, access_level);
+                        self.set_access_level(additional_ids.1, access_level);
+                    }
+                    binding = next_binding;
+                    access_level = Some(AccessLevel::Exported);
+                }
+
                 if let Some(def_id) = binding.res().opt_def_id().and_then(|id| id.as_local()) {
                     self.set_access_level_def_id(def_id, access_level);
                 }
