@@ -215,6 +215,77 @@ impl<Id: Eq + Hash> EffectiveVisibilities<Id> {
         self.map.get(&id)
     }
 
+    pub fn update2(
+        &mut self,
+        id: Id,
+        parent_id: Id,
+        nominal_vis: Visibility,
+        default_vis: impl FnOnce() -> Visibility,
+        level: Level,
+        tree: impl DefIdTree,
+    ) {
+        if self.map.contains_key(&id) {
+            let old_eff_vis = self.map[&id];
+
+            let inherited_vis = if let Some(ggg) = self.map.get(&parent_id) {
+                *ggg.at_level(level)
+            } else {
+                todo!()
+            };
+            let vis = if nominal_vis.is_at_least(inherited_vis, tree) {
+                inherited_vis
+            } else {
+                nominal_vis
+            };
+
+            todo!()
+        } else {
+            impl EffectiveVisibility {
+                fn new(
+                    level: Level,
+                    vis: Visibility,
+                    default_vis: impl FnOnce() -> Visibility,
+                ) -> EffectiveVisibility {
+                    macro_rules! eff_vis {
+                        ($d:expr, $re:expr, $r:expr, $rtit:expr) => {
+                            EffectiveVisibility {
+                                direct: $d,
+                                reexported: $re,
+                                reachable: $r,
+                                reachable_through_impl_trait: $rtit,
+                            }
+                        };
+                    }
+
+                    match level {
+                        Level::Direct => eff_vis![vis, vis, vis, vis],
+                        Level::Reexported => eff_vis![default_vis(), vis, vis, vis],
+                        Level::Reachable => {
+                            let default_vis = default_vis();
+                            eff_vis![default_vis, default_vis, vis, vis]
+                        }
+                        Level::ReachableThroughImplTrait => {
+                            let default_vis = default_vis();
+                            eff_vis![default_vis, default_vis, default_vis, vis]
+                        }
+                    }
+                }
+            }
+
+            let inherited_vis = if let Some(ggg) = self.map.get(&parent_id) {
+                *ggg.at_level(level)
+            } else {
+                todo!()
+            };
+            let vis = if nominal_vis.is_at_least(inherited_vis, tree) {
+                inherited_vis
+            } else {
+                nominal_vis
+            };
+            self.map.insert(id, EffectiveVisibility::new(level, vis, default_vis));
+        }
+    }
+
     // `parent_id` is not necessarily a parent in source code tree,
     // it is the node from which the maximum effective visibility is inherited.
     pub fn update(
