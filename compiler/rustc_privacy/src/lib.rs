@@ -921,31 +921,9 @@ pub struct TestReachabilityVisitor<'tcx, 'a> {
 impl<'tcx, 'a> TestReachabilityVisitor<'tcx, 'a> {
     fn effective_visibility_diagnostic(&mut self, def_id: LocalDefId) {
         if self.tcx.has_attr(def_id.to_def_id(), sym::rustc_effective_visibility) {
-            let mut error_msg = String::new();
+            let descr = self.effective_visibilities.debug_string(self.tcx, def_id);
             let span = self.tcx.def_span(def_id.to_def_id());
-            if let Some(effective_vis) = self.effective_visibilities.effective_vis(def_id) {
-                for level in Level::all_levels() {
-                    let vis_str = match effective_vis.at_level(level) {
-                        ty::Visibility::Restricted(restricted_id) => {
-                            if restricted_id.is_top_level_module() {
-                                "pub(crate)".to_string()
-                            } else if *restricted_id == self.tcx.parent_module_from_def_id(def_id) {
-                                "pub(self)".to_string()
-                            } else {
-                                format!("pub({})", self.tcx.item_name(restricted_id.to_def_id()))
-                            }
-                        }
-                        ty::Visibility::Public => "pub".to_string(),
-                    };
-                    if level != Level::Direct {
-                        error_msg.push_str(", ");
-                    }
-                    error_msg.push_str(&format!("{:?}: {}", level, vis_str));
-                }
-            } else {
-                error_msg.push_str("not in the table");
-            }
-            self.tcx.sess.emit_err(ReportEffectiveVisibility { span, descr: error_msg });
+            self.tcx.sess.emit_err(ReportEffectiveVisibility { descr, span });
         }
     }
 }
@@ -959,6 +937,10 @@ impl<'tcx, 'a> Visitor<'tcx> for TestReachabilityVisitor<'tcx, 'a> {
                 for variant in def.variants.iter() {
                     let variant_id = self.tcx.hir().local_def_id(variant.id);
                     self.effective_visibility_diagnostic(variant_id);
+                    if let Some(ctor_hir_id) = variant.data.ctor_hir_id() {
+                        let ctor_def_id = self.tcx.hir().local_def_id(ctor_hir_id);
+                        self.effective_visibility_diagnostic(ctor_def_id);
+                    }
                     for field in variant.data.fields() {
                         let def_id = self.tcx.hir().local_def_id(field.hir_id);
                         self.effective_visibility_diagnostic(def_id);
@@ -966,6 +948,10 @@ impl<'tcx, 'a> Visitor<'tcx> for TestReachabilityVisitor<'tcx, 'a> {
                 }
             }
             hir::ItemKind::Struct(ref def, _) | hir::ItemKind::Union(ref def, _) => {
+                if let Some(ctor_hir_id) = def.ctor_hir_id() {
+                    let ctor_def_id = self.tcx.hir().local_def_id(ctor_hir_id);
+                    self.effective_visibility_diagnostic(ctor_def_id);
+                }
                 for field in def.fields() {
                     let def_id = self.tcx.hir().local_def_id(field.hir_id);
                     self.effective_visibility_diagnostic(def_id);
@@ -2131,6 +2117,7 @@ fn effective_visibilities(tcx: TyCtxt<'_>, (): ()) -> &EffectiveVisibilities {
         changed: false,
     };
 
+    visitor.effective_visibilities.check_invariants(tcx);
     loop {
         tcx.hir().walk_toplevel_module(&mut visitor);
         if visitor.changed {
@@ -2139,6 +2126,7 @@ fn effective_visibilities(tcx: TyCtxt<'_>, (): ()) -> &EffectiveVisibilities {
             break;
         }
     }
+    visitor.effective_visibilities.check_invariants(tcx);
 
     let mut check_visitor =
         TestReachabilityVisitor { tcx, effective_visibilities: &visitor.effective_visibilities };
