@@ -142,13 +142,13 @@ impl EffectiveVisibilities {
     pub fn set_public_at_level(
         &mut self,
         id: LocalDefId,
-        default_vis: impl FnOnce() -> Visibility,
+        lazy_private_vis: impl FnOnce() -> Visibility,
         level: Level,
     ) {
         let mut effective_vis = self
             .effective_vis(id)
             .copied()
-            .unwrap_or_else(|| EffectiveVisibility::from_vis(default_vis()));
+            .unwrap_or_else(|| EffectiveVisibility::from_vis(lazy_private_vis()));
         for l in Level::all_levels() {
             if l <= level {
                 *effective_vis.at_level_mut(l) = Visibility::Public;
@@ -206,6 +206,11 @@ impl EffectiveVisibilities {
     }
 }
 
+pub trait IntoDefIdTree {
+    type Tree: DefIdTree;
+    fn tree(self) -> Self::Tree;
+}
+
 impl<Id: Eq + Hash> EffectiveVisibilities<Id> {
     pub fn iter(&self) -> impl Iterator<Item = (&Id, &EffectiveVisibility)> {
         self.map.iter()
@@ -215,54 +220,62 @@ impl<Id: Eq + Hash> EffectiveVisibilities<Id> {
         self.map.get(&id)
     }
 
-    // `parent_id` is not necessarily a parent in source code tree,
-    // it is the node from which the maximum effective visibility is inherited.
-    pub fn update(
+    // FIXME: Share code with `fn update`.
+    pub fn effective_vis_or_private(
+        &mut self,
+        id: Id,
+        lazy_private_vis: impl FnOnce() -> Visibility,
+    ) -> &EffectiveVisibility {
+        self.map.entry(id).or_insert_with(|| EffectiveVisibility::from_vis(lazy_private_vis()))
+    }
+
+    pub fn update<R: IntoDefIdTree>(
         &mut self,
         id: Id,
         nominal_vis: Visibility,
-        default_vis: Visibility,
-        inherited_eff_vis: Option<EffectiveVisibility>,
+        lazy_private_vis: impl FnOnce(R) -> (Visibility, R),
+        inherited_effective_vis: EffectiveVisibility,
         level: Level,
-        tree: impl DefIdTree,
+        mut into_tree: R,
     ) -> bool {
         let mut changed = false;
-        let mut current_effective_vis = self
-            .map
-            .get(&id)
-            .copied()
-            .unwrap_or_else(|| EffectiveVisibility::from_vis(default_vis));
-        if let Some(inherited_effective_vis) = inherited_eff_vis {
-            let mut inherited_effective_vis_at_prev_level =
-                *inherited_effective_vis.at_level(level);
-            let mut calculated_effective_vis = inherited_effective_vis_at_prev_level;
-            for l in Level::all_levels() {
-                if level >= l {
-                    let inherited_effective_vis_at_level = *inherited_effective_vis.at_level(l);
-                    let current_effective_vis_at_level = current_effective_vis.at_level_mut(l);
-                    // effective visibility for id shouldn't be recalculated if
-                    // inherited from parent_id effective visibility isn't changed at next level
-                    if !(inherited_effective_vis_at_prev_level == inherited_effective_vis_at_level
-                        && level != l)
-                    {
-                        calculated_effective_vis =
-                            if nominal_vis.is_at_least(inherited_effective_vis_at_level, tree) {
-                                inherited_effective_vis_at_level
-                            } else {
-                                nominal_vis
-                            };
-                    }
-                    // effective visibility can't be decreased at next update call for the
-                    // same id
-                    if *current_effective_vis_at_level != calculated_effective_vis
-                        && calculated_effective_vis
-                            .is_at_least(*current_effective_vis_at_level, tree)
-                    {
-                        changed = true;
-                        *current_effective_vis_at_level = calculated_effective_vis;
-                    }
-                    inherited_effective_vis_at_prev_level = inherited_effective_vis_at_level;
+        let mut current_effective_vis = match self.map.get(&id).copied() {
+            Some(ev) => ev,
+            None => {
+                let private_vis;
+                (private_vis, into_tree) = lazy_private_vis(into_tree);
+                EffectiveVisibility::from_vis(private_vis)
+            }
+        };
+
+        let tree = into_tree.tree();
+        let mut inherited_effective_vis_at_prev_level = *inherited_effective_vis.at_level(level);
+        let mut calculated_effective_vis = inherited_effective_vis_at_prev_level;
+        for l in Level::all_levels() {
+            if level >= l {
+                let inherited_effective_vis_at_level = *inherited_effective_vis.at_level(l);
+                let current_effective_vis_at_level = current_effective_vis.at_level_mut(l);
+                // effective visibility for id shouldn't be recalculated if
+                // inherited from parent_id effective visibility isn't changed at next level
+                if !(inherited_effective_vis_at_prev_level == inherited_effective_vis_at_level
+                    && level != l)
+                {
+                    calculated_effective_vis =
+                        if nominal_vis.is_at_least(inherited_effective_vis_at_level, tree) {
+                            inherited_effective_vis_at_level
+                        } else {
+                            nominal_vis
+                        };
                 }
+                // effective visibility can't be decreased at next update call for the
+                // same id
+                if *current_effective_vis_at_level != calculated_effective_vis
+                    && calculated_effective_vis.is_at_least(*current_effective_vis_at_level, tree)
+                {
+                    changed = true;
+                    *current_effective_vis_at_level = calculated_effective_vis;
+                }
+                inherited_effective_vis_at_prev_level = inherited_effective_vis_at_level;
             }
         }
         self.map.insert(id, current_effective_vis);

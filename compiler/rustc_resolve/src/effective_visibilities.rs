@@ -7,8 +7,9 @@ use rustc_ast::EnumDef;
 use rustc_data_structures::intern::Interned;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::def_id::CRATE_DEF_ID;
-use rustc_middle::middle::privacy::{EffectiveVisibilities, EffectiveVisibility, Level};
-use rustc_middle::ty::Visibility;
+use rustc_middle::middle::privacy::{EffectiveVisibilities, EffectiveVisibility};
+use rustc_middle::middle::privacy::{IntoDefIdTree, Level};
+use rustc_middle::ty::{DefIdTree, Visibility};
 
 type ImportId<'a> = Interned<'a, NameBinding<'a>>;
 
@@ -29,11 +30,45 @@ impl ParentId<'_> {
 
 pub struct EffectiveVisibilitiesVisitor<'r, 'a> {
     r: &'r mut Resolver<'a>,
+    def_effective_visibilities: EffectiveVisibilities,
     /// While walking import chains we need to track effective visibilities per-binding, and def id
     /// keys in `Resolver::effective_visibilities` are not enough for that, because multiple
     /// bindings can correspond to a single def id in imports. So we keep a separate table.
     import_effective_visibilities: EffectiveVisibilities<ImportId<'a>>,
     changed: bool,
+}
+
+impl Resolver<'_> {
+    fn nearest_normal_mod(&mut self, def_id: LocalDefId) -> LocalDefId {
+        self.get_nearest_non_block_module(def_id.to_def_id()).nearest_parent_mod().expect_local()
+    }
+
+    fn private_vis_import(&mut self, binding: ImportId<'_>) -> Visibility {
+        let NameBindingKind::Import { import, .. } = binding.kind else { unreachable!() };
+        Visibility::Restricted(
+            import
+                .id()
+                .map(|id| self.nearest_normal_mod(self.local_def_id(id)))
+                .unwrap_or(CRATE_DEF_ID),
+        )
+    }
+
+    fn private_vis_def(&mut self, def_id: LocalDefId) -> Visibility {
+        // For mod items `nearest_normal_mod` returns its argument, but we actually need its parent.
+        let normal_mod_id = self.nearest_normal_mod(def_id);
+        if normal_mod_id == def_id {
+            self.opt_local_parent(def_id).map_or(Visibility::Public, Visibility::Restricted)
+        } else {
+            Visibility::Restricted(normal_mod_id)
+        }
+    }
+}
+
+impl<'a, 'b> IntoDefIdTree for &'b mut Resolver<'a> {
+    type Tree = &'b Resolver<'a>;
+    fn tree(self) -> Self::Tree {
+        self
+    }
 }
 
 impl<'r, 'a> EffectiveVisibilitiesVisitor<'r, 'a> {
@@ -43,6 +78,7 @@ impl<'r, 'a> EffectiveVisibilitiesVisitor<'r, 'a> {
     pub fn compute_effective_visibilities<'c>(r: &'r mut Resolver<'a>, krate: &'c Crate) {
         let mut visitor = EffectiveVisibilitiesVisitor {
             r,
+            def_effective_visibilities: Default::default(),
             import_effective_visibilities: Default::default(),
             changed: false,
         };
@@ -54,6 +90,7 @@ impl<'r, 'a> EffectiveVisibilitiesVisitor<'r, 'a> {
             visitor.changed = false;
             visit::walk_crate(&mut visitor, krate);
         }
+        visitor.r.effective_visibilities = visitor.def_effective_visibilities;
 
         // Update visibilities for import def ids. These are not used during the
         // `EffectiveVisibilitiesVisitor` pass, because we have more detailed binding-based
@@ -90,10 +127,6 @@ impl<'r, 'a> EffectiveVisibilitiesVisitor<'r, 'a> {
         info!("resolve::effective_visibilities: {:#?}", r.effective_visibilities);
     }
 
-    fn nearest_normal_mod(&mut self, def_id: LocalDefId) -> LocalDefId {
-        self.r.get_nearest_non_block_module(def_id.to_def_id()).nearest_parent_mod().expect_local()
-    }
-
     /// Update effective visibilities of bindings in the given module,
     /// including their whole reexport chains.
     fn set_bindings_effective_visibilities(&mut self, module_id: LocalDefId) {
@@ -122,62 +155,39 @@ impl<'r, 'a> EffectiveVisibilitiesVisitor<'r, 'a> {
         }
     }
 
-    fn effective_vis(&self, parent_id: ParentId<'a>) -> Option<EffectiveVisibility> {
-        match parent_id {
-            ParentId::Def(def_id) => self.r.effective_visibilities.effective_vis(def_id),
-            ParentId::Import(binding) => self.import_effective_visibilities.effective_vis(binding),
+    fn effective_vis_or_private(&mut self, parent_id: ParentId<'a>) -> EffectiveVisibility {
+        *match parent_id {
+            ParentId::Def(def_id) => self
+                .def_effective_visibilities
+                .effective_vis_or_private(def_id, || self.r.private_vis_def(def_id)),
+            ParentId::Import(binding) => self
+                .import_effective_visibilities
+                .effective_vis_or_private(binding, || self.r.private_vis_import(binding)),
         }
-        .copied()
-    }
-
-    /// The update is guaranteed to not change the table and we can skip it.
-    fn is_noop_update(
-        &self,
-        parent_id: ParentId<'a>,
-        nominal_vis: Visibility,
-        default_vis: Visibility,
-    ) -> bool {
-        nominal_vis == default_vis
-            || match parent_id {
-                ParentId::Def(def_id) => self.r.visibilities[&def_id],
-                ParentId::Import(binding) => binding.vis.expect_local(),
-            } == default_vis
     }
 
     fn update_import(&mut self, binding: ImportId<'a>, parent_id: ParentId<'a>) {
-        let NameBindingKind::Import { import, .. } = binding.kind else { unreachable!() };
         let nominal_vis = binding.vis.expect_local();
-        let default_vis = Visibility::Restricted(
-            import
-                .id()
-                .map(|id| self.nearest_normal_mod(self.r.local_def_id(id)))
-                .unwrap_or(CRATE_DEF_ID),
-        );
-        if self.is_noop_update(parent_id, nominal_vis, default_vis) {
-            return;
-        }
+        let inherited_eff_vis = self.effective_vis_or_private(parent_id);
         self.changed |= self.import_effective_visibilities.update(
             binding,
             nominal_vis,
-            default_vis,
-            self.effective_vis(parent_id),
+            |r| (r.private_vis_import(binding), r),
+            inherited_eff_vis,
             parent_id.level(),
-            ResolverTree(&self.r.definitions, &self.r.crate_loader),
+            &mut *self.r,
         );
     }
 
     fn update_def(&mut self, def_id: LocalDefId, nominal_vis: Visibility, parent_id: ParentId<'a>) {
-        let default_vis = Visibility::Restricted(self.nearest_normal_mod(def_id));
-        if self.is_noop_update(parent_id, nominal_vis, default_vis) {
-            return;
-        }
-        self.changed |= self.r.effective_visibilities.update(
+        let inherited_eff_vis = self.effective_vis_or_private(parent_id);
+        self.changed |= self.def_effective_visibilities.update(
             def_id,
             nominal_vis,
-            if def_id == CRATE_DEF_ID { Visibility::Public } else { default_vis },
-            self.effective_vis(parent_id),
+            |r| (r.private_vis_def(def_id), r),
+            inherited_eff_vis,
             parent_id.level(),
-            ResolverTree(&self.r.definitions, &self.r.crate_loader),
+            &mut *self.r,
         );
     }
 
