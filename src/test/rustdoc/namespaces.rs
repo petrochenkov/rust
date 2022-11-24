@@ -9,8 +9,6 @@ mod inner {
 }
 
 // @has namespaces/sync/index.html
-// @has namespaces/fn.sync.html
 // @has namespaces/index.html '//a/@href' 'sync/index.html'
-// @has - '//a/@href' 'fn.sync.html'
 #[doc(inline)]
 pub use inner::sync;

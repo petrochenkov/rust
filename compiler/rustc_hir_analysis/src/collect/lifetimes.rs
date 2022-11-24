@@ -814,11 +814,17 @@ impl<'a, 'tcx> Visitor<'tcx> for LifetimeContext<'a, 'tcx> {
         }
     }
 
-    fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, _: hir::HirId) {
-        for (i, segment) in path.segments.iter().enumerate() {
-            let depth = path.segments.len() - i - 1;
+    fn visit_path(
+        &mut self,
+        segs: &'tcx [hir::PathSegment<'tcx>],
+        res: Res,
+        _: Span,
+        _: hir::HirId,
+    ) {
+        for (i, segment) in segs.iter().enumerate() {
+            let depth = segs.len() - i - 1;
             if let Some(ref args) = segment.args {
-                self.visit_segment_args(path.res, depth, args);
+                self.visit_segment_args(res, depth, args);
             }
         }
     }

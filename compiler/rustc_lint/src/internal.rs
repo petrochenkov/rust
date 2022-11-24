@@ -23,8 +23,15 @@ declare_tool_lint! {
 declare_lint_pass!(DefaultHashTypes => [DEFAULT_HASH_TYPES]);
 
 impl LateLintPass<'_> for DefaultHashTypes {
-    fn check_path(&mut self, cx: &LateContext<'_>, path: &Path<'_>, hir_id: HirId) {
-        let Res::Def(rustc_hir::def::DefKind::Struct, def_id) = path.res else { return };
+    fn check_path(
+        &mut self,
+        cx: &LateContext<'_>,
+        _: &[PathSegment<'_>],
+        res: Res,
+        span: Span,
+        hir_id: HirId,
+    ) {
+        let Res::Def(rustc_hir::def::DefKind::Struct, def_id) = res else { return };
         if matches!(cx.tcx.hir().get(hir_id), Node::Item(Item { kind: ItemKind::Use(..), .. })) {
             // don't lint imports, only actual usages
             return;
@@ -34,16 +41,11 @@ impl LateLintPass<'_> for DefaultHashTypes {
             Some(sym::HashSet) => "FxHashSet",
             _ => return,
         };
-        cx.struct_span_lint(
-            DEFAULT_HASH_TYPES,
-            path.span,
-            fluent::lint_default_hash_types,
-            |lint| {
-                lint.set_arg("preferred", replace)
-                    .set_arg("used", cx.tcx.item_name(def_id))
-                    .note(fluent::note)
-            },
-        );
+        cx.struct_span_lint(DEFAULT_HASH_TYPES, span, fluent::lint_default_hash_types, |lint| {
+            lint.set_arg("preferred", replace)
+                .set_arg("used", cx.tcx.item_name(def_id))
+                .note(fluent::note)
+        });
     }
 }
 
@@ -117,16 +119,18 @@ impl<'tcx> LateLintPass<'tcx> for TyTyKind {
     fn check_path(
         &mut self,
         cx: &LateContext<'tcx>,
-        path: &'tcx rustc_hir::Path<'tcx>,
+        segs: &'tcx [rustc_hir::PathSegment<'tcx>],
+        _: Res,
+        path_span: Span,
         _: rustc_hir::HirId,
     ) {
-        if let Some(segment) = path.segments.iter().nth_back(1)
+        if let Some(segment) = segs.iter().nth_back(1)
         && lint_ty_kind_usage(cx, &segment.res)
         {
-            let span = path.span.with_hi(
+            let span = path_span.with_hi(
                 segment.args.map_or(segment.ident.span, |a| a.span_ext).hi()
             );
-            cx.struct_span_lint(USAGE_OF_TY_TYKIND, path.span, fluent::lint_tykind_kind, |lint| {
+            cx.struct_span_lint(USAGE_OF_TY_TYKIND, path_span, fluent::lint_tykind_kind, |lint| {
                 lint
                     .span_suggestion(
                         span,

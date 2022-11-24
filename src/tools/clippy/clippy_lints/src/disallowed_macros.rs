@@ -1,8 +1,9 @@
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::macro_backtrace;
 use rustc_data_structures::fx::FxHashSet;
+use rustc_hir::def::Res;
 use rustc_hir::def_id::DefIdMap;
-use rustc_hir::{Expr, ForeignItem, HirId, ImplItem, Item, Pat, Path, Stmt, TraitItem, Ty};
+use rustc_hir::{Expr, ForeignItem, HirId, ImplItem, Item, Pat, PathSegment, Stmt, TraitItem, Ty};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::{ExpnId, Span};
@@ -144,7 +145,7 @@ impl LateLintPass<'_> for DisallowedMacros {
         self.check(cx, item.span);
     }
 
-    fn check_path(&mut self, cx: &LateContext<'_>, path: &Path<'_>, _: HirId) {
-        self.check(cx, path.span);
+    fn check_path(&mut self, cx: &LateContext<'_>, _: &[PathSegment<'_>], _: Res, span: Span, _: HirId) {
+        self.check(cx, span);
     }
 }

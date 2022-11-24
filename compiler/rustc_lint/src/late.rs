@@ -18,6 +18,7 @@ use crate::{passes::LateLintPassObject, LateContext, LateLintPass, LintStore};
 use rustc_ast as ast;
 use rustc_data_structures::sync::join;
 use rustc_hir as hir;
+use rustc_hir::def::Res;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::intravisit as hir_visit;
 use rustc_hir::intravisit::Visitor;
@@ -292,9 +293,15 @@ impl<'tcx, T: LateLintPass<'tcx>> hir_visit::Visitor<'tcx> for LateContextAndPas
         hir_visit::walk_lifetime(self, lt);
     }
 
-    fn visit_path(&mut self, p: &'tcx hir::Path<'tcx>, id: hir::HirId) {
-        lint_callback!(self, check_path, p, id);
-        hir_visit::walk_path(self, p);
+    fn visit_path(
+        &mut self,
+        segs: &'tcx [hir::PathSegment<'tcx>],
+        res: Res,
+        span: Span,
+        id: hir::HirId,
+    ) {
+        lint_callback!(self, check_path, segs, res, span, id);
+        hir_visit::walk_path(self, segs);
     }
 
     fn visit_attribute(&mut self, attr: &'tcx ast::Attribute) {

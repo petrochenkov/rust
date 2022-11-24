@@ -64,8 +64,8 @@ struct SpanMapVisitor<'tcx> {
 
 impl<'tcx> SpanMapVisitor<'tcx> {
     /// This function is where we handle `hir::Path` elements and add them into the "span map".
-    fn handle_path(&mut self, path: &rustc_hir::Path<'_>) {
-        let info = match path.res {
+    fn handle_path(&mut self, res: Res, span: Span) {
+        let info = match res {
             // FIXME: For now, we handle `DefKind` if it's not a `DefKind::TyParam`.
             // Would be nice to support them too alongside the other `DefKind`
             // (such as primitive types!).
@@ -73,16 +73,16 @@ impl<'tcx> SpanMapVisitor<'tcx> {
             Res::Local(_) => None,
             Res::PrimTy(p) => {
                 // FIXME: Doesn't handle "path-like" primitives like arrays or tuples.
-                self.matches.insert(path.span, LinkFromSrc::Primitive(PrimitiveType::from(p)));
+                self.matches.insert(span, LinkFromSrc::Primitive(PrimitiveType::from(p)));
                 return;
             }
             Res::Err => return,
             _ => return,
         };
-        if let Some(span) = self.tcx.hir().res_span(path.res) {
-            self.matches.insert(path.span, LinkFromSrc::Local(clean::Span::new(span)));
+        if let Some(span) = self.tcx.hir().res_span(res) {
+            self.matches.insert(span, LinkFromSrc::Local(clean::Span::new(span)));
         } else if let Some(def_id) = info {
-            self.matches.insert(path.span, LinkFromSrc::External(def_id));
+            self.matches.insert(span, LinkFromSrc::External(def_id));
         }
     }
 
@@ -140,12 +140,18 @@ impl<'tcx> Visitor<'tcx> for SpanMapVisitor<'tcx> {
         self.tcx.hir()
     }
 
-    fn visit_path(&mut self, path: &'tcx rustc_hir::Path<'tcx>, _id: HirId) {
-        if self.handle_macro(path.span) {
+    fn visit_path(
+        &mut self,
+        segs: &'tcx [rustc_hir::PathSegment<'tcx>],
+        res: Res,
+        span: Span,
+        _id: HirId,
+    ) {
+        if self.handle_macro(span) {
             return;
         }
-        self.handle_path(path);
-        intravisit::walk_path(self, path);
+        self.handle_path(res, span);
+        intravisit::walk_path(self, segs);
     }
 
     fn visit_mod(&mut self, m: &'tcx Mod<'tcx>, span: Span, id: HirId) {
@@ -195,7 +201,7 @@ impl<'tcx> Visitor<'tcx> for SpanMapVisitor<'tcx> {
         if self.handle_macro(path.span) {
             return;
         }
-        self.handle_path(path);
+        self.handle_path(path.res, path.span);
         intravisit::walk_use(self, path, id);
     }
 }

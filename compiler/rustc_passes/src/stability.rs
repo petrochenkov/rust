@@ -787,13 +787,19 @@ impl<'tcx> Visitor<'tcx> for Checker<'tcx> {
         intravisit::walk_item(self, item);
     }
 
-    fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, id: hir::HirId) {
-        if let Some(def_id) = path.res.opt_def_id() {
-            let method_span = path.segments.last().map(|s| s.ident.span);
+    fn visit_path(
+        &mut self,
+        segs: &'tcx [hir::PathSegment<'tcx>],
+        res: Res,
+        span: Span,
+        id: hir::HirId,
+    ) {
+        if let Some(def_id) = res.opt_def_id() {
+            let method_span = segs.last().map(|s| s.ident.span);
             let item_is_allowed = self.tcx.check_stability_allow_unstable(
                 def_id,
                 Some(id),
-                path.span,
+                span,
                 method_span,
                 if is_unstable_reexport(self.tcx, id) {
                     AllowUnstable::Yes
@@ -826,14 +832,14 @@ impl<'tcx> Visitor<'tcx> for Checker<'tcx> {
                 // We include special cases via #[rustc_allowed_through_unstable_modules] for items
                 // that were accidentally stabilized through unstable paths before this check was
                 // added, such as `core::intrinsics::transmute`
-                let parents = path.segments.iter().rev().skip(1);
+                let parents = segs.iter().rev().skip(1);
                 for path_segment in parents {
                     if let Some(def_id) = path_segment.res.opt_def_id() {
                         // use `None` for id to prevent deprecation check
                         self.tcx.check_stability_allow_unstable(
                             def_id,
                             None,
-                            path.span,
+                            span,
                             None,
                             if is_unstable_reexport(self.tcx, id) {
                                 AllowUnstable::Yes
@@ -846,7 +852,7 @@ impl<'tcx> Visitor<'tcx> for Checker<'tcx> {
             }
         }
 
-        intravisit::walk_path(self, path)
+        intravisit::walk_path(self, segs)
     }
 }
 
@@ -880,13 +886,19 @@ struct CheckTraitImplStable<'tcx> {
 }
 
 impl<'tcx> Visitor<'tcx> for CheckTraitImplStable<'tcx> {
-    fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, _id: hir::HirId) {
-        if let Some(def_id) = path.res.opt_def_id() {
+    fn visit_path(
+        &mut self,
+        segs: &'tcx [hir::PathSegment<'tcx>],
+        res: Res,
+        _: Span,
+        _id: hir::HirId,
+    ) {
+        if let Some(def_id) = res.opt_def_id() {
             if let Some(stab) = self.tcx.lookup_stability(def_id) {
                 self.fully_stable &= stab.level.is_stable();
             }
         }
-        intravisit::walk_path(self, path)
+        intravisit::walk_path(self, segs)
     }
 
     fn visit_trait_ref(&mut self, t: &'tcx TraitRef<'tcx>) {

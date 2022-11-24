@@ -330,9 +330,9 @@ struct LintCollector<'a, 'tcx> {
 impl<'a, 'tcx> Visitor<'tcx> for LintCollector<'a, 'tcx> {
     type NestedFilter = nested_filter::All;
 
-    fn visit_path(&mut self, path: &'tcx Path<'_>, _: HirId) {
-        if path.segments.len() == 1 {
-            self.output.insert(path.segments[0].ident.name);
+    fn visit_path(&mut self, segs: &'tcx [PathSegment<'_>], res: Res, span: Span, _: HirId) {
+        if segs.len() == 1 {
+            self.output.insert(segs[0].ident.name);
         }
     }
 

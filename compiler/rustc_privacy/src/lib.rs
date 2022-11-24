@@ -1610,7 +1610,7 @@ impl<'a, 'tcx> Visitor<'tcx> for ObsoleteVisiblePrivateTypesVisitor<'a, 'tcx> {
                             //
                             // Those in 2. are warned via walk_generics and this
                             // call here.
-                            intravisit::walk_path(self, tr.path);
+                            intravisit::walk_path(self, tr.path.segments);
 
                             // Those in 3. are warned with this call.
                             for impl_item_ref in impl_.items {

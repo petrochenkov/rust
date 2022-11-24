@@ -3,9 +3,10 @@ use clippy_utils::macros::span_is_local;
 use clippy_utils::source::snippet_opt;
 use clippy_utils::{meets_msrv, msrvs, path_def_id};
 use rustc_errors::Applicability;
+use rustc_hir::def::Res;
 use rustc_hir::intravisit::{walk_path, Visitor};
 use rustc_hir::{
-    GenericArg, GenericArgs, HirId, Impl, ImplItemKind, ImplItemRef, Item, ItemKind, PatKind, Path, PathSegment, Ty,
+    GenericArg, GenericArgs, HirId, Impl, ImplItemKind, ImplItemRef, Item, ItemKind, PatKind, PathSegment, Ty,
     TyKind,
 };
 use rustc_lint::{LateContext, LateLintPass};
@@ -126,8 +127,8 @@ impl<'a, 'tcx> Visitor<'tcx> for SelfFinder<'a, 'tcx> {
         self.cx.tcx.hir()
     }
 
-    fn visit_path(&mut self, path: &'tcx Path<'tcx>, _id: HirId) {
-        for segment in path.segments {
+    fn visit_path(&mut self, segs: &'tcx [PathSegment<'tcx>], _: Res, span: Span, _id: HirId) {
+        for segment in segs {
             match segment.ident.name {
                 kw::SelfLower => self.lower.push(segment.ident.span),
                 kw::SelfUpper => self.upper.push(segment.ident.span),
@@ -135,9 +136,9 @@ impl<'a, 'tcx> Visitor<'tcx> for SelfFinder<'a, 'tcx> {
             }
         }
 
-        self.invalid |= path.span.from_expansion();
+        self.invalid |= span.from_expansion();
         if !self.invalid {
-            walk_path(self, path);
+            walk_path(self, segs);
         }
     }
 

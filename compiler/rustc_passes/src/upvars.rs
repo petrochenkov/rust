@@ -66,12 +66,18 @@ impl CaptureCollector<'_, '_> {
 }
 
 impl<'tcx> Visitor<'tcx> for CaptureCollector<'_, 'tcx> {
-    fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, _: hir::HirId) {
-        if let Res::Local(var_id) = path.res {
-            self.visit_local_use(var_id, path.span);
+    fn visit_path(
+        &mut self,
+        segs: &'tcx [hir::PathSegment<'tcx>],
+        res: Res,
+        span: Span,
+        _: hir::HirId,
+    ) {
+        if let Res::Local(var_id) = res {
+            self.visit_local_use(var_id, span);
         }
 
-        intravisit::walk_path(self, path);
+        intravisit::walk_path(self, segs);
     }
 
     fn visit_expr(&mut self, expr: &'tcx hir::Expr<'tcx>) {

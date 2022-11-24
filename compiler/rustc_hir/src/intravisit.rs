@@ -64,6 +64,7 @@
 //! This order consistency is required in a few places in rustc, for
 //! example generator inference, and possibly also HIR borrowck.
 
+use crate::def::Res;
 use crate::hir::*;
 use rustc_ast::walk_list;
 use rustc_ast::{Attribute, Label};
@@ -422,8 +423,8 @@ pub trait Visitor<'v>: Sized {
     fn visit_qpath(&mut self, qpath: &'v QPath<'v>, id: HirId, _span: Span) {
         walk_qpath(self, qpath, id)
     }
-    fn visit_path(&mut self, path: &'v Path<'v>, _id: HirId) {
-        walk_path(self, path)
+    fn visit_path(&mut self, segs: &'v [PathSegment<'v>], _res: Res, _span: Span, _id: HirId) {
+        walk_path(self, segs)
     }
     fn visit_path_segment(&mut self, path_segment: &'v PathSegment<'v>) {
         walk_path_segment(self, path_segment)
@@ -940,7 +941,7 @@ pub fn walk_fn_kind<'v, V: Visitor<'v>>(visitor: &mut V, function_kind: FnKind<'
 
 pub fn walk_use<'v, V: Visitor<'v>>(visitor: &mut V, path: &'v Path<'v>, hir_id: HirId) {
     visitor.visit_id(hir_id);
-    visitor.visit_path(path, hir_id);
+    visitor.visit_path(path.segments, path.res, path.span, hir_id);
 }
 
 pub fn walk_trait_item<'v, V: Visitor<'v>>(visitor: &mut V, trait_item: &'v TraitItem<'v>) {
@@ -1039,7 +1040,8 @@ pub fn walk_impl_item_ref<'v, V: Visitor<'v>>(visitor: &mut V, impl_item_ref: &'
 
 pub fn walk_trait_ref<'v, V: Visitor<'v>>(visitor: &mut V, trait_ref: &'v TraitRef<'v>) {
     visitor.visit_id(trait_ref.hir_ref_id);
-    visitor.visit_path(&trait_ref.path, trait_ref.hir_ref_id)
+    let path = trait_ref.path;
+    visitor.visit_path(path.segments, path.res, path.span, trait_ref.hir_ref_id)
 }
 
 pub fn walk_param_bound<'v, V: Visitor<'v>>(visitor: &mut V, bound: &'v GenericBound<'v>) {
@@ -1126,7 +1128,7 @@ pub fn walk_qpath<'v, V: Visitor<'v>>(visitor: &mut V, qpath: &'v QPath<'v>, id:
     match *qpath {
         QPath::Resolved(ref maybe_qself, ref path) => {
             walk_list!(visitor, visit_ty, maybe_qself);
-            visitor.visit_path(path, id)
+            visitor.visit_path(path.segments, path.res, path.span, id)
         }
         QPath::TypeRelative(ref qself, ref segment) => {
             visitor.visit_ty(qself);
@@ -1136,8 +1138,8 @@ pub fn walk_qpath<'v, V: Visitor<'v>>(visitor: &mut V, qpath: &'v QPath<'v>, id:
     }
 }
 
-pub fn walk_path<'v, V: Visitor<'v>>(visitor: &mut V, path: &'v Path<'v>) {
-    for segment in path.segments {
+pub fn walk_path<'v, V: Visitor<'v>>(visitor: &mut V, segments: &'v [PathSegment<'v>]) {
+    for segment in segments {
         visitor.visit_path_segment(segment);
     }
 }

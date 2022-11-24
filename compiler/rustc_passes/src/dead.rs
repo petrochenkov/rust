@@ -16,6 +16,7 @@ use rustc_middle::ty::query::Providers;
 use rustc_middle::ty::{self, DefIdTree, TyCtxt};
 use rustc_session::lint;
 use rustc_span::symbol::{sym, Symbol};
+use rustc_span::Span;
 use std::mem;
 
 use crate::errors::{
@@ -433,9 +434,15 @@ impl<'tcx> Visitor<'tcx> for MarkSymbolVisitor<'tcx> {
         self.in_pat = false;
     }
 
-    fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, _: hir::HirId) {
-        self.handle_res(path.res);
-        intravisit::walk_path(self, path);
+    fn visit_path(
+        &mut self,
+        segs: &'tcx [hir::PathSegment<'tcx>],
+        res: Res,
+        _: Span,
+        _: hir::HirId,
+    ) {
+        self.handle_res(res);
+        intravisit::walk_path(self, segs);
     }
 
     fn visit_ty(&mut self, ty: &'tcx hir::Ty<'tcx>) {

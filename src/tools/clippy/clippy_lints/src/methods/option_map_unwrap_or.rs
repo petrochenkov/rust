@@ -4,8 +4,9 @@ use clippy_utils::ty::is_copy;
 use clippy_utils::ty::is_type_diagnostic_item;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::Applicability;
+use rustc_hir::def::Res;
 use rustc_hir::intravisit::{walk_path, Visitor};
-use rustc_hir::{self, HirId, Path};
+use rustc_hir::{self, HirId, PathSegment};
 use rustc_lint::LateContext;
 use rustc_middle::hir::nested_filter;
 use rustc_span::source_map::Span;
@@ -97,9 +98,9 @@ struct UnwrapVisitor<'a, 'tcx> {
 impl<'a, 'tcx> Visitor<'tcx> for UnwrapVisitor<'a, 'tcx> {
     type NestedFilter = nested_filter::All;
 
-    fn visit_path(&mut self, path: &'tcx Path<'_>, _id: HirId) {
-        self.identifiers.insert(ident(path));
-        walk_path(self, path);
+    fn visit_path(&mut self, segs: &'tcx [PathSegment<'_>], _: Res, _: Span, _id: HirId) {
+        self.identifiers.insert(ident(segs));
+        walk_path(self, segs);
     }
 
     fn nested_visit_map(&mut self) -> Self::Map {
@@ -116,12 +117,12 @@ struct MapExprVisitor<'a, 'tcx> {
 impl<'a, 'tcx> Visitor<'tcx> for MapExprVisitor<'a, 'tcx> {
     type NestedFilter = nested_filter::All;
 
-    fn visit_path(&mut self, path: &'tcx Path<'_>, _id: HirId) {
-        if self.identifiers.contains(&ident(path)) {
+    fn visit_path(&mut self, segs: &'tcx [PathSegment<'_>], _: Res, _: Span, _id: HirId) {
+        if self.identifiers.contains(&ident(segs)) {
             self.found_identifier = true;
             return;
         }
-        walk_path(self, path);
+        walk_path(self, segs);
     }
 
     fn nested_visit_map(&mut self) -> Self::Map {
@@ -129,9 +130,8 @@ impl<'a, 'tcx> Visitor<'tcx> for MapExprVisitor<'a, 'tcx> {
     }
 }
 
-fn ident(path: &Path<'_>) -> Symbol {
-    path.segments
-        .last()
+fn ident(segs: &[PathSegment<'_>]) -> Symbol {
+    segs.last()
         .expect("segments should be composed of at least 1 element")
         .ident
         .name

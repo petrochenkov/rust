@@ -8,7 +8,7 @@ use rustc_feature::UnstableFeatures;
 use rustc_hir::def::{Namespace, Res};
 use rustc_hir::def_id::{DefId, DefIdMap, LocalDefId};
 use rustc_hir::intravisit::{self, Visitor};
-use rustc_hir::{HirId, Path, TraitCandidate};
+use rustc_hir::{HirId, PathSegment, TraitCandidate};
 use rustc_interface::interface;
 use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{ParamEnv, Ty, TyCtxt};
@@ -489,28 +489,26 @@ impl<'tcx> Visitor<'tcx> for EmitIgnoredResolutionErrors<'tcx> {
         self.tcx.hir()
     }
 
-    fn visit_path(&mut self, path: &'tcx Path<'_>, _id: HirId) {
-        debug!("visiting path {:?}", path);
-        if path.res == Res::Err {
+    fn visit_path(&mut self, segs: &'tcx [PathSegment<'_>], res: Res, span: Span, _id: HirId) {
+        if res == Res::Err {
             // We have less context here than in rustc_resolve,
             // so we can only emit the name and span.
             // However we can give a hint that rustc_resolve will have more info.
             let label = format!(
                 "could not resolve path `{}`",
-                path.segments
-                    .iter()
+                segs.iter()
                     .map(|segment| segment.ident.as_str())
                     .intersperse("::")
                     .collect::<String>()
             );
             let mut err = rustc_errors::struct_span_err!(
                 self.tcx.sess,
-                path.span,
+                span,
                 E0433,
                 "failed to resolve: {}",
                 label
             );
-            err.span_label(path.span, label);
+            err.span_label(span, label);
             err.note("this error was originally ignored because you are running `rustdoc`");
             err.note("try running again with `rustc` or `cargo check` and you may get a more detailed error");
             err.emit();
@@ -518,7 +516,7 @@ impl<'tcx> Visitor<'tcx> for EmitIgnoredResolutionErrors<'tcx> {
         // We could have an outer resolution that succeeded,
         // but with generic parameters that failed.
         // Recurse into the segments so we catch those too.
-        intravisit::walk_path(self, path);
+        intravisit::walk_path(self, segs);
     }
 }
 

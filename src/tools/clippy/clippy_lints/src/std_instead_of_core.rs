@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::span_lint_and_help;
 use rustc_hir::def_id::DefId;
-use rustc_hir::{def::Res, HirId, Path, PathSegment};
+use rustc_hir::{def::Res, HirId, PathSegment};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::DefIdTree;
 use rustc_session::{declare_tool_lint, impl_lint_pass};
@@ -93,9 +93,16 @@ pub struct StdReexports {
 impl_lint_pass!(StdReexports => [STD_INSTEAD_OF_CORE, STD_INSTEAD_OF_ALLOC, ALLOC_INSTEAD_OF_CORE]);
 
 impl<'tcx> LateLintPass<'tcx> for StdReexports {
-    fn check_path(&mut self, cx: &LateContext<'tcx>, path: &Path<'tcx>, _: HirId) {
-        if let Res::Def(_, def_id) = path.res
-            && let Some(first_segment) = get_first_segment(path)
+    fn check_path(
+        &mut self,
+        cx: &LateContext<'tcx>,
+        segs: &[PathSegment<'tcx>],
+        res: Res,
+        span: Span,
+        _: HirId,
+    ) {
+        if let Res::Def(_, def_id) = res
+            && let Some(first_segment) = get_first_segment(segs)
             && is_stable(cx, def_id)
         {
             let (lint, msg, help) = match first_segment.ident.name {
@@ -111,7 +118,7 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
                         "consider importing the item from `alloc`",
                     ),
                     _ => {
-                        self.prev_span = path.span;
+                        self.prev_span = span;
                         return;
                     },
                 },
@@ -123,15 +130,15 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
                             "consider importing the item from `core`",
                         )
                     } else {
-                        self.prev_span = path.span;
+                        self.prev_span = span;
                         return;
                     }
                 },
                 _ => return,
             };
-            if path.span != self.prev_span {
-                span_lint_and_help(cx, lint, path.span, msg, None, help);
-                self.prev_span = path.span;
+            if span != self.prev_span {
+                span_lint_and_help(cx, lint, span, msg, None, help);
+                self.prev_span = span;
             }
         }
     }
@@ -141,8 +148,8 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
 ///
 /// If this is a global path (such as `::std::fmt::Debug`), then the segment after [`kw::PathRoot`]
 /// is returned.
-fn get_first_segment<'tcx>(path: &Path<'tcx>) -> Option<&'tcx PathSegment<'tcx>> {
-    match path.segments {
+fn get_first_segment<'tcx>(segs: &'tcx [PathSegment<'tcx>]) -> Option<&'tcx PathSegment<'tcx>> {
+    match segs {
         // A global path will have PathRoot as the first segment. In this case, return the segment after.
         [x, y, ..] if x.ident.name == kw::PathRoot => Some(y),
         [x, ..] => Some(x),
@@ -154,11 +161,7 @@ fn get_first_segment<'tcx>(path: &Path<'tcx>) -> Option<&'tcx PathSegment<'tcx>>
 /// [unstable moves](https://github.com/rust-lang/rust/pull/95956)
 fn is_stable(cx: &LateContext<'_>, mut def_id: DefId) -> bool {
     loop {
-        if cx
-            .tcx
-            .lookup_stability(def_id)
-            .map_or(false, |stability| stability.is_unstable())
-        {
+        if cx.tcx.lookup_stability(def_id).map_or(false, |stability| stability.is_unstable()) {
             return false;
         }
 

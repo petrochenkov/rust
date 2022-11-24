@@ -2,6 +2,7 @@ use crate as utils;
 use crate::visitors::{for_each_expr, for_each_expr_with_closures, Descend};
 use core::ops::ControlFlow;
 use rustc_hir as hir;
+use rustc_hir::def::Res;
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::HirIdSet;
 use rustc_hir::{Expr, ExprKind, HirId, Node};
@@ -11,6 +12,7 @@ use rustc_lint::LateContext;
 use rustc_middle::hir::nested_filter;
 use rustc_middle::mir::FakeReadCause;
 use rustc_middle::ty;
+use rustc_span::Span;
 
 /// Returns a set of mutated local variable IDs, or `None` if mutations could not be determined.
 pub fn mutated_variables<'tcx>(expr: &'tcx Expr<'_>, cx: &LateContext<'tcx>) -> Option<HirIdSet> {
@@ -128,8 +130,8 @@ impl<'a, 'tcx> intravisit::Visitor<'tcx> for BindingUsageFinder<'a, 'tcx> {
         }
     }
 
-    fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, _: hir::HirId) {
-        if let hir::def::Res::Local(id) = path.res {
+    fn visit_path(&mut self, _: &'tcx [hir::PathSegment<'tcx>], res: Res, _: Span, _: hir::HirId) {
+        if let hir::def::Res::Local(id) = res {
             if self.binding_ids.contains(&id) {
                 self.usage_found = true;
             }

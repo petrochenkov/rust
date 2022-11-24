@@ -7,6 +7,7 @@ use rustc_ast::visit::BoundKind;
 use rustc_ast::{self as ast, AttrId, NodeId};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir as hir;
+use rustc_hir::def::Res;
 use rustc_hir::intravisit as hir_visit;
 use rustc_hir::HirId;
 use rustc_middle::hir::map::Map;
@@ -442,9 +443,15 @@ impl<'v> hir_visit::Visitor<'v> for StatCollector<'v> {
         hir_visit::walk_lifetime(self, lifetime)
     }
 
-    fn visit_path(&mut self, path: &'v hir::Path<'v>, _id: hir::HirId) {
-        self.record("Path", Id::None, path);
-        hir_visit::walk_path(self, path)
+    fn visit_path(
+        &mut self,
+        segs: &'v [hir::PathSegment<'v>],
+        res: Res,
+        span: Span,
+        _id: hir::HirId,
+    ) {
+        self.record("Path", Id::None, &(span, res, segs));
+        hir_visit::walk_path(self, segs)
     }
 
     fn visit_path_segment(&mut self, path_segment: &'v hir::PathSegment<'v>) {
