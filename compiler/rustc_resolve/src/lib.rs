@@ -45,7 +45,8 @@ use rustc_middle::ty::{self, DefIdTree, MainDefinition, RegisteredTools};
 use rustc_middle::ty::{ResolverGlobalCtxt, ResolverOutputs};
 use rustc_query_system::ich::StableHashingContext;
 use rustc_session::cstore::{CrateStore, MetadataLoaderDyn, Untracked};
-use rustc_session::lint::LintBuffer;
+use rustc_session::lint::builtin::AMBIGUOUS_GLOB_REEXPORTS;
+use rustc_session::lint::{BuiltinLintDiagnostics, LintBuffer};
 use rustc_session::Session;
 use rustc_span::hygiene::{ExpnId, LocalExpnId, MacroKind, SyntaxContext, Transparency};
 use rustc_span::source_map::Spanned;
@@ -1526,6 +1527,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             self.session.time("compute_effective_visibilities", || {
                 EffectiveVisibilitiesVisitor::compute_effective_visibilities(self, krate)
             });
+            self.session.time("check_reexport_ambiguities", || self.check_reexport_ambiguities());
             self.session.time("finalize_macro_resolutions", || self.finalize_macro_resolutions());
             self.session.time("late_resolve_crate", || self.late_resolve_crate(krate));
             self.session.time("resolve_main", || self.resolve_main());
@@ -1533,6 +1535,41 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             self.session.time("resolve_report_errors", || self.report_errors(krate));
             self.session.time("resolve_postprocess", || self.crate_loader().postprocess(krate));
         });
+    }
+
+    fn check_reexport_ambiguities(&mut self) {
+        for module in self.arenas.local_modules().iter() {
+            if let Some(_) = module.opt_def_id() {
+                module.for_each_child(self, |this, ident, ns, binding| {
+                    if let NameBindingKind::Import { import: reexport, .. } = binding.kind
+                    && let res = binding.res().expect_non_local::<Res>()
+                    && res != def::Res::Err {
+                        if let Some((amb_binding, _)) = binding.ambiguity
+                        && let Some(node_id) = reexport.id()
+                        && let reexport_def_id = this.local_def_id(node_id)
+                        && this.effective_visibilities.is_exported(reexport_def_id)
+                        {
+                            this.lint_buffer.buffer_lint_with_diagnostic(
+                                AMBIGUOUS_GLOB_REEXPORTS,
+                                reexport.root_id,
+                                reexport.root_span,
+                                "ambiguous glob re-exports",
+                                BuiltinLintDiagnostics::AmbiguousGlobReexports {
+                                    name: ident.to_string(),
+                                    namespace: match ns {
+                                        TypeNS => "type".to_owned(),
+                                        ValueNS => "value".to_owned(),
+                                        MacroNS => "macro".to_owned(),
+                                    },
+                                    first_reexport_span: reexport.root_span,
+                                    duplicate_reexport_span: amb_binding.span,
+                                },
+                            );
+                        }
+                    }
+                });
+            }
+        }
     }
 
     fn traits_in_scope(
@@ -1999,20 +2036,6 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             self.record_use(ident, name_binding, false);
         }
         self.main_def = Some(MainDefinition { res, is_import, span });
-    }
-
-    // Items that go to reexport table encoded to metadata and visible through it to other crates.
-    fn is_reexport(&self, binding: &NameBinding<'a>) -> Option<def::Res<!>> {
-        if binding.is_import() {
-            let res = binding.res().expect_non_local();
-            // Ambiguous imports are treated as errors at this point and are
-            // not exposed to other crates (see #36837 for more details).
-            if res != def::Res::Err && !binding.is_ambiguity() {
-                return Some(res);
-            }
-        }
-
-        return None;
     }
 }
 

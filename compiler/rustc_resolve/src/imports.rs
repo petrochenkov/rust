@@ -1217,15 +1217,21 @@ impl<'a, 'b, 'tcx> ImportResolver<'a, 'b, 'tcx> {
         if let Some(def_id) = module.opt_def_id() {
             let mut reexports = Vec::new();
 
-            module.for_each_child(self.r, |this, ident, _, binding| {
-                if let Some(res) = this.is_reexport(binding) {
-                    reexports.push(ModChild {
-                        ident,
-                        res,
-                        vis: binding.vis,
-                        span: binding.span,
-                        macro_rules: false,
-                    });
+            module.for_each_child(self.r, |_, ident, _, binding| {
+                if binding.is_import()
+                && let res = binding.res().expect_non_local()
+                && res != def::Res::Err {
+                    if !binding.is_ambiguity() {
+                        // Ambiguous imports are treated as errors at this point and are
+                        // not exposed to other crates (see #36837 for more details).
+                        reexports.push(ModChild {
+                            ident,
+                            res,
+                            vis: binding.vis,
+                            span: binding.span,
+                            macro_rules: false,
+                        });
+                    }
                 }
             });
 

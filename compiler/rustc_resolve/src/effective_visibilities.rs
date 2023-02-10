@@ -126,7 +126,7 @@ impl<'r, 'a, 'tcx> EffectiveVisibilitiesVisitor<'r, 'a, 'tcx> {
         let resolutions = self.r.resolutions(module);
 
         for (_, name_resolution) in resolutions.borrow().iter() {
-            if let Some(mut binding) = name_resolution.borrow().binding() && !binding.is_ambiguity() {
+            if let Some(mut binding) = name_resolution.borrow().binding() {
                 // Set the given effective visibility level to `Level::Direct` and
                 // sets the rest of the `use` chain to `Level::Reexported` until
                 // we hit the actual exported item.

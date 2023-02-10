@@ -3229,6 +3229,44 @@ declare_lint! {
     };
 }
 
+declare_lint! {
+    /// The `ambiguous_glob_reexports` lint detects cases where names re-exported via globs
+    /// collides. Downstream users trying to use the same name re-exported from multiple globs
+    /// will receive an compilation error pointing out redefinition of the same name.
+    ///
+    /// ### Example
+    ///
+    /// ```rust,compile_fail
+    /// pub mod foo {
+    ///     pub type X = u8;
+    /// }
+    ///
+    /// pub mod bar {
+    ///     pub type Y = u8;
+    ///     pub type X = u8;
+    /// }
+    ///
+    /// pub use foo::*;
+    /// pub use bar::*;
+    ///
+    ///
+    /// pub fn main() {}
+    /// ```
+    ///
+    /// {{produces}}
+    ///
+    /// ### Explanation
+    ///
+    /// This was previously accepted but it could silently break a crate's downstream users code.
+    /// For example, if `foo::*` and `bar::*` were re-exported before `bar::X` was added to the
+    /// re-exports, down stream users could use `this_crate::X` without problems. However, adding
+    /// `bar::X` would cause compilation errors in downstream crates because `X` is defined
+    /// multiple times in the same namespace of `this_crate`.
+    pub AMBIGUOUS_GLOB_REEXPORTS,
+    Deny,
+    "ambiguous glob re-exports",
+}
+
 declare_lint_pass! {
     /// Does nothing as a lint pass, but registers some `Lint`s
     /// that are used by other parts of the compiler.
@@ -3336,6 +3374,7 @@ declare_lint_pass! {
         NAMED_ARGUMENTS_USED_POSITIONALLY,
         IMPLIED_BOUNDS_ENTAILMENT,
         BYTE_SLICE_IN_PACKED_STRUCT_WITH_DERIVE,
+        AMBIGUOUS_GLOB_REEXPORTS,
     ]
 }
 

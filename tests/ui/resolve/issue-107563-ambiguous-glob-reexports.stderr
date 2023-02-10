@@ -1,0 +1,13 @@
+error: ambiguous glob re-exports
+  --> $DIR/issue-107563-ambiguous-glob-reexports.rs:9:9
+   |
+LL | pub use foo::*;
+   |         ^^^^^^ the name `X` in the type namespace is first re-exported here
+LL |
+LL | pub use bar::*;
+   |         ------ but the name `X` in the type namespace is also re-exported here
+   |
+   = note: `#[deny(ambiguous_glob_reexports)]` on by default
+
+error: aborting due to previous error
+

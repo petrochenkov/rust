@@ -371,7 +371,9 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     suggested_name,
                 ))
             }
-            _ => unreachable!(),
+            _ => {
+                // FIXME(#107563): handle glob imports
+            }
         }
 
         let rename_msg = "you can use `as` to change the binding name of the import";

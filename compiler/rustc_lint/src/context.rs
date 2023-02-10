@@ -893,6 +893,10 @@ pub trait LintContext: Sized {
                 BuiltinLintDiagnostics::ByteSliceInPackedStructWithDerive => {
                     db.help("consider implementing the trait by hand, or remove the `packed` attribute");
                 }
+                BuiltinLintDiagnostics::AmbiguousGlobReexports { name, namespace, first_reexport_span, duplicate_reexport_span } => {
+                    db.span_label(first_reexport_span, format!("the name `{}` in the {} namespace is first re-exported here", name, namespace));
+                    db.span_label(duplicate_reexport_span, format!("but the name `{}` in the {} namespace is also re-exported here", name, namespace));
+                }
             }
             // Rewrap `db`, and pass control to the user.
             decorate(db)
