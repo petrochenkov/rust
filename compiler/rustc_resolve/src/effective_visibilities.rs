@@ -4,6 +4,7 @@ use rustc_ast::visit;
 use rustc_ast::visit::Visitor;
 use rustc_ast::Crate;
 use rustc_ast::EnumDef;
+use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::intern::Interned;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::def_id::CRATE_DEF_ID;
@@ -81,7 +82,7 @@ impl<'r, 'a, 'tcx> EffectiveVisibilitiesVisitor<'r, 'a, 'tcx> {
     pub(crate) fn compute_effective_visibilities<'c>(
         r: &'r mut Resolver<'a, 'tcx>,
         krate: &'c Crate,
-    ) {
+    ) -> FxHashSet<ImportId<'a>> {
         let mut visitor = EffectiveVisibilitiesVisitor {
             r,
             def_effective_visibilities: Default::default(),
@@ -104,18 +105,24 @@ impl<'r, 'a, 'tcx> EffectiveVisibilitiesVisitor<'r, 'a, 'tcx> {
         // `EffectiveVisibilitiesVisitor` pass, because we have more detailed binding-based
         // information, but are used by later passes. Effective visibility of an import def id
         // is the maximum value among visibilities of bindings corresponding to that def id.
-        for (binding, eff_vis) in visitor.import_effective_visibilities.iter() {
+        let mut exported_ambiguities = FxHashSet::default();
+        for (&binding, eff_vis) in visitor.import_effective_visibilities.iter() {
             let NameBindingKind::Import { import, .. } = binding.kind else { unreachable!() };
-            if let Some(node_id) = import.id() {
-                r.effective_visibilities.update_eff_vis(
-                    r.local_def_id(node_id),
-                    eff_vis,
-                    ResolverTree(&r.untracked),
-                )
+            if !binding.is_ambiguity() {
+                if let Some(node_id) = import.id() {
+                    r.effective_visibilities.update_eff_vis(
+                        r.local_def_id(node_id),
+                        eff_vis,
+                        ResolverTree(&r.untracked),
+                    )
+                }
+            } else if binding.ambiguity.is_some() && eff_vis.is_public_at_level(Level::Reexported) {
+                exported_ambiguities.insert(binding);
             }
         }
 
         info!("resolve::effective_visibilities: {:#?}", r.effective_visibilities);
+        exported_ambiguities
     }
 
     /// Update effective visibilities of bindings in the given module,

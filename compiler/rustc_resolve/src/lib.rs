@@ -1524,10 +1524,12 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
     pub fn resolve_crate(&mut self, krate: &Crate) {
         self.session.time("resolve_crate", || {
             self.session.time("finalize_imports", || ImportResolver { r: self }.finalize_imports());
-            self.session.time("compute_effective_visibilities", || {
+            let exported_ambiguities = self.session.time("compute_effective_visibilities", || {
                 EffectiveVisibilitiesVisitor::compute_effective_visibilities(self, krate)
             });
-            self.session.time("check_reexport_ambiguities", || self.check_reexport_ambiguities());
+            self.session.time("check_reexport_ambiguities", || {
+                self.check_reexport_ambiguities(exported_ambiguities)
+            });
             self.session.time("finalize_macro_resolutions", || self.finalize_macro_resolutions());
             self.session.time("late_resolve_crate", || self.late_resolve_crate(krate));
             self.session.time("resolve_main", || self.resolve_main());
@@ -1537,7 +1539,10 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         });
     }
 
-    fn check_reexport_ambiguities(&mut self) {
+    fn check_reexport_ambiguities(
+        &mut self,
+        exported_ambiguities: FxHashSet<Interned<'a, NameBinding<'a>>>,
+    ) {
         for module in self.arenas.local_modules().iter() {
             if let Some(_) = module.opt_def_id() {
                 module.for_each_child(self, |this, ident, ns, binding| {
@@ -1545,10 +1550,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     && let res = binding.res().expect_non_local::<Res>()
                     && res != def::Res::Err {
                         if let Some((amb_binding, _)) = binding.ambiguity
-                        && let Some(node_id) = reexport.id()
-                        && let reexport_def_id = this.local_def_id(node_id)
-                        && this.effective_visibilities.is_exported(reexport_def_id)
-                        {
+                        && exported_ambiguities.contains(&Interned::new_unchecked(binding)) {
                             this.lint_buffer.buffer_lint_with_diagnostic(
                                 AMBIGUOUS_GLOB_REEXPORTS,
                                 reexport.root_id,
