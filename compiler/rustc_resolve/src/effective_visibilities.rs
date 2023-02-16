@@ -127,20 +127,43 @@ impl<'r, 'a, 'tcx> EffectiveVisibilitiesVisitor<'r, 'a, 'tcx> {
 
         for (_, name_resolution) in resolutions.borrow().iter() {
             if let Some(mut binding) = name_resolution.borrow().binding() {
-                // Set the given effective visibility level to `Level::Direct` and
-                // sets the rest of the `use` chain to `Level::Reexported` until
-                // we hit the actual exported item.
-                let mut parent_id = ParentId::Def(module_id);
-                while let NameBindingKind::Import { binding: nested_binding, .. } = binding.kind {
-                    let binding_id = ImportId::new_unchecked(binding);
-                    self.update_import(binding_id, parent_id);
+                if !binding.is_ambiguity() {
+                    // Set the given effective visibility level to `Level::Direct` and
+                    // sets the rest of the `use` chain to `Level::Reexported` until
+                    // we hit the actual exported item.
+                    let mut parent_id = ParentId::Def(module_id);
+                    while let NameBindingKind::Import { binding: nested_binding, .. } = binding.kind
+                    {
+                        let binding_id = ImportId::new_unchecked(binding);
+                        self.update_import(binding_id, parent_id);
 
-                    parent_id = ParentId::Import(binding_id);
-                    binding = nested_binding;
-                }
+                        parent_id = ParentId::Import(binding_id);
+                        binding = nested_binding;
+                    }
 
-                if let Some(def_id) = binding.res().opt_def_id().and_then(|id| id.as_local()) {
-                    self.update_def(def_id, binding.vis.expect_local(), parent_id);
+                    if let Some(def_id) = binding.res().opt_def_id().and_then(|id| id.as_local()) {
+                        self.update_def(def_id, binding.vis.expect_local(), parent_id);
+                    }
+                } else {
+                    // Put the root ambiguity binding and all reexports leading to it into the
+                    // table. They are used by the `ambiguous_glob_reexports` lint. For all
+                    // bindings added to the table here `is_ambiguity` returns true.
+                    let mut parent_id = ParentId::Def(module_id);
+                    while let NameBindingKind::Import { binding: nested_binding, .. } = binding.kind
+                    {
+                        let binding_id = ImportId::new_unchecked(binding);
+                        self.update_import(binding_id, parent_id);
+
+                        if binding.ambiguity.is_some() {
+                            // Stop at the root ambiguity, further bindings in the chain should not
+                            // be reexported because the root ambiguity blocks any access to them.
+                            // (Those further bindings are most likely not ambiguities themselves.)
+                            break;
+                        }
+
+                        parent_id = ParentId::Import(binding_id);
+                        binding = nested_binding;
+                    }
                 }
             }
         }
