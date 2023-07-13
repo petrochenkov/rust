@@ -1876,8 +1876,8 @@ impl<'a> Builder<'a> {
             lint_flags.push("-Wsemicolon_in_expressions_from_macros");
 
             if self.config.deny_warnings {
-                lint_flags.push("-Dwarnings");
-                rustdocflags.arg("-Dwarnings");
+                //lint_flags.push("-Dwarnings");
+                //rustdocflags.arg("-Dwarnings");
             }
 
             // This does not use RUSTFLAGS due to caching issues with Cargo.

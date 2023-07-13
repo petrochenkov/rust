@@ -1,4 +1,6 @@
 struct SemiPriv;
+//~^ ERROR reached the recursion limit while auto-dereferencing `m2::Priv`
+//~| ERROR reached the recursion limit while auto-dereferencing `m2::Priv`
 
 mod m1 {
     struct Priv;

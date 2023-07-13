@@ -630,3 +630,37 @@ pub struct SuggestConvertViaMethod<'tcx> {
     pub expected: Ty<'tcx>,
     pub found: Ty<'tcx>,
 }
+
+#[derive(LintDiagnostic)]
+#[diag(hir_typeck_delegation_pattern)]
+pub(crate) struct DelegationPatternDiag<'a> {
+    #[label(hir_typeck_caller_label)]
+    pub caller: Span,
+    #[label(hir_typeck_callee_label)]
+    pub callee: Span,
+    pub stmts: &'a str,
+    pub args_match: &'a str,
+    pub ret_match: &'a str,
+    pub self_arg: &'a str,
+    // pub eq_vis: bool,
+    pub has_expr_after: bool,
+    pub same_name: bool,
+}
+
+#[derive(LintDiagnostic)]
+#[diag(hir_typeck_compressed_delegation_pattern)]
+pub(crate) struct CompressedDelegationPatternDiag<'a> {
+    #[label(hir_typeck_callee_label)]
+    pub callee: Span,
+    pub args_match: &'a str,
+    pub ret_match: &'a str,
+    pub self_arg: &'a str,
+    pub has_expr_after: bool,
+}
+
+#[derive(LintDiagnostic)]
+#[diag(hir_typeck_delegation_methods_stat)]
+pub(crate) struct DelegationPatternMethodsStatDiag {
+    pub methods_count: i32,
+    pub impls_count: i32,
+}

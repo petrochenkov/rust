@@ -3367,11 +3367,14 @@ declare_lint_pass! {
         CENUM_IMPL_DROP_CAST,
         COHERENCE_LEAK_CHECK,
         COINDUCTIVE_OVERLAP_IN_COHERENCE,
+        COMPRESSED_DELEGATION_PATTERN,
         CONFLICTING_REPR_HINTS,
         CONST_EVALUATABLE_UNCHECKED,
         CONST_ITEM_MUTATION,
         CONST_PATTERNS_WITHOUT_PARTIAL_EQ,
         DEAD_CODE,
+        DELEGATED_METHODS,
+        DELEGATION_PATTERN,
         DEPRECATED,
         DEPRECATED_CFG_ATTR_CRATE_TYPE_NAME,
         DEPRECATED_IN_FUTURE,
@@ -4618,4 +4621,22 @@ declare_lint! {
         reason: FutureIncompatibilityReason::FutureReleaseErrorDontReportInDeps,
         reference: "issue #115010 <https://github.com/rust-lang/rust/issues/115010>",
     };
+}
+
+declare_lint! {
+    pub DELEGATION_PATTERN,
+    Allow,
+    "search functions which calls another functions with same name",
+}
+
+declare_lint! {
+    pub COMPRESSED_DELEGATION_PATTERN,
+    Allow,
+    "compressed DELEGATION_PATTERN"
+}
+
+declare_lint! {
+    pub DELEGATED_METHODS,
+    Allow,
+    "search delegated methods stat"
 }
