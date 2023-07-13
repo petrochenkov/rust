@@ -21,6 +21,7 @@ pub mod cast;
 mod check;
 mod closure;
 mod coercion;
+mod delegation;
 mod demand;
 mod diverges;
 mod errors;
@@ -449,6 +450,7 @@ fn has_expected_num_generic_args(tcx: TyCtxt<'_>, trait_did: DefId, expected: us
 
 pub fn provide(providers: &mut Providers) {
     method::provide(providers);
+    delegation::provide(providers); // lint
     *providers = Providers {
         typeck,
         diagnostic_only_typeck,

@@ -1,18 +1,18 @@
 warning: type `m1::Priv` is more private than the item `m1::<impl SemiPriv>::f`
-  --> $DIR/issue-30079.rs:6:9
+  --> $DIR/issue-30079.rs:8:9
    |
 LL |         pub fn f(_: Priv) {}
    |         ^^^^^^^^^^^^^^^^^ associated function `m1::<impl SemiPriv>::f` is reachable at visibility `pub(crate)`
    |
 note: but type `m1::Priv` is only usable at visibility `pub(self)`
-  --> $DIR/issue-30079.rs:4:5
+  --> $DIR/issue-30079.rs:6:5
    |
 LL |     struct Priv;
    |     ^^^^^^^^^^^
    = note: `#[warn(private_interfaces)]` on by default
 
 error[E0446]: private type `m2::Priv` in public interface
-  --> $DIR/issue-30079.rs:17:9
+  --> $DIR/issue-30079.rs:19:9
    |
 LL |     struct Priv;
    |     ----------- `m2::Priv` declared as private
@@ -21,7 +21,7 @@ LL |         type Target = Priv;
    |         ^^^^^^^^^^^ can't leak private type
 
 error[E0446]: private type `m3::Priv` in public interface
-  --> $DIR/issue-30079.rs:34:9
+  --> $DIR/issue-30079.rs:36:9
    |
 LL |     struct Priv;
    |     ----------- `m3::Priv` declared as private
@@ -29,6 +29,16 @@ LL |     impl ::SemiPrivTrait for () {
 LL |         type Assoc = Priv;
    |         ^^^^^^^^^^ can't leak private type
 
-error: aborting due to 2 previous errors; 1 warning emitted
+error[E0055]: reached the recursion limit while auto-dereferencing `m2::Priv`
+   |
+   = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`issue_30079`)
 
-For more information about this error, try `rustc --explain E0446`.
+error[E0055]: reached the recursion limit while auto-dereferencing `m2::Priv`
+   |
+   = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`issue_30079`)
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: aborting due to 4 previous errors; 1 warning emitted
+
+Some errors have detailed explanations: E0055, E0446.
+For more information about an error, try `rustc --explain E0055`.

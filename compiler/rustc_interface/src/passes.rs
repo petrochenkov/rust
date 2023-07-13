@@ -837,6 +837,7 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
                     },
                     {
                         tcx.ensure().clashing_extern_declarations(());
+                        tcx.ensure().check_delegation(());
                     }
                 );
             },
