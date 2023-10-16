@@ -642,7 +642,6 @@ pub(crate) struct DelegationPatternDiag<'a> {
     pub args_match: &'a str,
     pub ret_match: &'a str,
     pub self_arg: &'a str,
-    // pub eq_vis: bool,
     pub has_expr_after: bool,
     pub same_name: bool,
 }

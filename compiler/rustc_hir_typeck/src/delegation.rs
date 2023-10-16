@@ -96,7 +96,6 @@ struct Stats {
     args_match: ArgsMatch,
     ret_match: RetMatch,
     has_self: HasSelf,
-    eq_vis: bool,
     same_name: bool,
     has_expr_after: bool,
 }
@@ -107,7 +106,6 @@ struct Fn<'tcx> {
     sym: Symbol,
     inputs: Vec<Ty<'tcx>>,
     output: Ty<'tcx>,
-    vis: ty::Visibility,
     self_ty: Option<Ty<'tcx>>,
     has_expr_after: bool,
 }
@@ -138,19 +136,12 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     .map(|arg| self.typeck_results.expr_ty_adjusted(arg))
                     .collect();
                 let output = self.typeck_results.expr_ty_adjusted(expr);
-                let def_id = self.typeck_results.type_dependent_def_id(expr.hir_id);
-                let vis = if let Some(def_id) = def_id && let Some(def_id) = def_id.as_local() {
-                    self.tcx.local_visibility(def_id)
-                } else {
-                    ty::Visibility::Public
-                };
                 let self_ty = Some(inputs[0]);
                 self.func.push(Fn {
                     span,
                     sym,
                     inputs,
                     output,
-                    vis,
                     self_ty,
                     has_expr_after: self.has_expr_after,
                 });
@@ -165,17 +156,11 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     let output = self.typeck_results.expr_ty_adjusted(expr);
                     let sym = self.tcx.item_name(*def_id);
 
-                    let vis = if let Some(local_def_id) = def_id.as_local() {
-                        self.tcx.local_visibility(local_def_id)
-                    } else {
-                        ty::Visibility::Public
-                    };
                     self.func.push(Fn {
                         span: expr.span,
                         sym,
                         inputs,
                         output,
-                        vis,
                         self_ty: None,
                         has_expr_after: self.has_expr_after,
                     });
@@ -307,11 +292,6 @@ impl<'tcx> DelegationCtx<'tcx> {
         }
     }
 
-    fn compare_signatures(&mut self, tcx: TyCtxt<'tcx>, param_env: ParamEnv<'tcx>) {
-        self.compare_inputs(tcx, param_env);
-        self.compare_output(tcx, param_env);
-    }
-
     fn collect_stats(&mut self, tcx: TyCtxt<'tcx>, param_env: ParamEnv<'tcx>, has_self: HasSelf) {
         let (Some(callee), Some(caller)) = (&self.callee, &self.caller) else {
             return;
@@ -319,9 +299,9 @@ impl<'tcx> DelegationCtx<'tcx> {
         self.stats.same_name = if callee.sym == caller.sym { true } else { false };
         self.stats.has_self = if callee.self_ty.is_some() { HasSelf::Value } else { has_self };
         self.stats.has_expr_after = if callee.has_expr_after { true } else { false };
-        self.stats.eq_vis = if callee.vis == caller.vis { true } else { false };
 
-        self.compare_signatures(tcx, param_env);
+        self.compare_inputs(tcx, param_env);
+        self.compare_output(tcx, param_env);
     }
 
     fn try_emit(&self, tcx: TyCtxt<'tcx>) {
@@ -339,7 +319,6 @@ impl<'tcx> DelegationCtx<'tcx> {
                 args_match: &self.stats.args_match.to_string(),
                 ret_match: &self.stats.ret_match.to_string(),
                 stmts: &self.stats.stmts_count.to_string(),
-                // eq_vis: self.stats.eq_vis,
                 self_arg: &self.stats.has_self.to_string(),
                 same_name: self.stats.same_name,
                 has_expr_after: self.stats.has_expr_after,
@@ -448,19 +427,6 @@ impl<'tcx> DelegationPatternVisitor<'tcx> {
         }
     }
 
-    fn typeck_results(&self) -> &'tcx ty::TypeckResults<'tcx> {
-        self.maybe_typeck_results
-            .expect("`DelegationPatternVisitor::typeck_results` called outside of body")
-    }
-
-    fn update_typeck(&mut self, id: rustc_hir::BodyId) {
-        self.maybe_typeck_results.replace(self.tcx.typeck_body(id));
-    }
-
-    fn update_param_env(&mut self, id: LocalDefId) {
-        self.param_env = self.tcx.param_env(id);
-    }
-
     fn emit_methods_stats(&self) {
         for (key, value) in self.methods_stats.iter() {
             self.tcx.emit_lint(
@@ -512,8 +478,8 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         let ExprKind::Block(block, _) = body.value.kind else {
             return;
         };
-        self.update_typeck(body_id);
-        self.update_param_env(def_id);
+        self.maybe_typeck_results.replace(self.tcx.typeck_body(body_id));
+        self.param_env = self.tcx.param_env(def_id);
 
         let hir_id = self.tcx.hir().local_def_id_to_hir_id(def_id);
         let mut delegation_ctx =
@@ -548,7 +514,6 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
             sym,
             inputs: caller_sig.inputs().to_vec(),
             output: caller_sig.output(),
-            vis: self.tcx.local_visibility(def_id),
             self_ty,
             has_expr_after: false, // not matter for caller
         });
@@ -563,7 +528,7 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         let mut process_expr = |expr, is_tail: bool| {
             delegation_ctx.stats.stmts_count = stmts_count;
 
-            let mut expr_visitor = ExprVisitor::new(self.typeck_results(), self.tcx);
+            let mut expr_visitor = ExprVisitor::new(self.maybe_typeck_results.unwrap(), self.tcx);
 
             if !is_tail {
                 expr_visitor.has_expr_after = true;
