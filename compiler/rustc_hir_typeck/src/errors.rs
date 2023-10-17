@@ -658,8 +658,8 @@ pub(crate) struct CompressedDelegationPatternDiag<'a> {
 }
 
 #[derive(LintDiagnostic)]
-#[diag(hir_typeck_delegation_methods_stat)]
-pub(crate) struct DelegationPatternMethodsStatDiag {
-    pub methods_count: i32,
-    pub impls_count: i32,
+#[diag(hir_typeck_delegations_per_parent_stats)]
+pub(crate) struct DelegationsPerParentStats {
+    pub delegation_count: u64,
+    pub parent_count: u64,
 }

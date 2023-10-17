@@ -48,13 +48,13 @@ hir_typeck_convert_using_method = try using `{$sugg}` to convert `{$found}` to `
 
 hir_typeck_ctor_is_private = tuple struct constructor `{$def}` is private
 
-hir_typeck_delegation_methods_stat =
-    delegation methods stats. methods_count: {$methods_count}, {$impls_count}.
-
 hir_typeck_delegation_pattern =
     dstats. stmts: {$stmts}, args_match: {$args_match}, ret_match: {$ret_match}, self_arg: {$self_arg}, same_name: {$same_name}, has_expr_after: {$has_expr_after}.
     .caller_label = caller
     .callee_label = callee
+
+hir_typeck_delegations_per_parent_stats =
+    delegation methods stats. methods_count: {$delegation_count}, {$parent_count}.
 
 hir_typeck_deref_is_empty = this expression `Deref`s to `{$deref_ty}` which implements `is_empty`
 

@@ -1,7 +1,5 @@
 use crate::errors;
-
 use rustc_data_structures::fx::FxIndexMap;
-use rustc_hir::intravisit::nested_filter::NestedFilter;
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{Expr, ExprKind, HirId, Item, ItemKind, Node, StmtKind, CRATE_HIR_ID};
 use rustc_infer::infer::TyCtxtInferExt;
@@ -12,6 +10,7 @@ use rustc_session::lint;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, Symbol};
 use rustc_trait_selection::traits::ObligationCtxt;
+use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Default, Debug, Copy, Clone)]
@@ -119,7 +118,7 @@ struct ExprVisitor<'tcx> {
 
 impl<'tcx> ExprVisitor<'tcx> {
     fn new(typeck_results: &'tcx ty::TypeckResults<'tcx>, tcx: TyCtxt<'tcx>) -> Self {
-        Self { func: Default::default(), typeck_results, tcx, has_expr_after: false }
+        ExprVisitor { func: Default::default(), typeck_results, tcx, has_expr_after: false }
     }
 }
 
@@ -365,7 +364,7 @@ struct Comparator<'tcx> {
 
 impl<'tcx> Comparator<'tcx> {
     fn new(tcx: TyCtxt<'tcx>, param_env: ParamEnv<'tcx>, def_id: LocalDefId) -> Self {
-        Self { tcx, param_env, def_id }
+        Comparator { tcx, param_env, def_id }
     }
 
     fn is_subtype(&self, src: Ty<'tcx>, dest: Ty<'tcx>) -> bool {
@@ -410,59 +409,31 @@ impl<'tcx> Comparator<'tcx> {
 
 struct DelegationPatternVisitor<'tcx> {
     tcx: TyCtxt<'tcx>,
-    param_env: ParamEnv<'tcx>,
-    maybe_typeck_results: Option<&'tcx ty::TypeckResults<'tcx>>,
-    methods_stats: FxIndexMap<i32, i32>,
-    current_delegations_count: i32,
+    delegations_per_parent_stats: FxIndexMap<LocalDefId, u64>,
 }
 
 impl<'tcx> DelegationPatternVisitor<'tcx> {
     fn new(tcx: TyCtxt<'tcx>) -> Self {
-        Self {
-            tcx,
-            maybe_typeck_results: None,
-            param_env: ParamEnv::empty(),
-            methods_stats: Default::default(),
-            current_delegations_count: 0,
-        }
+        DelegationPatternVisitor { tcx, delegations_per_parent_stats: Default::default() }
     }
 
     fn emit_methods_stats(&self) {
-        for (key, value) in self.methods_stats.iter() {
+        let mut accumulated = BTreeMap::default();
+        for (_, &delegation_count) in &self.delegations_per_parent_stats {
+            *accumulated.entry(delegation_count).or_default() += 1;
+        }
+
+        for (delegation_count, parent_count) in accumulated {
             self.tcx.emit_lint(
-                lint::builtin::DELEGATED_METHODS,
+                lint::builtin::DELEGATIONS_PER_PARENT_STATS,
                 CRATE_HIR_ID,
-                errors::DelegationPatternMethodsStatDiag {
-                    methods_count: *key,
-                    impls_count: *value,
-                },
+                errors::DelegationsPerParentStats { delegation_count, parent_count },
             );
         }
     }
 }
 
-pub struct ItemLike(());
-impl<'hir> NestedFilter<'hir> for ItemLike {
-    type Map = rustc_middle::hir::map::Map<'hir>;
-    const INTER: bool = true;
-    const INTRA: bool = false;
-}
-
 impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
-    type NestedFilter = ItemLike;
-
-    fn nested_visit_map(&mut self) -> Self::Map {
-        self.tcx.hir()
-    }
-
-    fn visit_item(&mut self, item: &'tcx Item<'tcx>) {
-        intravisit::walk_item(self, item);
-        if matches!(item.kind, ItemKind::Impl(..)) {
-            *self.methods_stats.entry(self.current_delegations_count).or_insert(0) += 1;
-        }
-        self.current_delegations_count = 0;
-    }
-
     fn visit_fn(
         &mut self,
         fk: intravisit::FnKind<'tcx>,
@@ -474,12 +445,12 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         if matches!(fk, intravisit::FnKind::Closure) {
             return;
         }
-        let body: &rustc_hir::Body<'_> = self.tcx.hir().body(body_id.clone());
+        let body: &rustc_hir::Body<'_> = self.tcx.hir().body(body_id);
         let ExprKind::Block(block, _) = body.value.kind else {
             return;
         };
-        self.maybe_typeck_results.replace(self.tcx.typeck_body(body_id));
-        self.param_env = self.tcx.param_env(def_id);
+        let typeck_results = self.tcx.typeck_body(body_id);
+        let param_env = self.tcx.param_env(def_id);
 
         let hir_id = self.tcx.hir().local_def_id_to_hir_id(def_id);
         let mut delegation_ctx =
@@ -528,17 +499,16 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         let mut process_expr = |expr, is_tail: bool| {
             delegation_ctx.stats.stmts_count = stmts_count;
 
-            let mut expr_visitor = ExprVisitor::new(self.maybe_typeck_results.unwrap(), self.tcx);
+            let mut expr_visitor = ExprVisitor::new(typeck_results, self.tcx);
 
             if !is_tail {
                 expr_visitor.has_expr_after = true;
             }
 
             expr_visitor.visit_expr(expr);
-            for callee in expr_visitor.func.iter() {
+            for callee in expr_visitor.func {
                 delegation_ctx.callee = Some(callee.clone());
-                delegation_ctx.collect_stats(self.tcx, self.param_env, has_self);
-                self.current_delegations_count += delegation_ctx.is_delegation() as i32;
+                delegation_ctx.collect_stats(self.tcx, param_env, has_self);
                 delegation_ctx.try_emit(self.tcx);
             }
         };
@@ -553,6 +523,10 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         if let Some(expr) = block.expr {
             process_expr(expr, true);
         }
+
+        if delegation_ctx.is_delegation() {
+            *self.delegations_per_parent_stats.entry(parent_id).or_default() += 1;
+        }
     }
 }
 
@@ -562,6 +536,6 @@ pub fn provide(providers: &mut Providers) {
 
 fn check_delegation(tcx: TyCtxt<'_>, (): ()) {
     let mut visitor = DelegationPatternVisitor::new(tcx);
-    tcx.hir().walk_toplevel_module(&mut visitor);
+    tcx.hir().visit_all_item_likes_in_crate(&mut visitor);
     visitor.emit_methods_stats();
 }

@@ -3373,8 +3373,8 @@ declare_lint_pass! {
         CONST_ITEM_MUTATION,
         CONST_PATTERNS_WITHOUT_PARTIAL_EQ,
         DEAD_CODE,
-        DELEGATED_METHODS,
         DELEGATION_PATTERN,
+        DELEGATIONS_PER_PARENT_STATS,
         DEPRECATED,
         DEPRECATED_CFG_ATTR_CRATE_TYPE_NAME,
         DEPRECATED_IN_FUTURE,
@@ -4636,7 +4636,7 @@ declare_lint! {
 }
 
 declare_lint! {
-    pub DELEGATED_METHODS,
+    pub DELEGATIONS_PER_PARENT_STATS,
     Allow,
-    "search delegated methods stat"
+    "delegations per parent statistics"
 }
