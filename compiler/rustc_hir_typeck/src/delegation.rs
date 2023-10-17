@@ -1,17 +1,18 @@
-use crate::errors;
+use crate::{errors, FnCtxt, Inherited};
 use rustc_data_structures::fx::FxIndexMap;
-use rustc_hir::intravisit::{self, Visitor};
-use rustc_hir::{Expr, ExprKind, HirId, Item, ItemKind, Node, StmtKind, CRATE_HIR_ID};
+use rustc_hir::def::DefKind;
+use rustc_hir::intravisit::{self, FnKind, Visitor};
+use rustc_hir::{BodyId, Expr, ExprKind, FnDecl, StmtKind, CRATE_HIR_ID};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_middle::query::Providers;
 use rustc_middle::traits::{DefiningAnchor, ObligationCause};
-use rustc_middle::ty::{self, ParamEnv, Ty, TyCtxt};
+use rustc_middle::ty::{FnDef, ParamEnv, Ty, TyCtxt, TypeckResults};
 use rustc_session::lint;
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{Span, Symbol};
 use rustc_trait_selection::traits::ObligationCtxt;
 use std::collections::BTreeMap;
-use std::fmt;
+use std::{fmt, iter, slice};
 
 #[derive(Default, Debug, Copy, Clone)]
 enum StmtsCount {
@@ -90,8 +91,7 @@ impl fmt::Display for HasSelf {
 }
 
 #[derive(Default)]
-struct Stats {
-    stmts_count: StmtsCount,
+struct CalleeStats {
     args_match: ArgsMatch,
     ret_match: RetMatch,
     has_self: HasSelf,
@@ -111,14 +111,14 @@ struct Fn<'tcx> {
 
 struct ExprVisitor<'tcx> {
     func: Vec<Fn<'tcx>>,
-    typeck_results: &'tcx ty::TypeckResults<'tcx>,
+    typeck_results: &'tcx TypeckResults<'tcx>,
     tcx: TyCtxt<'tcx>,
     has_expr_after: bool,
 }
 
 impl<'tcx> ExprVisitor<'tcx> {
-    fn new(typeck_results: &'tcx ty::TypeckResults<'tcx>, tcx: TyCtxt<'tcx>) -> Self {
-        ExprVisitor { func: Default::default(), typeck_results, tcx, has_expr_after: false }
+    fn new(typeck_results: &'tcx TypeckResults<'tcx>, tcx: TyCtxt<'tcx>, is_tail: bool) -> Self {
+        ExprVisitor { func: Default::default(), typeck_results, tcx, has_expr_after: !is_tail }
     }
 }
 
@@ -148,7 +148,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
 
             ExprKind::Call(func, args) => {
                 let call_type = self.typeck_results.node_type(func.hir_id);
-                if let ty::FnDef(def_id, ..) = call_type.kind() {
+                if let FnDef(def_id, ..) = call_type.kind() {
                     let inputs =
                         args.iter().map(|arg| self.typeck_results.expr_ty_adjusted(arg)).collect();
 
@@ -204,28 +204,25 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
     }
 }
 
-struct DelegationCtx<'tcx> {
-    stats: Stats,
-    callee: Option<Fn<'tcx>>,
-    caller: Option<Fn<'tcx>>,
-    hir_id: HirId,
+struct Caller<'tcx> {
+    func: Fn<'tcx>,
+    def_id: LocalDefId,
+    stmts_count: StmtsCount,
+    has_self: HasSelf,
 }
 
-fn constrain<'tcx, F>(f: F) -> F
-where
-    F: for<'a> std::ops::Fn(&'a Fn<'tcx>) -> (std::slice::Iter<'a, Ty<'tcx>>, usize),
-{
-    f
-}
+impl<'tcx> Caller<'tcx> {
+    fn compare_inputs(
+        &self,
+        tcx: TyCtxt<'tcx>,
+        param_env: ParamEnv<'tcx>,
+        callee: &Fn<'tcx>,
+        stats: &mut CalleeStats,
+    ) {
+        let caller = &self.func;
+        stats.args_match = ArgsMatch::Same;
 
-impl<'tcx> DelegationCtx<'tcx> {
-    fn compare_inputs(&mut self, tcx: TyCtxt<'tcx>, param_env: ParamEnv<'tcx>) {
-        let (Some(callee), Some(caller)) = (&self.callee, &self.caller) else {
-            return;
-        };
-        self.stats.args_match = ArgsMatch::Same;
-
-        let preproc = constrain(|func| {
+        fn preproc<'a, 'tcx>(func: &'a Fn<'tcx>) -> (slice::Iter<'a, Ty<'tcx>>, usize) {
             let mut len = func.inputs.len();
             let mut iter = func.inputs.iter();
             if func.self_ty.is_some() {
@@ -234,48 +231,51 @@ impl<'tcx> DelegationCtx<'tcx> {
                 len -= 1;
             }
             (iter, len)
-        });
+        }
 
         // skip self if exists
         let (callee_iter, callee_len) = preproc(callee);
         let (caller_iter, caller_len) = preproc(caller);
         if callee_len != caller_len {
-            self.stats.args_match = ArgsMatch::Different;
+            stats.args_match = ArgsMatch::Different;
             return;
         }
 
-        let zip = std::iter::zip(callee_iter, caller_iter);
-        let comparator = Comparator::new(tcx, param_env, self.hir_id.owner.def_id);
+        let comparator = Comparator::new(tcx, param_env, self.def_id);
         let cmp = |lhs, rhs| -> bool { comparator.compare(lhs, rhs) };
-        for param in zip {
-            if !cmp(*param.0, *param.1) {
+        for (&callee_param, &caller_param) in iter::zip(callee_iter, caller_iter) {
+            if !cmp(callee_param, caller_param) {
                 if let (Some(callee_self_ty), Some(caller_self_ty)) =
                     (callee.self_ty, caller.self_ty)
                 {
-                    if cmp(callee_self_ty, *param.0) && cmp(caller_self_ty, *param.1) {
-                        self.stats.args_match = ArgsMatch::SameUpToSelfType;
+                    if cmp(callee_self_ty, callee_param) && cmp(caller_self_ty, caller_param) {
+                        stats.args_match = ArgsMatch::SameUpToSelfType;
                     } else {
-                        self.stats.args_match = ArgsMatch::SameNumber;
+                        stats.args_match = ArgsMatch::SameNumber;
                         return;
                     }
                 } else {
-                    self.stats.args_match = ArgsMatch::SameNumber;
+                    stats.args_match = ArgsMatch::SameNumber;
                     return;
                 }
             }
         }
     }
 
-    fn compare_output(&mut self, tcx: TyCtxt<'tcx>, param_env: ParamEnv<'tcx>) {
-        let (Some(callee), Some(caller)) = (&self.callee, &self.caller) else {
-            return;
-        };
-        let comparator = Comparator::new(tcx, param_env, self.hir_id.owner.def_id);
+    fn compare_output(
+        &self,
+        tcx: TyCtxt<'tcx>,
+        param_env: ParamEnv<'tcx>,
+        callee: &Fn<'tcx>,
+        stats: &mut CalleeStats,
+    ) {
+        let caller = &self.func;
+        let comparator = Comparator::new(tcx, param_env, self.def_id);
         let cmp = |lhs, rhs| -> bool { comparator.compare(lhs, rhs) };
 
-        self.stats.ret_match = RetMatch::Different;
+        stats.ret_match = RetMatch::Different;
         if cmp(caller.output, callee.output) {
-            self.stats.ret_match = RetMatch::Same;
+            stats.ret_match = RetMatch::Same;
             return;
         }
 
@@ -285,65 +285,67 @@ impl<'tcx> DelegationCtx<'tcx> {
             if cmp(callee_self_ty.peel_refs(), callee.output.peel_refs())
                 && cmp(caller_self_ty.peel_refs(), caller.output.peel_refs())
             {
-                self.stats.ret_match = RetMatch::SameUpToSelfType;
+                stats.ret_match = RetMatch::SameUpToSelfType;
                 return;
             }
         }
     }
 
-    fn collect_stats(&mut self, tcx: TyCtxt<'tcx>, param_env: ParamEnv<'tcx>, has_self: HasSelf) {
-        let (Some(callee), Some(caller)) = (&self.callee, &self.caller) else {
-            return;
-        };
-        self.stats.same_name = if callee.sym == caller.sym { true } else { false };
-        self.stats.has_self = if callee.self_ty.is_some() { HasSelf::Value } else { has_self };
-        self.stats.has_expr_after = if callee.has_expr_after { true } else { false };
+    fn collect_stats(
+        &self,
+        tcx: TyCtxt<'tcx>,
+        param_env: ParamEnv<'tcx>,
+        callee: &Fn<'tcx>,
+        stats: &mut CalleeStats,
+    ) {
+        let caller = &self.func;
+        stats.same_name = if callee.sym == caller.sym { true } else { false };
+        stats.has_self = if callee.self_ty.is_some() { HasSelf::Value } else { self.has_self };
+        stats.has_expr_after = if callee.has_expr_after { true } else { false };
 
-        self.compare_inputs(tcx, param_env);
-        self.compare_output(tcx, param_env);
+        self.compare_inputs(tcx, param_env, callee, stats);
+        self.compare_output(tcx, param_env, callee, stats);
     }
 
-    fn try_emit(&self, tcx: TyCtxt<'tcx>) {
-        let (Some(callee), Some(caller)) = (&self.callee, &self.caller) else {
-            return;
-        };
-
+    fn try_emit(&self, tcx: TyCtxt<'tcx>, callee: &Fn<'tcx>, stats: &CalleeStats) {
+        let caller = &self.func;
+        let hir_id = tcx.hir().local_def_id_to_hir_id(self.def_id);
         tcx.emit_spanned_lint(
-            lint::builtin::DELEGATION_PATTERN,
-            self.hir_id,
+            lint::builtin::DELEGATIONS_DETAILED,
+            hir_id,
             callee.span,
-            errors::DelegationPatternDiag {
+            errors::DelegationDetailed {
                 caller: caller.span,
                 callee: callee.span,
-                args_match: &self.stats.args_match.to_string(),
-                ret_match: &self.stats.ret_match.to_string(),
-                stmts: &self.stats.stmts_count.to_string(),
-                self_arg: &self.stats.has_self.to_string(),
-                same_name: self.stats.same_name,
-                has_expr_after: self.stats.has_expr_after,
+                args_match: stats.args_match.to_string(),
+                ret_match: stats.ret_match.to_string(),
+                stmts: self.stmts_count.to_string(),
+                self_arg: stats.has_self.to_string(),
+                same_name: stats.same_name,
+                has_expr_after: stats.has_expr_after,
             },
         );
 
-        if self.is_compressed() {
+        if self.is_compressed(stats) {
             tcx.emit_spanned_lint(
-                lint::builtin::COMPRESSED_DELEGATION_PATTERN,
-                self.hir_id,
+                lint::builtin::DELEGATIONS,
+                hir_id,
                 callee.span,
-                errors::CompressedDelegationPatternDiag {
+                errors::Delegation {
                     callee: callee.span,
-                    args_match: &self.stats.args_match.to_string(),
-                    ret_match: &self.stats.ret_match.to_string(),
-                    self_arg: &self.stats.has_self.to_string(),
-                    has_expr_after: self.stats.has_expr_after,
+                    args_match: stats.args_match.to_string(),
+                    ret_match: stats.ret_match.to_string(),
+                    self_arg: stats.has_self.to_string(),
+                    has_expr_after: stats.has_expr_after,
                 },
             );
         }
     }
 
-    fn is_compressed(&self) -> bool {
-        if matches!(self.stats.stmts_count, StmtsCount::Other | StmtsCount::OneWithTail)
-            || matches!(self.stats.args_match, ArgsMatch::Different)
-            || self.stats.same_name == false
+    fn is_compressed(&self, stats: &CalleeStats) -> bool {
+        if matches!(self.stmts_count, StmtsCount::Other | StmtsCount::OneWithTail)
+            || matches!(stats.args_match, ArgsMatch::Different)
+            || stats.same_name == false
         {
             return false;
         }
@@ -351,8 +353,8 @@ impl<'tcx> DelegationCtx<'tcx> {
         true
     }
 
-    fn is_delegation(&self) -> bool {
-        self.is_compressed() && !matches!(self.stats.args_match, ArgsMatch::SameNumber)
+    fn is_delegation(&self, stats: &CalleeStats) -> bool {
+        self.is_compressed(stats) && !matches!(stats.args_match, ArgsMatch::SameNumber)
     }
 }
 
@@ -396,8 +398,8 @@ impl<'tcx> Comparator<'tcx> {
             return true;
         }
 
-        let inh = crate::Inherited::new(self.tcx, self.def_id);
-        let fcx = crate::FnCtxt::new(&inh, self.param_env, self.def_id);
+        let inh = Inherited::new(self.tcx, self.def_id);
+        let fcx = FnCtxt::new(&inh, self.param_env, self.def_id);
 
         // to avoid `compare` params order errors types
         if fcx.can_coerce(dest, src) {
@@ -436,80 +438,66 @@ impl<'tcx> DelegationPatternVisitor<'tcx> {
 impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
     fn visit_fn(
         &mut self,
-        fk: intravisit::FnKind<'tcx>,
-        _decl: &'tcx rustc_hir::FnDecl<'tcx>,
-        body_id: rustc_hir::BodyId,
+        fk: FnKind<'tcx>,
+        _decl: &'tcx FnDecl<'tcx>,
+        body_id: BodyId,
         span: Span,
         def_id: LocalDefId,
     ) {
-        if matches!(fk, intravisit::FnKind::Closure) {
+        if matches!(fk, FnKind::Closure) {
             return;
         }
-        let body: &rustc_hir::Body<'_> = self.tcx.hir().body(body_id);
-        let ExprKind::Block(block, _) = body.value.kind else {
-            return;
+        let block = match self.tcx.hir().body(body_id).value.kind {
+            ExprKind::Block(block, _) => block,
+            // Async functions are lowered to this, consider later.
+            ExprKind::Closure(..) => return,
+            kind => span_bug!(span, "non-block function body: {kind:?}"),
         };
-        let typeck_results = self.tcx.typeck_body(body_id);
-        let param_env = self.tcx.param_env(def_id);
 
-        let hir_id = self.tcx.hir().local_def_id_to_hir_id(def_id);
-        let mut delegation_ctx =
-            DelegationCtx { stats: Default::default(), callee: None, caller: None, hir_id };
-
-        let caller_sig = self.tcx.liberate_late_bound_regions(
+        // Caller signature
+        let sig = self.tcx.liberate_late_bound_regions(
             def_id.to_def_id(),
             self.tcx.fn_sig(def_id.to_def_id()).instantiate_identity(),
         );
-        let sym = self.tcx.item_name(hir_id.owner.to_def_id());
+        let inputs = sig.inputs().to_vec();
 
-        let parent_id = self.tcx.local_parent(def_id);
-        let hir_parent_id = self.tcx.hir().local_def_id_to_hir_id(parent_id);
-        let parent = self.tcx.hir().find(hir_parent_id);
-
+        // Caller self parameter
         let mut self_ty = None;
         let mut has_self = HasSelf::Other;
-        if matches!(
-            parent,
-            Some(Node::Item(Item { kind: ItemKind::Impl(..), .. }))
-                | Some(Node::Item(Item { kind: ItemKind::Trait(..), .. }))
-        ) {
-            let assoc_item = self.tcx.associated_item(def_id);
+        if self.tcx.def_kind(def_id) == DefKind::AssocFn {
             has_self = HasSelf::Type;
-            if assoc_item.fn_has_self_parameter {
-                self_ty = Some(caller_sig.inputs()[0]);
+            if self.tcx.associated_item(def_id).fn_has_self_parameter {
+                self_ty = Some(inputs[0]);
             }
         }
 
-        delegation_ctx.caller = Some(Fn {
+        // Combine caller data
+        let func = Fn {
             span,
-            sym,
-            inputs: caller_sig.inputs().to_vec(),
-            output: caller_sig.output(),
+            sym: self.tcx.item_name(def_id.to_def_id()),
+            inputs,
+            output: sig.output(),
             self_ty,
             has_expr_after: false, // not matter for caller
-        });
-
+        };
         let stmts_count = match (block.expr, block.stmts.len()) {
             (Some(_), 0) => StmtsCount::ZeroWithTail,
             (None, 1) => StmtsCount::OneWithoutTail,
             (Some(_), 1) => StmtsCount::OneWithTail,
             _ => StmtsCount::Other,
         };
+        let caller = Caller { func, def_id, stmts_count, has_self };
 
+        let typeck_results = self.tcx.typeck_body(body_id);
+        let param_env = self.tcx.param_env(def_id);
+
+        let mut stats = CalleeStats::default();
         let mut process_expr = |expr, is_tail: bool| {
-            delegation_ctx.stats.stmts_count = stmts_count;
-
-            let mut expr_visitor = ExprVisitor::new(typeck_results, self.tcx);
-
-            if !is_tail {
-                expr_visitor.has_expr_after = true;
-            }
-
+            let mut expr_visitor = ExprVisitor::new(typeck_results, self.tcx, is_tail);
             expr_visitor.visit_expr(expr);
             for callee in expr_visitor.func {
-                delegation_ctx.callee = Some(callee.clone());
-                delegation_ctx.collect_stats(self.tcx, param_env, has_self);
-                delegation_ctx.try_emit(self.tcx);
+                caller.collect_stats(self.tcx, param_env, &callee, &mut stats);
+                caller.try_emit(self.tcx, &callee, &stats);
             }
         };
 
@@ -524,8 +512,9 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
             process_expr(expr, true);
         }
 
-        if delegation_ctx.is_delegation() {
-            *self.delegations_per_parent_stats.entry(parent_id).or_default() += 1;
+        if caller.is_delegation(&stats) {
+            let parent_def_id = self.tcx.local_parent(def_id);
+            *self.delegations_per_parent_stats.entry(parent_def_id).or_default() += 1;
         }
     }
 }

@@ -31,10 +31,6 @@ hir_typeck_cast_unknown_pointer = cannot cast {$to ->
     .note = the type information given here is insufficient to check whether the pointer cast is valid
     .label_from = the type information given here is insufficient to check whether the pointer cast is valid
 
-hir_typeck_compressed_delegation_pattern =
-    comressed dstats. args_match: {$args_match}, ret_match: {$ret_match}, self_arg: {$self_arg}, has_expr_after: {$has_expr_after}.
-    .callee_label = callee
-
 hir_typeck_const_select_must_be_const = this argument must be a `const fn`
     .help = consult the documentation on `const_eval_select` for more information
 
@@ -48,7 +44,11 @@ hir_typeck_convert_using_method = try using `{$sugg}` to convert `{$found}` to `
 
 hir_typeck_ctor_is_private = tuple struct constructor `{$def}` is private
 
-hir_typeck_delegation_pattern =
+hir_typeck_delegation =
+    comressed dstats. args_match: {$args_match}, ret_match: {$ret_match}, self_arg: {$self_arg}, has_expr_after: {$has_expr_after}.
+    .callee_label = callee
+
+hir_typeck_delegation_detailed =
     dstats. stmts: {$stmts}, args_match: {$args_match}, ret_match: {$ret_match}, self_arg: {$self_arg}, same_name: {$same_name}, has_expr_after: {$has_expr_after}.
     .caller_label = caller
     .callee_label = callee

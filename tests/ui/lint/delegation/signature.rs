@@ -1,4 +1,4 @@
-#![deny(delegations_per_parent_stats, delegation_pattern)]
+#![deny(delegations_detailed, delegations_per_parent_stats)]
 
 use std::hash::{Hash, Hasher};
 use std::ops::Add;

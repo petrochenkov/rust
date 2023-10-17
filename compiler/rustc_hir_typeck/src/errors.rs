@@ -632,28 +632,28 @@ pub struct SuggestConvertViaMethod<'tcx> {
 }
 
 #[derive(LintDiagnostic)]
-#[diag(hir_typeck_delegation_pattern)]
-pub(crate) struct DelegationPatternDiag<'a> {
+#[diag(hir_typeck_delegation_detailed)]
+pub(crate) struct DelegationDetailed {
     #[label(hir_typeck_caller_label)]
     pub caller: Span,
     #[label(hir_typeck_callee_label)]
     pub callee: Span,
-    pub stmts: &'a str,
-    pub args_match: &'a str,
-    pub ret_match: &'a str,
-    pub self_arg: &'a str,
+    pub stmts: String,
+    pub args_match: String,
+    pub ret_match: String,
+    pub self_arg: String,
     pub has_expr_after: bool,
     pub same_name: bool,
 }
 
 #[derive(LintDiagnostic)]
-#[diag(hir_typeck_compressed_delegation_pattern)]
-pub(crate) struct CompressedDelegationPatternDiag<'a> {
+#[diag(hir_typeck_delegation)]
+pub(crate) struct Delegation {
     #[label(hir_typeck_callee_label)]
     pub callee: Span,
-    pub args_match: &'a str,
-    pub ret_match: &'a str,
-    pub self_arg: &'a str,
+    pub args_match: String,
+    pub ret_match: String,
+    pub self_arg: String,
     pub has_expr_after: bool,
 }
 

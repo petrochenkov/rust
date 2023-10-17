@@ -3367,13 +3367,13 @@ declare_lint_pass! {
         CENUM_IMPL_DROP_CAST,
         COHERENCE_LEAK_CHECK,
         COINDUCTIVE_OVERLAP_IN_COHERENCE,
-        COMPRESSED_DELEGATION_PATTERN,
         CONFLICTING_REPR_HINTS,
         CONST_EVALUATABLE_UNCHECKED,
         CONST_ITEM_MUTATION,
         CONST_PATTERNS_WITHOUT_PARTIAL_EQ,
         DEAD_CODE,
-        DELEGATION_PATTERN,
+        DELEGATIONS,
+        DELEGATIONS_DETAILED,
         DELEGATIONS_PER_PARENT_STATS,
         DEPRECATED,
         DEPRECATED_CFG_ATTR_CRATE_TYPE_NAME,
@@ -4624,19 +4624,22 @@ declare_lint! {
 }
 
 declare_lint! {
-    pub DELEGATION_PATTERN,
+    pub DELEGATIONS_DETAILED,
     Allow,
-    "search functions which calls another functions with same name",
+    "search functions that call other functions and collect statistics \
+     about the call contexts and the caller and callee similarity",
 }
 
 declare_lint! {
-    pub COMPRESSED_DELEGATION_PATTERN,
+    pub DELEGATIONS,
     Allow,
-    "compressed DELEGATION_PATTERN"
+    "same as `DELEGATION_PATTERNS_DETAILED`, but only reports cases that \
+     look similar to delegation, to avoid large amount of output"
 }
 
 declare_lint! {
     pub DELEGATIONS_PER_PARENT_STATS,
     Allow,
-    "delegations per parent statistics"
+    "collects statistics about the number of items that could potentially \
+     be turned into delegation items in a single containing parent item"
 }
