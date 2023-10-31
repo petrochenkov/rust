@@ -25,12 +25,12 @@ enum StmtsCount {
 
 impl fmt::Display for StmtsCount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StmtsCount::ZeroWithTail => write!(f, "ZeroWithTail"),
-            StmtsCount::OneWithoutTail => write!(f, "OneWithoutTail"),
-            StmtsCount::OneWithTail => write!(f, "OneWithTail"),
-            StmtsCount::Other => write!(f, "Other"),
-        }
+        f.write_str(match self {
+            StmtsCount::ZeroWithTail => "ZeroWithTail",
+            StmtsCount::OneWithoutTail => "OneWithoutTail",
+            StmtsCount::OneWithTail => "OneWithTail",
+            StmtsCount::Other => "Other",
+        })
     }
 }
 
@@ -45,12 +45,12 @@ enum ArgsMatch {
 
 impl fmt::Display for ArgsMatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ArgsMatch::Same => write!(f, "Same"),
-            ArgsMatch::SameUpToSelfType => write!(f, "SameUpToSelfType"),
-            ArgsMatch::SameNumber => write!(f, "SameNumber"),
-            ArgsMatch::Different => write!(f, "Different"),
-        }
+        f.write_str(match self {
+            ArgsMatch::Same => "Same",
+            ArgsMatch::SameUpToSelfType => "SameUpToSelfType",
+            ArgsMatch::SameNumber => "SameNumber",
+            ArgsMatch::Different => "Different",
+        })
     }
 }
 
@@ -64,11 +64,11 @@ enum RetMatch {
 
 impl fmt::Display for RetMatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RetMatch::Same => write!(f, "Same"),
-            RetMatch::SameUpToSelfType => write!(f, "SameUpToSelfType"),
-            RetMatch::Different => write!(f, "Different"),
-        }
+        f.write_str(match self {
+            RetMatch::Same => "Same",
+            RetMatch::SameUpToSelfType => "SameUpToSelfType",
+            RetMatch::Different => "Different",
+        })
     }
 }
 
@@ -82,12 +82,12 @@ enum Parent {
 
 impl fmt::Display for Parent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Parent::InherentImpl => write!(f, "InherentImpl"),
-            Parent::TraitImpl => write!(f, "TraitImpl"),
-            Parent::Trait => write!(f, "Trait"),
-            Parent::Other => write!(f, "Other"),
-        }
+        f.write_str(match self {
+            Parent::InherentImpl => "InherentImpl",
+            Parent::TraitImpl => "TraitImpl",
+            Parent::Trait => "Trait",
+            Parent::Other => "Other",
+        })
     }
 }
 
