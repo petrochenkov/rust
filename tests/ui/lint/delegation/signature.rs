@@ -18,20 +18,20 @@ struct NonZeroU32(u32);
 impl NonZeroU32 {
     fn foo(&mut self) -> Self {
         Self(self.0.foo())
-        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, has_expr_after: false.
-        //~| ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: true.
+        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, has_expr_after: false.
+        //~| ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: true.
     }
 
     fn bar(&self) -> i32 {
         self.0.bar()
-        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
     }
 }
 
 impl Hash for NonZeroU32 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.hash(state);
-        //~^ ERROR dstats. stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+        //~^ ERROR dstats. parent: TraitImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
     }
 }
 
@@ -40,8 +40,8 @@ impl Add for NonZeroU32 {
 
     fn add(self, other: Self) -> Self {
         Self (self.0.add(other.0))
-        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Different, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, has_expr_after: false.
-        //~| ERROR dstats. stmts: ZeroWithTail, args_match: SameUpToSelfType, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: true.
+        //~^ ERROR dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, has_expr_after: false.
+        //~| ERROR dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: SameUpToSelfType, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: true.
     }
 }
 
@@ -58,11 +58,11 @@ mod iter {
         #[inline]
         fn next(&self) -> Option<T::Item> {
             (**self).next()
-            //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
         }
         fn last(&self) -> Option<Self::Item> {
             (**self).last()
-            //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
         }
     }
 }
@@ -78,12 +78,12 @@ mod anon1 {
     impl Struct {
         pub fn new() -> Box<dyn Trait> {
             Box::new(Struct)
-            //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Different, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
         }
 
         pub fn bar() -> impl Trait {
             bar()
-            //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
         }
     }
 }
@@ -99,7 +99,7 @@ mod anon2 {
 
     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
         f.foo()
-        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: false, same_name: true, has_expr_after: false.
+        //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: false, same_name: true, has_expr_after: false.
     }
 }
 
@@ -117,12 +117,12 @@ mod coerce {
     impl S {
         fn foo(&self, str: &mut str) {
             self.0.foo(str)
-            //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
         }
 
         fn bar(x: &u32) -> &dyn Display {
             F::bar(x)
-            //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
         }
     }
 }

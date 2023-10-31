@@ -638,6 +638,7 @@ pub(crate) struct DelegationDetailed {
     pub callee: Span,
     #[label(hir_typeck_caller_label)]
     pub caller: Span,
+    pub parent: String,
     pub same_name: bool,
     pub callee_has_self: bool,
     pub caller_has_self: bool,

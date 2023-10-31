@@ -72,6 +72,25 @@ impl fmt::Display for RetMatch {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+enum Parent {
+    InherentImpl,
+    TraitImpl,
+    Trait,
+    Other,
+}
+
+impl fmt::Display for Parent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Parent::InherentImpl => write!(f, "InherentImpl"),
+            Parent::TraitImpl => write!(f, "TraitImpl"),
+            Parent::Trait => write!(f, "Trait"),
+            Parent::Other => write!(f, "Other"),
+        }
+    }
+}
+
 #[derive(Default)]
 struct CalleeStats {
     args_match: ArgsMatch,
@@ -255,6 +274,12 @@ impl<'tcx> Caller<'tcx> {
 
     fn try_emit(&self, tcx: TyCtxt<'tcx>, callee: &Fn<'tcx>, stats: &CalleeStats) {
         let caller = &self.func;
+        let parent = match tcx.def_kind(tcx.local_parent(self.def_id)) {
+            DefKind::Impl { of_trait: false } => Parent::InherentImpl,
+            DefKind::Impl { of_trait: true } => Parent::TraitImpl,
+            DefKind::Trait => Parent::Trait,
+            _ => Parent::Other,
+        };
         let hir_id = tcx.hir().local_def_id_to_hir_id(self.def_id);
         tcx.emit_spanned_lint(
             lint::builtin::DELEGATIONS_DETAILED,
@@ -263,6 +288,7 @@ impl<'tcx> Caller<'tcx> {
             errors::DelegationDetailed {
                 callee: callee.span,
                 caller: caller.span,
+                parent: parent.to_string(),
                 same_name: stats.same_name,
                 callee_has_self: stats.has_self,
                 caller_has_self: caller.has_self,

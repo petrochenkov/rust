@@ -49,7 +49,7 @@ hir_typeck_delegation =
     .callee_label = callee
 
 hir_typeck_delegation_detailed =
-    dstats. stmts: {$stmts}, args_match: {$args_match}, ret_match: {$ret_match}, callee_has_self: {$callee_has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, has_expr_after: {$has_expr_after}.
+    dstats. parent: {$parent}, stmts: {$stmts}, args_match: {$args_match}, ret_match: {$ret_match}, callee_has_self: {$callee_has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, has_expr_after: {$has_expr_after}.
     .caller_label = caller
     .callee_label = callee
 
