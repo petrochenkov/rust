@@ -634,16 +634,18 @@ pub struct SuggestConvertViaMethod<'tcx> {
 #[derive(LintDiagnostic)]
 #[diag(hir_typeck_delegation_detailed)]
 pub(crate) struct DelegationDetailed {
-    #[label(hir_typeck_caller_label)]
-    pub caller: Span,
     #[label(hir_typeck_callee_label)]
     pub callee: Span,
+    #[label(hir_typeck_caller_label)]
+    pub caller: Span,
+    pub same_name: bool,
+    pub callee_has_self: bool,
+    pub caller_has_self: bool,
+    // Audit
     pub stmts: String,
     pub args_match: String,
     pub ret_match: String,
-    pub self_arg: String,
     pub has_expr_after: bool,
-    pub same_name: bool,
 }
 
 #[derive(LintDiagnostic)]
@@ -651,9 +653,11 @@ pub(crate) struct DelegationDetailed {
 pub(crate) struct Delegation {
     #[label(hir_typeck_callee_label)]
     pub callee: Span,
+    pub callee_has_self: bool,
+    pub caller_has_self: bool,
+    // Audit
     pub args_match: String,
     pub ret_match: String,
-    pub self_arg: String,
     pub has_expr_after: bool,
 }
 

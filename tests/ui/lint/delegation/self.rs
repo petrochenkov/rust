@@ -17,30 +17,30 @@ struct Stuple(F);
 impl S {
     fn bar<T>(x: T) -> T {
         F::bar::<T>(x)
-        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, self_arg: Type, same_name: true, has_expr_after: false.
+        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
     }
 
     fn foo<T>(self, x: T) -> T {
         self.field.foo::<T>(x)
-        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, self_arg: Value, same_name: true, has_expr_after: false.
+        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
     }
 }
 
 fn foo<T>(x: T) -> T {
     F::bar::<T>(x)
-    //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, self_arg: Other, same_name: false, has_expr_after: false.
+    //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: false, has_expr_after: false.
 }
 
 fn bar(x: i32) {
     F::get_self().foo::<i32>(x);
-    //~^ ERROR dstats. stmts: OneWithoutTail, args_match: Same, ret_match: Different, self_arg: Value, same_name: false, has_expr_after: false.
-    //~| ERROR dstats. stmts: OneWithoutTail, args_match: Different, ret_match: Different, self_arg: Other, same_name: false, has_expr_after: true.
+    //~^ ERROR dstats. stmts: OneWithoutTail, args_match: Different, ret_match: Different, callee_has_self: true, caller_has_self: false, same_name: false, has_expr_after: false.
+    //~| ERROR dstats. stmts: OneWithoutTail, args_match: Different, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: false, has_expr_after: true.
 }
 
 trait Trait {
     fn foo<T>(x: T) -> T {
         foo(x)
-        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, self_arg: Type, same_name: true, has_expr_after: false.
+        //~^ ERROR dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
     }
 }
 

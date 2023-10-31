@@ -1,4 +1,4 @@
-error: dstats. stmts: OneWithoutTail, args_match: Same, ret_match: Different, self_arg: Value, same_name: false, has_expr_after: true.
+error: dstats. stmts: OneWithoutTail, args_match: Same, ret_match: Different, callee_has_self: true, caller_has_self: true, same_name: false, has_expr_after: true.
   --> $DIR/has_expr_after.rs:14:9
    |
 LL | /     fn foo(&self) {
@@ -15,7 +15,7 @@ note: the lint level is defined here
 LL | #![deny(delegations_detailed, delegations_per_parent_stats)]
    |         ^^^^^^^^^^^^^^^^^^^^
 
-error: dstats. stmts: OneWithoutTail, args_match: Same, ret_match: Different, self_arg: Value, same_name: true, has_expr_after: true.
+error: dstats. stmts: OneWithoutTail, args_match: Same, ret_match: Different, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: true.
   --> $DIR/has_expr_after.rs:14:9
    |
 LL | /     fn foo(&self) {
@@ -26,7 +26,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. stmts: ZeroWithTail, args_match: Different, ret_match: Same, self_arg: Type, same_name: false, has_expr_after: false.
+error: dstats. stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, has_expr_after: false.
   --> $DIR/has_expr_after.rs:20:9
    |
 LL | /     fn bar(&self) -> Self {
@@ -37,7 +37,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. stmts: ZeroWithTail, args_match: Same, ret_match: SameUpToSelfType, self_arg: Value, same_name: true, has_expr_after: true.
+error: dstats. stmts: ZeroWithTail, args_match: Same, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: true.
   --> $DIR/has_expr_after.rs:20:14
    |
 LL | /     fn bar(&self) -> Self {
