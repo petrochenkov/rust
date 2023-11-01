@@ -12,14 +12,14 @@ struct B(A);
 impl B {
     fn foo(&self) {
         self.0.foo().clone() as i32;
-        //~^ ERROR dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Different, callee_has_self: true, caller_has_self: true, same_name: false, ret_postproc: true.
-        //~| ERROR dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Different, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
+        //~^ ERROR dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, args_preproc: false, ret_match: Different, callee_has_self: true, caller_has_self: true, same_name: false, ret_postproc: true.
+        //~| ERROR dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, args_preproc: false, ret_match: Different, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
     }
 
     fn bar(&self) -> Self {
         Self(self.0.bar())
-        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
-        //~| ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
+        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
+        //~| ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
     }
 }
 

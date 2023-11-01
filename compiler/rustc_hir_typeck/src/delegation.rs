@@ -1,8 +1,8 @@
 use crate::errors;
 use rustc_data_structures::fx::FxIndexMap;
-use rustc_hir::def::DefKind;
+use rustc_hir::def::{DefKind, Res};
 use rustc_hir::intravisit::{self, FnKind, Visitor};
-use rustc_hir::{BodyId, Expr, ExprKind, FnDecl, StmtKind, CRATE_HIR_ID};
+use rustc_hir::{BodyId, Expr, ExprKind, FnDecl, Param, Path, QPath, StmtKind, CRATE_HIR_ID};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_middle::query::Providers;
 use rustc_middle::traits::{DefiningAnchor, ObligationCause};
@@ -98,6 +98,7 @@ struct CalleeStats {
     ret_postproc: bool,
     has_self: bool,
     args_match: ArgsMatch,
+    args_preproc: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +109,7 @@ struct Fn<'tcx> {
     output: Ty<'tcx>,
     has_self: bool,
     ret_postproc: bool,
+    args_preproc: bool,
 }
 
 fn has_self(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
@@ -115,19 +117,30 @@ fn has_self(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 }
 
 struct ExprVisitor<'tcx> {
-    callees: Vec<Fn<'tcx>>,
-    typeck_results: &'tcx TypeckResults<'tcx>,
     tcx: TyCtxt<'tcx>,
+    typeck_results: &'tcx TypeckResults<'tcx>,
+    caller_params: &'tcx [Param<'tcx>],
+    caller_has_self: bool,
     ret_postproc: bool,
+    callees: Vec<Fn<'tcx>>,
 }
 
 impl<'tcx> ExprVisitor<'tcx> {
     fn new(
-        typeck_results: &'tcx TypeckResults<'tcx>,
         tcx: TyCtxt<'tcx>,
+        typeck_results: &'tcx TypeckResults<'tcx>,
+        caller_params: &'tcx [Param<'tcx>],
+        caller_has_self: bool,
         ret_postproc: bool,
     ) -> Self {
-        ExprVisitor { callees: Default::default(), typeck_results, tcx, ret_postproc }
+        ExprVisitor {
+            tcx,
+            typeck_results,
+            caller_params,
+            caller_has_self,
+            ret_postproc,
+            callees: Default::default(),
+        }
     }
 }
 
@@ -140,6 +153,18 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     .iter()
                     .map(|arg| self.typeck_results.expr_ty_adjusted(arg))
                     .collect();
+                let mut args_preproc = !args.is_empty();
+                if 1 + args.len() == self.caller_params.len() {
+                    for (arg_expr, param) in iter::zip(args, self.caller_params.iter().skip(1)) {
+                        if let ExprKind::Path(QPath::Resolved(None, path)) = arg_expr.kind
+                            && let Path { res: Res::Local(arg_res_id), .. } = path
+                            && *arg_res_id == param.pat.hir_id
+                        {
+                            args_preproc = false;
+                        }
+                    }
+                }
+
                 self.callees.push(Fn {
                     span: expr.span,
                     name: seg.ident.name,
@@ -147,12 +172,28 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     output: self.typeck_results.expr_ty(expr),
                     has_self: true,
                     ret_postproc: self.ret_postproc,
+                    args_preproc,
                 });
             }
             ExprKind::Call(func, args) => {
                 if let FnDef(def_id, ..) = self.typeck_results.expr_ty(func).kind() {
                     let inputs: Vec<_> =
                         args.iter().map(|arg| self.typeck_results.expr_ty_adjusted(arg)).collect();
+                    let skip = usize::from(self.caller_has_self);
+
+                    let mut args_preproc = args.len() > skip;
+                    if args.len() == self.caller_params.len() {
+                        for (arg_expr, param) in
+                            iter::zip(args, self.caller_params.iter()).skip(skip)
+                        {
+                            if let ExprKind::Path(QPath::Resolved(None, path)) = arg_expr.kind
+                                    && let Path { res: Res::Local(arg_res_id), .. } = path
+                                    && *arg_res_id == param.pat.hir_id
+                                {
+                                    args_preproc = false;
+                                }
+                        }
+                    }
 
                     self.callees.push(Fn {
                         span: expr.span,
@@ -161,6 +202,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                         output: self.typeck_results.expr_ty(expr),
                         has_self: has_self(self.tcx, *def_id),
                         ret_postproc: self.ret_postproc,
+                        args_preproc,
                     });
                 }
             }
@@ -236,6 +278,7 @@ impl<'tcx> Caller<'tcx> {
             ret_postproc: callee.ret_postproc,
             has_self: callee.has_self,
             args_match: self.compare_inputs(callee),
+            args_preproc: callee.args_preproc,
         }
     }
 
@@ -261,8 +304,9 @@ impl<'tcx> Caller<'tcx> {
                 ret_postproc: stats.ret_postproc,
                 callee_has_self: stats.has_self,
                 caller_has_self: caller.has_self,
-                // Audit
                 args_match: stats.args_match.to_string(),
+                args_preproc: stats.args_preproc,
+                // Audit
                 stmts: self.stmts_count.to_string(),
             },
         );
@@ -278,8 +322,8 @@ impl<'tcx> Caller<'tcx> {
                     ret_postproc: stats.ret_postproc,
                     callee_has_self: stats.has_self,
                     caller_has_self: caller.has_self,
-                    // Audit
                     args_match: stats.args_match.to_string(),
+                    args_preproc: stats.args_preproc,
                 },
             );
         }
@@ -368,7 +412,8 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         if matches!(fk, FnKind::Closure) {
             return;
         }
-        let block = match self.tcx.hir().body(body_id).value.kind {
+        let body = self.tcx.hir().body(body_id);
+        let block = match body.value.kind {
             ExprKind::Block(block, _) => block,
             // Async functions are lowered to this, consider later.
             ExprKind::Closure(..) => return,
@@ -390,6 +435,7 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
             output: sig.output(),
             has_self: has_self(self.tcx, def_id.to_def_id()),
             ret_postproc: false, // doesn't matter for the caller
+            args_preproc: false, // doesn't matter for the caller
         };
         let stmts_count = match (block.expr, block.stmts.len()) {
             (Some(_), 0) => StmtsCount::ZeroWithTail,
@@ -404,7 +450,13 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
 
         let mut is_delegation = false;
         let mut process_expr = |expr, ret_postproc: bool| {
-            let mut expr_visitor = ExprVisitor::new(typeck_results, self.tcx, ret_postproc);
+            let mut expr_visitor = ExprVisitor::new(
+                self.tcx,
+                typeck_results,
+                body.params,
+                caller.func.has_self,
+                ret_postproc,
+            );
             expr_visitor.visit_expr(expr);
             for callee in expr_visitor.callees {
                 let stats = caller.collect_stats(&callee);

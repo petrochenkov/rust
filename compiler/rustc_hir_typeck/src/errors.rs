@@ -644,9 +644,10 @@ pub(crate) struct DelegationDetailed {
     pub ret_postproc: bool,
     pub callee_has_self: bool,
     pub caller_has_self: bool,
+    pub args_match: String,
+    pub args_preproc: bool,
     // Audit
     pub stmts: String,
-    pub args_match: String,
 }
 
 #[derive(LintDiagnostic)]
@@ -658,8 +659,8 @@ pub(crate) struct Delegation {
     pub caller_has_self: bool,
     pub ret_match: String,
     pub ret_postproc: bool,
-    // Audit
     pub args_match: String,
+    pub args_preproc: bool,
 }
 
 #[derive(LintDiagnostic)]

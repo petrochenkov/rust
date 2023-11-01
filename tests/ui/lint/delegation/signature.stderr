@@ -1,4 +1,4 @@
-error: dstats. parent: Other, stmts: ZeroWithTail, args_match: Same, ret_match: Different, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
+error: dstats. parent: Other, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Different, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:101:9
    |
 LL | /     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
@@ -14,7 +14,7 @@ note: the lint level is defined here
 LL | #![deny(delegations_detailed, delegations_per_parent_stats)]
    |         ^^^^^^^^^^^^^^^^^^^^
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
   --> $DIR/signature.rs:20:9
    |
 LL | /     fn foo(&mut self) -> Self {
@@ -25,7 +25,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
   --> $DIR/signature.rs:20:14
    |
 LL | /     fn foo(&mut self) -> Self {
@@ -36,7 +36,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:26:9
    |
 LL | /     fn bar(&self) -> i32 {
@@ -46,7 +46,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. parent: TraitImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+error: dstats. parent: TraitImpl, stmts: OneWithoutTail, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:33:9
    |
 LL | /     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -56,7 +56,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
+error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Different, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
   --> $DIR/signature.rs:42:9
    |
 LL | /     fn add(self, other: Self) -> Self {
@@ -67,7 +67,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: SameUpToSelfType, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
+error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: SameUpToSelfType, args_preproc: true, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
   --> $DIR/signature.rs:42:15
    |
 LL | /     fn add(self, other: Self) -> Self {
@@ -78,7 +78,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:60:13
    |
 LL | / ...   fn next(&self) -> Option<T::Item> {
@@ -88,7 +88,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+error: dstats. parent: TraitImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:64:13
    |
 LL | / ...   fn last(&self) -> Option<Self::Item> {
@@ -98,7 +98,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Different, args_preproc: true, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:80:13
    |
 LL | / ...   pub fn new() -> Box<dyn Trait> {
@@ -108,7 +108,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:85:13
    |
 LL | / ...   pub fn bar() -> impl Trait {
@@ -118,7 +118,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: SameNumber, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: SameNumber, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:119:13
    |
 LL | / ...   fn foo(&self, str: &mut str) {
@@ -128,7 +128,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, args_preproc: false, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:124:13
    |
 LL | / ...   fn bar(x: &u32) -> &dyn Display {
