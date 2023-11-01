@@ -1,4 +1,4 @@
-use crate::{errors, FnCtxt, Inherited};
+use crate::errors;
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_hir::def::DefKind;
 use rustc_hir::intravisit::{self, FnKind, Visitor};
@@ -140,7 +140,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     span: expr.span,
                     name: seg.ident.name,
                     inputs,
-                    output: self.typeck_results.expr_ty_adjusted(expr),
+                    output: self.typeck_results.expr_ty(expr),
                     has_self: true,
                     has_expr_after: self.has_expr_after,
                 });
@@ -154,7 +154,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                         span: expr.span,
                         name: self.tcx.item_name(*def_id),
                         inputs,
-                        output: self.typeck_results.expr_ty_adjusted(expr),
+                        output: self.typeck_results.expr_ty(expr),
                         has_self: has_self(self.tcx, *def_id),
                         has_expr_after: self.has_expr_after,
                     });
@@ -215,21 +215,17 @@ impl<'tcx> Caller<'tcx> {
 
         // `self` argument in the caller may be transformed (`self` -> `self.target_expr()`),
         // so don't include its type into the comparison.
-        let mut callee_iter = callee.inputs.iter();
-        let mut caller_iter = caller.inputs.iter();
-        if caller.has_self {
-            callee_iter.next();
-            caller_iter.next();
-        }
-
         let cmp = |src, dst| -> bool { self.comparator.compare(src, dst) };
         let mut args_match = ArgsMatch::Same;
-        for (&callee_param, &caller_param) in iter::zip(callee_iter, caller_iter) {
+        for (&callee_param, &caller_param) in
+            iter::zip(&callee.inputs, &caller.inputs).skip(usize::from(caller.has_self))
+        {
             if !cmp(callee_param, caller_param) {
+                // Approximate `Self` as `typeof(self)` with references removed.
                 if callee.has_self
                     && caller.has_self
-                    && cmp(callee.inputs[0], callee_param)
-                    && cmp(caller.inputs[0], caller_param)
+                    && cmp(callee.inputs[0].peel_refs(), callee_param.peel_refs())
+                    && cmp(caller.inputs[0].peel_refs(), caller_param.peel_refs())
                 {
                     args_match = ArgsMatch::SameUpToSelfType;
                 } else {
@@ -249,8 +245,7 @@ impl<'tcx> Caller<'tcx> {
             return RetMatch::Same;
         }
 
-        // peel refs due to
-        // fn bar(&self) -> Self
+        // Approximate `Self` as `typeof(self)` with references removed.
         if callee.has_self
             && caller.has_self
             && cmp(callee.inputs[0].peel_refs(), callee.output.peel_refs())
@@ -332,15 +327,14 @@ impl<'tcx> Caller<'tcx> {
 struct Comparator<'tcx> {
     tcx: TyCtxt<'tcx>,
     param_env: ParamEnv<'tcx>,
-    def_id: LocalDefId,
 }
 
 impl<'tcx> Comparator<'tcx> {
     fn new(tcx: TyCtxt<'tcx>, def_id: LocalDefId) -> Self {
-        Comparator { tcx, param_env: tcx.param_env(def_id), def_id }
+        Comparator { tcx, param_env: tcx.param_env(def_id) }
     }
 
-    fn is_subtype(&self, src: Ty<'tcx>, dst: Ty<'tcx>) -> bool {
+    fn compare(&self, src: Ty<'tcx>, dst: Ty<'tcx>) -> bool {
         if src == dst {
             return true;
         }
@@ -355,28 +349,12 @@ impl<'tcx> Comparator<'tcx> {
         let cause = ObligationCause::dummy();
         let src = ocx.normalize(&cause, self.param_env, src);
         let dst = ocx.normalize(&cause, self.param_env, dst);
-        match ocx.sub(&cause, self.param_env, src, dst) {
-            Ok(()) => {}
-            Err(_) => return false,
+        let res = match ocx.sub(&cause, self.param_env, src, dst) {
+            Ok(()) => ocx.select_all_or_error().is_empty(),
+            Err(_) => false,
         };
-        let errors = ocx.select_all_or_error();
         let _ = infcx.take_opaque_types();
-        errors.is_empty()
-    }
-
-    fn compare(&self, src: Ty<'tcx>, dst: Ty<'tcx>) -> bool {
-        if src == dst {
-            return true;
-        }
-
-        let inh = Inherited::new(self.tcx, self.def_id);
-        let fcx = FnCtxt::new(&inh, self.param_env, self.def_id);
-
-        // to avoid `compare` params order errors types
-        if fcx.can_coerce(dst, src) {
-            return true;
-        }
-        self.is_subtype(dst, src)
+        res
     }
 }
 

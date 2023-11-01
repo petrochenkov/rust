@@ -1,4 +1,4 @@
-error: dstats. parent: Other, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: false, same_name: true, has_expr_after: false.
+error: dstats. parent: Other, stmts: ZeroWithTail, args_match: Same, ret_match: Different, callee_has_self: true, caller_has_self: false, same_name: true, has_expr_after: false.
   --> $DIR/signature.rs:101:9
    |
 LL | /     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
@@ -98,7 +98,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
   --> $DIR/signature.rs:80:13
    |
 LL | / ...   pub fn new() -> Box<dyn Trait> {
@@ -118,7 +118,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: SameNumber, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
   --> $DIR/signature.rs:119:13
    |
 LL | / ...   fn foo(&self, str: &mut str) {
@@ -128,7 +128,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
   --> $DIR/signature.rs:124:13
    |
 LL | / ...   fn bar(x: &u32) -> &dyn Display {
@@ -138,7 +138,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: delegation methods stats. methods_count: 1, 4.
+error: delegation methods stats. methods_count: 1, 5.
    |
 note: the lint level is defined here
   --> $DIR/signature.rs:1:31
@@ -146,7 +146,7 @@ note: the lint level is defined here
 LL | #![deny(delegations_detailed, delegations_per_parent_stats)]
    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: delegation methods stats. methods_count: 2, 3.
+error: delegation methods stats. methods_count: 2, 2.
 
 error: aborting due to 15 previous errors
 

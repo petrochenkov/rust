@@ -78,7 +78,7 @@ mod anon1 {
     impl Struct {
         pub fn new() -> Box<dyn Trait> {
             Box::new(Struct)
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Different, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
         }
 
         pub fn bar() -> impl Trait {
@@ -99,7 +99,7 @@ mod anon2 {
 
     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
         f.foo()
-        //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: false, same_name: true, has_expr_after: false.
+        //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, args_match: Same, ret_match: Different, callee_has_self: true, caller_has_self: false, same_name: true, has_expr_after: false.
     }
 }
 
@@ -117,12 +117,12 @@ mod coerce {
     impl S {
         fn foo(&self, str: &mut str) {
             self.0.foo(str)
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: SameNumber, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
         }
 
         fn bar(x: &u32) -> &dyn Display {
             F::bar(x)
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, args_match: Same, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, has_expr_after: false.
         }
     }
 }
