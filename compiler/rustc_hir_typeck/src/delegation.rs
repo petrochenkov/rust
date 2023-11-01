@@ -93,11 +93,11 @@ impl fmt::Display for Parent {
 
 #[derive(Default)]
 struct CalleeStats {
-    args_match: ArgsMatch,
-    ret_match: RetMatch,
-    has_self: bool,
     same_name: bool,
-    has_expr_after: bool,
+    ret_match: RetMatch,
+    ret_postproc: bool,
+    has_self: bool,
+    args_match: ArgsMatch,
 }
 
 #[derive(Debug, Clone)]
@@ -107,7 +107,7 @@ struct Fn<'tcx> {
     inputs: Vec<Ty<'tcx>>,
     output: Ty<'tcx>,
     has_self: bool,
-    has_expr_after: bool,
+    ret_postproc: bool,
 }
 
 fn has_self(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
@@ -118,12 +118,16 @@ struct ExprVisitor<'tcx> {
     callees: Vec<Fn<'tcx>>,
     typeck_results: &'tcx TypeckResults<'tcx>,
     tcx: TyCtxt<'tcx>,
-    has_expr_after: bool,
+    ret_postproc: bool,
 }
 
 impl<'tcx> ExprVisitor<'tcx> {
-    fn new(typeck_results: &'tcx TypeckResults<'tcx>, tcx: TyCtxt<'tcx>, is_tail: bool) -> Self {
-        ExprVisitor { callees: Default::default(), typeck_results, tcx, has_expr_after: !is_tail }
+    fn new(
+        typeck_results: &'tcx TypeckResults<'tcx>,
+        tcx: TyCtxt<'tcx>,
+        ret_postproc: bool,
+    ) -> Self {
+        ExprVisitor { callees: Default::default(), typeck_results, tcx, ret_postproc }
     }
 }
 
@@ -142,11 +146,11 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     inputs,
                     output: self.typeck_results.expr_ty(expr),
                     has_self: true,
-                    has_expr_after: self.has_expr_after,
+                    ret_postproc: self.ret_postproc,
                 });
             }
             ExprKind::Call(func, args) => {
-                if let FnDef(def_id, ..) = self.typeck_results.node_type(func.hir_id).kind() {
+                if let FnDef(def_id, ..) = self.typeck_results.expr_ty(func).kind() {
                     let inputs: Vec<_> =
                         args.iter().map(|arg| self.typeck_results.expr_ty_adjusted(arg)).collect();
 
@@ -156,45 +160,13 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                         inputs,
                         output: self.typeck_results.expr_ty(expr),
                         has_self: has_self(self.tcx, *def_id),
-                        has_expr_after: self.has_expr_after,
+                        ret_postproc: self.ret_postproc,
                     });
                 }
             }
-            ExprKind::Array(_)
-            | ExprKind::ConstBlock(..)
-            | ExprKind::Tup(..)
-            | ExprKind::Binary(..)
-            | ExprKind::Unary(..)
-            | ExprKind::Lit(_)
-            | ExprKind::Type(..)
-            | ExprKind::If(..)
-            | ExprKind::Loop(..)
-            | ExprKind::Match(..)
-            | ExprKind::Closure(..)
-            | ExprKind::Assign(..)
-            | ExprKind::AssignOp(..)
-            | ExprKind::Index(..)
-            | ExprKind::AddrOf(..)
-            | ExprKind::Break(..)
-            | ExprKind::Continue(..)
-            | ExprKind::InlineAsm(..)
-            | ExprKind::OffsetOf(..)
-            | ExprKind::Repeat(..)
-            | ExprKind::Yield(..)
-            | ExprKind::Become(..)
-            | ExprKind::Err(..) => {
-                return;
-            }
-            ExprKind::Let(..)
-            | ExprKind::Struct(..)
-            | ExprKind::Field(..)
-            | ExprKind::Cast(..)
-            | ExprKind::Path(..)
-            | ExprKind::Block(..)
-            | ExprKind::DropTemps(..)
-            | ExprKind::Ret(..) => {}
+            _ => {}
         }
-        self.has_expr_after = true;
+        self.ret_postproc = true;
         intravisit::walk_expr(self, expr);
     }
 }
@@ -259,11 +231,11 @@ impl<'tcx> Caller<'tcx> {
 
     fn collect_stats(&self, callee: &Fn<'tcx>) -> CalleeStats {
         CalleeStats {
-            args_match: self.compare_inputs(callee),
-            ret_match: self.compare_output(callee),
-            has_self: callee.has_self,
             same_name: callee.name == self.func.name,
-            has_expr_after: callee.has_expr_after,
+            ret_match: self.compare_output(callee),
+            ret_postproc: callee.ret_postproc,
+            has_self: callee.has_self,
+            args_match: self.compare_inputs(callee),
         }
     }
 
@@ -285,13 +257,13 @@ impl<'tcx> Caller<'tcx> {
                 caller: caller.span,
                 parent: parent.to_string(),
                 same_name: stats.same_name,
+                ret_match: stats.ret_match.to_string(),
+                ret_postproc: stats.ret_postproc,
                 callee_has_self: stats.has_self,
                 caller_has_self: caller.has_self,
                 // Audit
                 args_match: stats.args_match.to_string(),
-                ret_match: stats.ret_match.to_string(),
                 stmts: self.stmts_count.to_string(),
-                has_expr_after: stats.has_expr_after,
             },
         );
 
@@ -302,12 +274,12 @@ impl<'tcx> Caller<'tcx> {
                 callee.span,
                 errors::Delegation {
                     callee: callee.span,
+                    ret_match: stats.ret_match.to_string(),
+                    ret_postproc: stats.ret_postproc,
                     callee_has_self: stats.has_self,
                     caller_has_self: caller.has_self,
                     // Audit
                     args_match: stats.args_match.to_string(),
-                    ret_match: stats.ret_match.to_string(),
-                    has_expr_after: stats.has_expr_after,
                 },
             );
         }
@@ -417,7 +389,7 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
             inputs,
             output: sig.output(),
             has_self: has_self(self.tcx, def_id.to_def_id()),
-            has_expr_after: false, // not matter for caller
+            ret_postproc: false, // doesn't matter for the caller
         };
         let stmts_count = match (block.expr, block.stmts.len()) {
             (Some(_), 0) => StmtsCount::ZeroWithTail,
@@ -431,8 +403,8 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         let typeck_results = self.tcx.typeck_body(body_id);
 
         let mut is_delegation = false;
-        let mut process_expr = |expr, is_tail: bool| {
-            let mut expr_visitor = ExprVisitor::new(typeck_results, self.tcx, is_tail);
+        let mut process_expr = |expr, ret_postproc: bool| {
+            let mut expr_visitor = ExprVisitor::new(typeck_results, self.tcx, ret_postproc);
             expr_visitor.visit_expr(expr);
             for callee in expr_visitor.callees {
                 let stats = caller.collect_stats(&callee);
@@ -441,15 +413,19 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
             }
         };
 
-        let mut it = block.stmts.iter().peekable();
-        while let Some(stmt) = it.next() {
+        for (i, stmt) in block.stmts.iter().enumerate() {
             if let StmtKind::Expr(expr) | StmtKind::Semi(expr) = stmt.kind {
-                process_expr(expr, it.peek().is_none() && block.expr.is_none());
+                // Treat the last statement as non-postprocessing if its type matches the caller
+                // return type, this often happens with unit return types.
+                let ret_postproc = i + 1 != block.stmts.len()
+                    || block.expr.is_some()
+                    || !caller.comparator.compare(typeck_results.expr_ty(expr), caller.func.output);
+                process_expr(expr, ret_postproc);
             }
         }
 
         if let Some(expr) = block.expr {
-            process_expr(expr, true);
+            process_expr(expr, false);
         }
 
         if is_delegation {

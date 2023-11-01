@@ -640,13 +640,13 @@ pub(crate) struct DelegationDetailed {
     pub caller: Span,
     pub parent: String,
     pub same_name: bool,
+    pub ret_match: String,
+    pub ret_postproc: bool,
     pub callee_has_self: bool,
     pub caller_has_self: bool,
     // Audit
     pub stmts: String,
     pub args_match: String,
-    pub ret_match: String,
-    pub has_expr_after: bool,
 }
 
 #[derive(LintDiagnostic)]
@@ -656,10 +656,10 @@ pub(crate) struct Delegation {
     pub callee: Span,
     pub callee_has_self: bool,
     pub caller_has_self: bool,
+    pub ret_match: String,
+    pub ret_postproc: bool,
     // Audit
     pub args_match: String,
-    pub ret_match: String,
-    pub has_expr_after: bool,
 }
 
 #[derive(LintDiagnostic)]

@@ -1,4 +1,4 @@
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:17:22
    |
 LL |     fn foo1(&self) { self.field.foo1();}
@@ -13,7 +13,7 @@ note: the lint level is defined here
 LL | #![deny(delegations_detailed, delegations_per_parent_stats)]
    |         ^^^^^^^^^^^^^^^^^^^^
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:25:21
    |
 LL |     fn foo1(&self) {self.field.foo1();}
@@ -22,7 +22,7 @@ LL |     fn foo1(&self) {self.field.foo1();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:26:21
    |
 LL |     fn foo2(&self) {self.field.foo2();}
@@ -31,7 +31,7 @@ LL |     fn foo2(&self) {self.field.foo2();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:34:21
    |
 LL |     fn foo1(&self) {self.field.foo1();}
@@ -40,7 +40,7 @@ LL |     fn foo1(&self) {self.field.foo1();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:35:21
    |
 LL |     fn foo2(&self) {self.field.foo2();}
@@ -49,7 +49,7 @@ LL |     fn foo2(&self) {self.field.foo2();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:36:21
    |
 LL |     fn foo3(&self) {self.field.foo3();}
@@ -58,7 +58,7 @@ LL |     fn foo3(&self) {self.field.foo3();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:44:21
    |
 LL |     fn foo1(&self) {self.field.foo1();}
@@ -67,7 +67,7 @@ LL |     fn foo1(&self) {self.field.foo1();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:45:21
    |
 LL |     fn foo2(&self) {self.field.foo2();}
@@ -76,7 +76,7 @@ LL |     fn foo2(&self) {self.field.foo2();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:46:21
    |
 LL |     fn foo3(&self) {self.field.foo3();}
@@ -85,7 +85,7 @@ LL |     fn foo3(&self) {self.field.foo3();}
    |     |               callee
    |     caller
 
-error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, has_expr_after: false.
+error: dstats. parent: InherentImpl, stmts: OneWithoutTail, args_match: Same, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
   --> $DIR/methods_stats.rs:47:21
    |
 LL |     fn foo4(&self) {self.field.foo4();}
