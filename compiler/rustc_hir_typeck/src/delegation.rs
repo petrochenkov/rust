@@ -55,6 +55,22 @@ impl fmt::Display for ArgsMatch {
 }
 
 #[derive(Default, Debug, Copy, Clone)]
+enum DelegateTo {
+    Field,
+    #[default]
+    Other,
+}
+
+impl fmt::Display for DelegateTo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            DelegateTo::Field => "Field",
+            DelegateTo::Other => "Other",
+        })
+    }
+}
+
+#[derive(Default, Debug, Copy, Clone)]
 enum RetMatch {
     Same,
     SameUpToSelfType,
@@ -98,6 +114,7 @@ struct CalleeStats {
     ret_postproc: bool,
     has_self: bool,
     args_match: ArgsMatch,
+    delegate_to: DelegateTo,
     args_preproc: bool,
 }
 
@@ -109,6 +126,7 @@ struct Fn<'tcx> {
     output: Ty<'tcx>,
     has_self: bool,
     ret_postproc: bool,
+    delegate_to: DelegateTo,
     args_preproc: bool,
 }
 
@@ -165,6 +183,15 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     }
                 }
 
+                let mut delegate_to = DelegateTo::Other;
+                if let Some(self_param) = self.caller_params.first()
+                    && let ExprKind::Field(receiver, _) = self_arg.kind
+                    && let ExprKind::Path(QPath::Resolved(None, path)) = receiver.kind
+                    && let Path { res: Res::Local(arg_res_id), .. } = path
+                    && *arg_res_id == self_param.pat.hir_id {
+                        delegate_to = DelegateTo::Field;
+                }
+
                 self.callees.push(Fn {
                     span: expr.span,
                     name: seg.ident.name,
@@ -173,6 +200,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     has_self: true,
                     ret_postproc: self.ret_postproc,
                     args_preproc,
+                    delegate_to,
                 });
             }
             ExprKind::Call(func, args) => {
@@ -195,6 +223,16 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                         }
                     }
 
+                    let mut delegate_to = DelegateTo::Other;
+                    if let Some(self_param) = self.caller_params.first()
+                        && let Some(self_arg) = args.first()
+                        && let ExprKind::Field(receiver, _) = self_arg.kind
+                        && let ExprKind::Path(QPath::Resolved(None, path)) = receiver.kind
+                        && let Path { res: Res::Local(arg_res_id), .. } = path
+                        && *arg_res_id == self_param.pat.hir_id {
+                            delegate_to = DelegateTo::Field;
+                    }
+
                     self.callees.push(Fn {
                         span: expr.span,
                         name: self.tcx.item_name(*def_id),
@@ -203,6 +241,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                         has_self: has_self(self.tcx, *def_id),
                         ret_postproc: self.ret_postproc,
                         args_preproc,
+                        delegate_to,
                     });
                 }
             }
@@ -278,6 +317,7 @@ impl<'tcx> Caller<'tcx> {
             ret_postproc: callee.ret_postproc,
             has_self: callee.has_self,
             args_match: self.compare_inputs(callee),
+            delegate_to: callee.delegate_to,
             args_preproc: callee.args_preproc,
         }
     }
@@ -305,6 +345,7 @@ impl<'tcx> Caller<'tcx> {
                 callee_has_self: stats.has_self,
                 caller_has_self: caller.has_self,
                 args_match: stats.args_match.to_string(),
+                delegate_to: stats.delegate_to.to_string(),
                 args_preproc: stats.args_preproc,
                 // Audit
                 stmts: self.stmts_count.to_string(),
@@ -434,8 +475,9 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
             inputs,
             output: sig.output(),
             has_self: has_self(self.tcx, def_id.to_def_id()),
-            ret_postproc: false, // doesn't matter for the caller
-            args_preproc: false, // doesn't matter for the caller
+            ret_postproc: false,            // doesn't matter for the caller
+            args_preproc: false,            // doesn't matter for the caller
+            delegate_to: DelegateTo::Other, // doesn't matter for the caller
         };
         let stmts_count = match (block.expr, block.stmts.len()) {
             (Some(_), 0) => StmtsCount::ZeroWithTail,

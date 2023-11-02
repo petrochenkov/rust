@@ -645,6 +645,7 @@ pub(crate) struct DelegationDetailed {
     pub callee_has_self: bool,
     pub caller_has_self: bool,
     pub args_match: String,
+    pub delegate_to: String,
     pub args_preproc: bool,
     // Audit
     pub stmts: String,
