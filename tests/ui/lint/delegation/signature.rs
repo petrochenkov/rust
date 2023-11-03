@@ -99,7 +99,7 @@ mod anon2 {
 
     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
         f.foo()
-        //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
+        //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
     }
 }
 
@@ -122,7 +122,7 @@ mod coerce {
 
         fn bar(x: &u32) -> &dyn Display {
             F::bar(x)
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
         }
     }
 }

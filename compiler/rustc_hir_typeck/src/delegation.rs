@@ -59,6 +59,7 @@ impl fmt::Display for ArgsMatch {
 #[derive(Default, Debug, Copy, Clone)]
 enum DelegateTo {
     Field,
+    FirstParam,
     #[default]
     Other,
 }
@@ -67,6 +68,7 @@ impl fmt::Display for DelegateTo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             DelegateTo::Field => "Field",
+            DelegateTo::FirstParam => "FirstParam",
             DelegateTo::Other => "Other",
         })
     }
@@ -168,6 +170,16 @@ impl<'tcx> ExprVisitor<'tcx> {
 
 impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) {
+        let refers_to_param = |expr: &Expr<'_>, param: &Param<'_>| {
+            if let ExprKind::Path(QPath::Resolved(None, path)) = expr.kind
+                && let Path { res: Res::Local(arg_res_id), .. } = path
+                && *arg_res_id == param.pat.hir_id {
+                true
+            } else {
+                false
+            }
+        };
+
         match expr.kind {
             ExprKind::MethodCall(seg, self_arg, args, _) => {
                 let inputs: Vec<_> = [&[*self_arg], args]
@@ -175,25 +187,24 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                     .iter()
                     .map(|arg| self.typeck_results.expr_ty_adjusted(arg))
                     .collect();
+
                 let mut args_preproc = !args.is_empty();
                 if 1 + args.len() == self.caller_params.len() {
                     for (arg_expr, param) in iter::zip(args, self.caller_params.iter().skip(1)) {
-                        if let ExprKind::Path(QPath::Resolved(None, path)) = arg_expr.kind
-                            && let Path { res: Res::Local(arg_res_id), .. } = path
-                            && *arg_res_id == param.pat.hir_id
-                        {
+                        if refers_to_param(arg_expr, param) {
                             args_preproc = false;
                         }
                     }
                 }
 
                 let mut delegate_to = DelegateTo::Other;
-                if let Some(self_param) = self.caller_params.first()
-                    && let ExprKind::Field(receiver, _) = self_arg.kind
-                    && let ExprKind::Path(QPath::Resolved(None, path)) = receiver.kind
-                    && let Path { res: Res::Local(arg_res_id), .. } = path
-                    && *arg_res_id == self_param.pat.hir_id {
+                if let Some(first_param) = self.caller_params.first() {
+                    if refers_to_param(self_arg, first_param) {
+                        delegate_to = DelegateTo::FirstParam;
+                    } else if let ExprKind::Field(receiver, _) = self_arg.kind
+                        && refers_to_param(receiver, first_param) {
                         delegate_to = DelegateTo::Field;
+                    }
                 }
 
                 self.callees.push(Fn {
@@ -218,23 +229,21 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
                         for (arg_expr, param) in
                             iter::zip(args, self.caller_params.iter()).skip(skip)
                         {
-                            if let ExprKind::Path(QPath::Resolved(None, path)) = arg_expr.kind
-                                    && let Path { res: Res::Local(arg_res_id), .. } = path
-                                    && *arg_res_id == param.pat.hir_id
-                                {
-                                    args_preproc = false;
-                                }
+                            if refers_to_param(arg_expr, param) {
+                                args_preproc = false;
+                            }
                         }
                     }
 
                     let mut delegate_to = DelegateTo::Other;
-                    if let Some(self_param) = self.caller_params.first()
-                        && let Some(self_arg) = args.first()
-                        && let ExprKind::Field(receiver, _) = self_arg.kind
-                        && let ExprKind::Path(QPath::Resolved(None, path)) = receiver.kind
-                        && let Path { res: Res::Local(arg_res_id), .. } = path
-                        && *arg_res_id == self_param.pat.hir_id {
+                    if let Some(first_param) = self.caller_params.first()
+                        && let Some(first_arg) = args.first() {
+                        if refers_to_param(first_arg, first_param) {
+                            delegate_to = DelegateTo::FirstParam;
+                        } else if let ExprKind::Field(receiver, _) = first_arg.kind
+                            && refers_to_param(receiver, first_param) {
                             delegate_to = DelegateTo::Field;
+                        }
                     }
 
                     self.callees.push(Fn {

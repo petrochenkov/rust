@@ -1,4 +1,4 @@
-error: dstats. parent: Other, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
+error: dstats. parent: Other, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:101:9
    |
 LL | /     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
@@ -128,7 +128,7 @@ LL | | ...
 LL | | ...   }
    | |_______- caller
 
-error: dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+error: dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
   --> $DIR/signature.rs:124:13
    |
 LL | / ...   fn bar(x: &u32) -> &dyn Display {

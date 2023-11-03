@@ -17,7 +17,7 @@ struct Stuple(F);
 impl S {
     fn bar<T>(x: T) -> T {
         F::bar::<T>(x)
-        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
     }
 
     fn foo<T>(self, x: T) -> T {
@@ -28,7 +28,7 @@ impl S {
 
 fn foo<T>(x: T) -> T {
     F::bar::<T>(x)
-    //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: false, ret_postproc: false.
+    //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: false, ret_postproc: false.
 }
 
 fn bar(x: i32) {
@@ -40,7 +40,7 @@ fn bar(x: i32) {
 trait Trait {
     fn foo<T>(x: T) -> T {
         foo(x)
-        //~^ ERROR dstats. parent: Trait, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+        //~^ ERROR dstats. parent: Trait, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
     }
 }
 
