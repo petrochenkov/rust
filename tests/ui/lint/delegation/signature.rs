@@ -40,7 +40,7 @@ impl Add for NonZeroU32 {
 
     fn add(self, other: Self) -> Self {
         Self (self.0.add(other.0))
-        //~^ ERROR dstats. parent: TraitImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Different, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
+        //~^ ERROR dstats. parent: TraitImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Different, args_preproc: true, ret_match: Same, callee_has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
         //~| ERROR dstats. parent: TraitImpl, stmts: ZeroWithTail, delegate_to: Field, args_match: SameUpToSelfType, args_preproc: true, ret_match: SameUpToSelfType, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
     }
 }
@@ -83,7 +83,7 @@ mod anon1 {
 
         pub fn bar() -> impl Trait {
             bar()
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
         }
     }
 }

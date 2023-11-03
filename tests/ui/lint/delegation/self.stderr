@@ -25,7 +25,7 @@ LL | |
 LL | | }
    | |_- caller
 
-error: dstats. parent: Other, stmts: OneWithoutTail, delegate_to: Other, args_match: Different, args_preproc: false, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: false, ret_postproc: true.
+error: dstats. parent: Other, stmts: OneWithoutTail, delegate_to: Other, args_match: Different, args_preproc: true, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: false, ret_postproc: true.
   --> $DIR/self.rs:35:5
    |
 LL | / fn bar(x: i32) {
