@@ -1,4 +1,4 @@
-use crate::errors;
+use crate::{errors, FnCtxt, Inherited};
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::intravisit::{self, FnKind, Visitor};
@@ -38,6 +38,7 @@ impl fmt::Display for StmtsCount {
 enum ArgsMatch {
     Same,
     SameUpToSelfType,
+    Coerced,
     SameNumber,
     #[default]
     Different,
@@ -48,6 +49,7 @@ impl fmt::Display for ArgsMatch {
         f.write_str(match self {
             ArgsMatch::Same => "Same",
             ArgsMatch::SameUpToSelfType => "SameUpToSelfType",
+            ArgsMatch::Coerced => "Coerced",
             ArgsMatch::SameNumber => "SameNumber",
             ArgsMatch::Different => "Different",
         })
@@ -74,6 +76,7 @@ impl fmt::Display for DelegateTo {
 enum RetMatch {
     Same,
     SameUpToSelfType,
+    Coerced,
     #[default]
     Different,
 }
@@ -83,6 +86,7 @@ impl fmt::Display for RetMatch {
         f.write_str(match self {
             RetMatch::Same => "Same",
             RetMatch::SameUpToSelfType => "SameUpToSelfType",
+            RetMatch::Coerced => "Coerced",
             RetMatch::Different => "Different",
         })
     }
@@ -268,19 +272,21 @@ impl<'tcx> Caller<'tcx> {
 
         // `self` argument in the caller may be transformed (`self` -> `self.target_expr()`),
         // so don't include its type into the comparison.
-        let cmp = |src, dst| -> bool { self.comparator.compare(src, dst) };
+        let same = |src, dst| -> bool { self.comparator.same(src, dst) };
         let mut args_match = ArgsMatch::Same;
         for (&callee_param, &caller_param) in
             iter::zip(&callee.inputs, &caller.inputs).skip(usize::from(caller.has_self))
         {
-            if !cmp(callee_param, caller_param) {
+            if !same(callee_param, caller_param) {
                 // Approximate `Self` as `typeof(self)` with references removed.
                 if callee.has_self
                     && caller.has_self
-                    && cmp(callee.inputs[0].peel_refs(), callee_param.peel_refs())
-                    && cmp(caller.inputs[0].peel_refs(), caller_param.peel_refs())
+                    && same(callee.inputs[0].peel_refs(), callee_param.peel_refs())
+                    && same(caller.inputs[0].peel_refs(), caller_param.peel_refs())
                 {
                     args_match = ArgsMatch::SameUpToSelfType;
+                } else if self.comparator.coercible(caller_param, callee_param) {
+                    args_match = ArgsMatch::Coerced;
                 } else {
                     return ArgsMatch::SameNumber;
                 }
@@ -292,19 +298,23 @@ impl<'tcx> Caller<'tcx> {
 
     fn compare_output(&self, callee: &Fn<'tcx>) -> RetMatch {
         let caller = &self.func;
-        let cmp = |src, dst| -> bool { self.comparator.compare(src, dst) };
+        let same = |src, dst| -> bool { self.comparator.same(src, dst) };
 
-        if cmp(caller.output, callee.output) {
+        if same(caller.output, callee.output) {
             return RetMatch::Same;
         }
 
         // Approximate `Self` as `typeof(self)` with references removed.
         if callee.has_self
             && caller.has_self
-            && cmp(callee.inputs[0].peel_refs(), callee.output.peel_refs())
-            && cmp(caller.inputs[0].peel_refs(), caller.output.peel_refs())
+            && same(callee.inputs[0].peel_refs(), callee.output.peel_refs())
+            && same(caller.inputs[0].peel_refs(), caller.output.peel_refs())
         {
             return RetMatch::SameUpToSelfType;
+        }
+
+        if self.comparator.coercible(callee.output, caller.output) {
+            return RetMatch::Coerced;
         }
 
         RetMatch::Different
@@ -384,14 +394,15 @@ impl<'tcx> Caller<'tcx> {
 struct Comparator<'tcx> {
     tcx: TyCtxt<'tcx>,
     param_env: ParamEnv<'tcx>,
+    def_id: LocalDefId,
 }
 
 impl<'tcx> Comparator<'tcx> {
     fn new(tcx: TyCtxt<'tcx>, def_id: LocalDefId) -> Self {
-        Comparator { tcx, param_env: tcx.param_env(def_id) }
+        Comparator { tcx, param_env: tcx.param_env(def_id), def_id }
     }
 
-    fn compare(&self, src: Ty<'tcx>, dst: Ty<'tcx>) -> bool {
+    fn same(&self, src: Ty<'tcx>, dst: Ty<'tcx>) -> bool {
         if src == dst {
             return true;
         }
@@ -412,6 +423,13 @@ impl<'tcx> Comparator<'tcx> {
         };
         let _ = infcx.take_opaque_types();
         res
+    }
+
+    fn coercible(&self, src: Ty<'tcx>, dst: Ty<'tcx>) -> bool {
+        let inh = Inherited::new(self.tcx, self.def_id);
+        let fcx = FnCtxt::new(&inh, self.param_env, self.def_id);
+
+        fcx.can_coerce(src, dst)
     }
 }
 
@@ -513,7 +531,7 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
                 // return type, this often happens with unit return types.
                 let ret_postproc = i + 1 != block.stmts.len()
                     || block.expr.is_some()
-                    || !caller.comparator.compare(typeck_results.expr_ty(expr), caller.func.output);
+                    || !caller.comparator.same(typeck_results.expr_ty(expr), caller.func.output);
                 process_expr(expr, ret_postproc);
             }
         }

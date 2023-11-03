@@ -78,7 +78,7 @@ mod anon1 {
     impl Struct {
         pub fn new() -> Box<dyn Trait> {
             Box::new(Struct)
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Different, args_preproc: true, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Different, args_preproc: true, ret_match: Coerced, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
         }
 
         pub fn bar() -> impl Trait {
@@ -99,7 +99,7 @@ mod anon2 {
 
     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
         f.foo()
-        //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Different, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
+        //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
     }
 }
 
@@ -117,12 +117,12 @@ mod coerce {
     impl S {
         fn foo(&self, str: &mut str) {
             self.0.foo(str)
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Field, args_match: SameNumber, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Field, args_match: Coerced, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
         }
 
         fn bar(x: &u32) -> &dyn Display {
             F::bar(x)
-            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+            //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Other, args_match: Same, args_preproc: false, ret_match: Coerced, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
         }
     }
 }
