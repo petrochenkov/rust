@@ -9,7 +9,7 @@ use rustc_errors::{pluralize, struct_span_err, Applicability, Diagnostic, ErrorG
 use rustc_hir as hir;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_infer::traits::FulfillmentError;
-use rustc_middle::ty::{self, suggest_constraining_type_param, Ty, TyCtxt};
+use rustc_middle::ty::{self, suggest_constraining_type_param, AssocItem, AssocKind, Ty, TyCtxt};
 use rustc_session::parse::feature_err;
 use rustc_span::edit_distance::find_best_match_for_name;
 use rustc_span::symbol::{sym, Ident};
@@ -509,6 +509,7 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
         if associated_types.values().all(|v| v.is_empty()) {
             return;
         }
+
         let tcx = self.tcx();
         // FIXME: Marked `mut` so that we can replace the spans further below with a more
         // appropriate one, but this should be handled earlier in the span assignment.
@@ -581,6 +582,30 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
             }
         }
 
+        // We get all the associated items that _are_ set,
+        // so that we can check if any of their names match one of the ones we are missing.
+        // This would mean that they are shadowing the associated type we are missing,
+        // and we can then use their span to indicate this to the user.
+        let bound_names = trait_bounds
+            .iter()
+            .filter_map(|poly_trait_ref| {
+                let seg = poly_trait_ref.trait_ref.path.segments.last()?;
+                let trait_def = seg.res.def_id();
+                Some(seg.args?.bindings.iter().filter_map(move |binding| {
+                    // This returns none if there is a bound in the trait ref that is not found
+                    // in the trait, which should be caught in other places.
+                    let assoc_item = tcx.associated_items(trait_def).find_by_name_and_kind(
+                        tcx,
+                        binding.ident,
+                        AssocKind::Type,
+                        trait_def,
+                    )?;
+                    Some((binding.ident.name, assoc_item))
+                }))
+            })
+            .flatten()
+            .collect::<FxHashMap<Symbol, &AssocItem>>();
+
         let mut names = names
             .into_iter()
             .map(|(trait_, mut assocs)| {
@@ -610,6 +635,7 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
             pluralize!(names_len),
             names,
         );
+        let mut rename_suggestions = vec![];
         let mut suggestions = vec![];
         let mut types_count = 0;
         let mut where_constraints = vec![];
@@ -621,10 +647,15 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
                 *names.entry(item.name).or_insert(0) += 1;
             }
             let mut dupes = false;
+            let mut shadows = false;
             for item in assoc_items {
                 let prefix = if names[&item.name] > 1 {
                     let trait_def_id = item.container_id(tcx);
                     dupes = true;
+                    format!("{}::", tcx.def_path_str(trait_def_id))
+                } else if bound_names.get(&item.name).is_some_and(|x| x != &item) {
+                    let trait_def_id = item.container_id(tcx);
+                    shadows = true;
                     format!("{}::", tcx.def_path_str(trait_def_id))
                 } else {
                     String::new()
@@ -632,12 +663,35 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
                 if let Some(sp) = tcx.hir().span_if_local(item.def_id) {
                     err.span_label(sp, format!("`{}{}` defined here", prefix, item.name));
                 }
+
+                if let Some(assoc_item) = bound_names.get(&item.name) {
+                    if assoc_item != &item {
+                        err.span_label(
+                            tcx.def_span(assoc_item.def_id),
+                            format!("`{}{}` shadowed here", prefix, item.name),
+                        );
+                    }
+                }
             }
             if potential_assoc_types.len() == assoc_items.len() {
                 // When the amount of missing associated types equals the number of
                 // extra type arguments present. A suggesting to replace the generic args with
                 // associated types is already emitted.
                 already_has_generics_args_suggestion = true;
+            } else if shadows {
+                for item in assoc_items {
+                    if let Some(assoc_item) = bound_names.get(&item.name) {
+                        if assoc_item != &item {
+                            if let Some(sp) = tcx.hir().span_if_local(item.def_id) {
+                                rename_suggestions.push(sp);
+                            }
+
+                            if let Some(sp) = tcx.hir().span_if_local(assoc_item.def_id) {
+                                rename_suggestions.push(sp);
+                            }
+                        }
+                    }
+                }
             } else if let (Ok(snippet), false) =
                 (tcx.sess.source_map().span_to_snippet(*span), dupes)
             {
@@ -721,6 +775,17 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
                 err.span_help(where_constraints, where_msg);
             }
         }
+
+        if !rename_suggestions.is_empty() {
+            let message = if rename_suggestions.len() > 1 {
+                "consider renaming one of the associated types"
+            } else {
+                "consider renaming this associated type"
+            };
+
+            err.span_help(rename_suggestions, message);
+        }
+
         err.emit();
     }
 }
