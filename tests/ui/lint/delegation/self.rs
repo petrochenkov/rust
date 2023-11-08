@@ -17,30 +17,30 @@ struct Stuple(F);
 impl S {
     fn bar<T>(x: T) -> T {
         F::bar::<T>(x)
-        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+        //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
     }
 
     fn foo<T>(self, x: T) -> T {
         self.field.foo::<T>(x)
-        //~^ ERROR dstats. parent: InherentImpl, stmts: ZeroWithTail, delegate_to: Field, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+        //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
     }
 }
 
 fn foo<T>(x: T) -> T {
     F::bar::<T>(x)
-    //~^ ERROR dstats. parent: Other, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: false, ret_postproc: false.
+    //~^ ERROR dstats. caller_parent: Other, stmts: ZeroWithTail, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: false, ret_postproc: false.
 }
 
 fn bar(x: i32) {
     F::get_self().foo::<i32>(x);
-    //~^ ERROR dstats. parent: Other, stmts: OneWithoutTail, delegate_to: Other, args_match: Different, args_preproc: true, ret_match: Different, callee_has_self: true, caller_has_self: false, same_name: false, ret_postproc: true.
-    //~| ERROR dstats. parent: Other, stmts: OneWithoutTail, delegate_to: Other, args_match: Different, args_preproc: true, ret_match: Different, callee_has_self: false, caller_has_self: false, same_name: false, ret_postproc: true.
+    //~^ ERROR dstats. caller_parent: Other, stmts: OneWithoutTail, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Different, has_self: true, caller_has_self: false, same_name: false, ret_postproc: true.
+    //~| ERROR dstats. caller_parent: Other, stmts: OneWithoutTail, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Different, has_self: false, caller_has_self: false, same_name: false, ret_postproc: true.
 }
 
 trait Trait {
     fn foo<T>(x: T) -> T {
         foo(x)
-        //~^ ERROR dstats. parent: Trait, stmts: ZeroWithTail, delegate_to: FirstParam, args_match: Same, args_preproc: false, ret_match: Same, callee_has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+        //~^ ERROR dstats. caller_parent: Trait, stmts: ZeroWithTail, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
     }
 }
 

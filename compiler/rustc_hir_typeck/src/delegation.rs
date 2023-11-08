@@ -47,26 +47,26 @@ impl fmt::Display for ArgsMatch {
             ArgsMatch::SameCount(TyMatch::Same) => "Same",
             ArgsMatch::SameCount(TyMatch::SameUpToSelfType) => "SameUpToSelfType",
             ArgsMatch::SameCount(TyMatch::Coerced) => "Coerced",
-            ArgsMatch::SameCount(TyMatch::Different) => "SameNumber",
-            ArgsMatch::DifferentCount => "Different",
+            ArgsMatch::SameCount(TyMatch::Different) => "SameCount",
+            ArgsMatch::DifferentCount => "DifferentCount",
         })
     }
 }
 
-#[derive(Default, Debug, Copy, Clone)]
-enum DelegateTo {
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd)]
+enum ArgPreproc {
+    No,
     Field,
-    FirstParam,
     #[default]
     Other,
 }
 
-impl fmt::Display for DelegateTo {
+impl fmt::Display for ArgPreproc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            DelegateTo::Field => "Field",
-            DelegateTo::FirstParam => "FirstParam",
-            DelegateTo::Other => "Other",
+            ArgPreproc::No => "No",
+            ArgPreproc::Field => "Field",
+            ArgPreproc::Other => "Other",
         })
     }
 }
@@ -116,8 +116,9 @@ struct Callee {
     span: Span,
     ret_postproc: bool,
     ret_match: TyMatch,
-    delegate_to: DelegateTo,
-    args_preproc: bool,
+    arg0_preproc: ArgPreproc,
+    arg0_match: TyMatch,
+    args_preproc: ArgPreproc,
     args_match: ArgsMatch,
     has_self: bool,
 }
@@ -133,6 +134,17 @@ fn refers_to_param(expr: &Expr<'_>, param: &Param<'_>) -> bool {
         true
     } else {
         false
+    }
+}
+
+fn arg_preproc(arg: &Expr<'_>, param: &Param<'_>) -> ArgPreproc {
+    if refers_to_param(arg, param) {
+        ArgPreproc::No
+    } else if let ExprKind::Field(receiver, _) = arg.kind
+        && refers_to_param(receiver, param) {
+        ArgPreproc::Field
+    } else {
+        ArgPreproc::Other
     }
 }
 
@@ -152,39 +164,43 @@ impl<'c, 'tcx> ExprVisitor<'c, 'tcx> {
         caller.compare_ty(ret_ty, caller.ret_ty, self_ty, caller.self_ty)
     }
 
-    fn delegate_to(&self, first_arg: Option<&Expr<'_>>) -> DelegateTo {
+    fn arg0_match(&self, arg_tys: &[Ty<'tcx>], self_ty: Option<Ty<'tcx>>) -> TyMatch {
         let caller = self.caller;
-        match (first_arg, caller.params.first()) {
-            (Some(first_arg), Some(first_param)) => {
-                if refers_to_param(first_arg, first_param) {
-                    DelegateTo::FirstParam
-                } else if let ExprKind::Field(receiver, _) = first_arg.kind
-                    && refers_to_param(receiver, first_param) {
-                    DelegateTo::Field
-                } else {
-                    DelegateTo::Other
-                }
+        match (arg_tys.first(), caller.param_tys.first()) {
+            (Some(&arg0_ty), Some(&param0_ty)) => {
+                caller.compare_ty(param0_ty, arg0_ty, self_ty, caller.self_ty)
             }
-            (None, None) => DelegateTo::FirstParam,
-            _ => DelegateTo::Other,
+            (None, None) => TyMatch::Same,
+            _ => TyMatch::Different,
         }
     }
 
-    fn args_preproc(&self, args: &[&Expr<'_>]) -> bool {
+    fn arg0_preproc(&self, args: &[&Expr<'_>]) -> ArgPreproc {
+        let caller = self.caller;
+        match (args.first(), caller.params.first()) {
+            (Some(arg0), Some(param0)) => arg_preproc(arg0, param0),
+            (None, None) => ArgPreproc::No,
+            _ => ArgPreproc::Other,
+        }
+    }
+
+    fn args_preproc(&self, args: &[&Expr<'_>]) -> ArgPreproc {
         let caller = self.caller;
         if args.len() != caller.params.len() {
-            return true;
+            return ArgPreproc::Other;
         }
 
         // First argument can be transformed (`arg0` -> `target_expr(arg0)`),
         // so don't include it into the comparison.
+        let mut max_arg_preproc = ArgPreproc::No;
         for (arg, param) in iter::zip(args, caller.params.iter()).skip(1) {
-            if !refers_to_param(arg, param) {
-                return true;
+            let arg_preproc = arg_preproc(arg, param);
+            if arg_preproc > max_arg_preproc {
+                max_arg_preproc = arg_preproc;
             }
         }
 
-        false
+        max_arg_preproc
     }
 
     fn args_match(&self, arg_tys: &[Ty<'tcx>], self_ty: Option<Ty<'tcx>>) -> ArgsMatch {
@@ -235,7 +251,8 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'_, 'tcx> {
                 span: expr.span,
                 ret_postproc: self.ret_postproc,
                 ret_match: self.ret_match(typeck_results.expr_ty(expr), self_ty),
-                delegate_to: self.delegate_to(args.first().copied()),
+                arg0_preproc: self.arg0_preproc(&args),
+                arg0_match: self.arg0_match(&arg_tys, self_ty),
                 args_preproc: self.args_preproc(&args),
                 args_match: self.args_match(&arg_tys, self_ty),
                 has_self,
@@ -317,7 +334,7 @@ impl<'tcx> Caller<'tcx> {
 
     fn try_emit(&self, callee: &Callee) {
         let tcx = self.tcx;
-        let parent = match tcx.def_kind(tcx.local_parent(self.def_id)) {
+        let caller_parent = match tcx.def_kind(tcx.local_parent(self.def_id)) {
             DefKind::Impl { of_trait: false } => Parent::InherentImpl,
             DefKind::Impl { of_trait: true } => Parent::TraitImpl,
             DefKind::Trait => Parent::Trait,
@@ -329,17 +346,18 @@ impl<'tcx> Caller<'tcx> {
             hir_id,
             callee.span,
             errors::DelegationDetailed {
-                callee: callee.span,
-                caller: self.span,
-                parent: parent.to_string(),
-                same_name: callee.name == self.name,
-                ret_match: callee.ret_match.to_string(),
-                ret_postproc: callee.ret_postproc,
-                callee_has_self: callee.has_self,
+                caller_span: self.span,
+                caller_parent: caller_parent.to_string(),
                 caller_has_self: self.has_self,
+                same_name: callee.name == self.name,
+                span: callee.span,
+                ret_postproc: callee.ret_postproc,
+                ret_match: callee.ret_match.to_string(),
+                arg0_preproc: callee.arg0_preproc.to_string(),
+                arg0_match: callee.arg0_match.to_string(),
+                args_preproc: callee.args_preproc.to_string(),
                 args_match: callee.args_match.to_string(),
-                delegate_to: callee.delegate_to.to_string(),
-                args_preproc: callee.args_preproc,
+                has_self: callee.has_self,
                 // Audit
                 stmts: self.stmts_count.to_string(),
             },
@@ -357,7 +375,7 @@ impl<'tcx> Caller<'tcx> {
                     callee_has_self: callee.has_self,
                     caller_has_self: self.has_self,
                     args_match: callee.args_match.to_string(),
-                    args_preproc: callee.args_preproc,
+                    args_preproc: callee.args_preproc.to_string(),
                 },
             );
         }
