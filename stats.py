@@ -1,29 +1,43 @@
 import argparse
 import re
-import copy
-import typing
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
-import collections
 from ordered_enum import OrderedEnum
 from pathlib import Path
 
 kNumRegex = r"[0-9]+"
 kWordRegex = r"[a-zA-Z]+"
-kStatsRegex = r"dstats. " \
-    fr"(stmts: ({kWordRegex}), )*" + \
-    fr"(args_match: ({kWordRegex}), )" + \
-    fr"(ret_match: ({kWordRegex}), )" + \
-    fr"(self_arg: ({kWordRegex}), )" + \
-    fr"(same_name: ({kWordRegex}), )*" + \
-    fr"(has_expr_after: ({kWordRegex}))"
+kStatsRegex = (
+    r"dstats. "
+    rf"(caller_parent: ({kWordRegex}), )*"
+    + rf"(stmts: ({kWordRegex}), )*"
+    + rf"(arg0_match: ({kWordRegex}), )"
+    + rf"(arg0_preproc: ({kWordRegex}), )"
+    + rf"(args_match: ({kWordRegex}), )"
+    + rf"(args_preproc: ({kWordRegex}), )"
+    + rf"(ret_match: ({kWordRegex}), )"
+    + rf"(has_self: ({kWordRegex}), )"
+    + rf"(caller_has_self: ({kWordRegex}), )"
+    + rf"(same_name: ({kWordRegex}), )*"
+    + rf"(ret_postproc: ({kWordRegex}))"
+)
 
-kMethodsRegex = fr"warning: delegation methods stats. methods_count: ({kNumRegex}), ({kNumRegex})."
+kMethodsRegex = (
+    rf"warning: delegation methods stats. methods_count: ({kNumRegex}), ({kNumRegex})."
+)
 
 kPathRegex = r"[a-zA-z\/.:0-9]+"
 kPrimapySpanRegex = r"--> ({})".format(kPathRegex)
+
+
+class CallerParent(OrderedEnum):
+    InherentImpl = "InherentImpl"
+    TraitImpl = "TraitImpl"
+    Trait = "Trait"
+    Other = "Other"
+
+    def descr():
+        return "caller parent"
+
 
 class StmtsCount(OrderedEnum):
     ZeroWithTail = "ZeroWithTail"
@@ -34,37 +48,71 @@ class StmtsCount(OrderedEnum):
     def descr():
         return "stmt count"
 
-class ArgsMatch(OrderedEnum):
+
+class Arg0Match(OrderedEnum):
     Same = "Same"
     SameUpToSelfType = "SameUpToSelfType"
-    SameNumber = "SameNumber"
+    Coerced = "Coerced"
     Different = "Different"
 
     def descr():
-        return "arguments match"
+        return "arg0 match"
+
+
+class Arg0Preproc(OrderedEnum):
+    No = "No"
+    Field = "Field"
+    Other = "Other"
+
+    def descr():
+        return "arg0 preproc"
+
+
+class ArgsMatch(OrderedEnum):
+    Same = "Same"
+    SameUpToSelfType = "SameUpToSelfType"
+    Coerced = "Coerced"
+    SameCount = "SameCount"
+    DifferentCount = "DifferentCount"
+
+    def descr():
+        return "args match"
+
+
+class ArgsPreproc(OrderedEnum):
+    No = "No"
+    Field = "Field"
+    Other = "Other"
+
+    def descr():
+        return "args preproc"
+
 
 class RetMatch(OrderedEnum):
     Same = "Same"
     SameUpToSelfType = "SameUpToSelfType"
+    Coerced = "Coerced"
     Different = "Different"
 
     def descr():
         return "ret match"
 
+
 class HasSelf(OrderedEnum):
-    Value = "Value"
-    Type = "Type"
-    Other = "Other"
-
-    def descr():
-        return "self argument"
-
-class VisibilityCmp(OrderedEnum):
     TRUE = "true"
     FALSE = "false"
 
     def descr():
-        return "visibility cmp"
+        return "has self"
+
+
+class CallerHasSelf(OrderedEnum):
+    TRUE = "true"
+    FALSE = "false"
+
+    def descr():
+        return "caller has self"
+
 
 class SameName(OrderedEnum):
     TRUE = "true"
@@ -73,48 +121,55 @@ class SameName(OrderedEnum):
     def descr():
         return "same name"
 
-class HasExprAfter(OrderedEnum):
+
+class RetPostproc(OrderedEnum):
     FALSE = "false"
     TRUE = "true"
 
     def descr():
-        return "has expr after call"
+        return "ret postproc"
 
-class ParentIsImpl(OrderedEnum):
-    TRUE = "true"
-    FALSE = "false"
-
-    def descr():
-        return "parent is impl"
-
-KReplaceMap = {
-    StmtsCount.descr(): {StmtsCount.ZeroWithTail: 1, StmtsCount.OneWithoutTail: 2, StmtsCount.OneWithTail: 3, StmtsCount.Other: 4},
-    ArgsMatch.descr(): {ArgsMatch.Same: 1, ArgsMatch.SameUpToSelfType: 2, ArgsMatch.Different: 3, ArgsMatch.SameNumber: 4},
-    RetMatch.descr(): {RetMatch.Same: 1, RetMatch.SameUpToSelfType: 2, RetMatch.Different: 3},
-    HasSelf.descr(): {HasSelf.Value: 1, HasSelf.Type: 2, HasSelf.Other: 3},
-    # VisibilityCmp.descr(): {VisibilityCmp.TRUE: 1, VisibilityCmp.FALSE: 2},
-    SameName.descr(): {SameName.TRUE: 1, SameName.FALSE: 2},
-    HasExprAfter.descr(): {HasExprAfter.TRUE: 1, HasExprAfter.FALSE: 2},
-    # sParentIsImpl.descr(): {ParentIsImpl.TRUE: 1, ParentIsImpl.FALSE: 2},
-}
 
 class Stats:
     def __init__(self, streamFilename: Path, compressed: bool):
-        self.stream = streamFilename.open()
+        self.stream = streamFilename.open(encoding="utf-8")
         self.compressed = compressed
 
     def getStatsList(self):
         if not self.compressed:
-            return [StmtsCount, ArgsMatch, RetMatch, HasSelf, SameName, HasExprAfter]
+            return [
+                CallerParent,
+                StmtsCount,
+                Arg0Match,
+                Arg0Preproc,
+                ArgsMatch,
+                ArgsPreproc,
+                RetMatch,
+                HasSelf,
+                CallerHasSelf,
+                SameName,
+                RetPostproc,
+            ]
         else:
-            return [ArgsMatch, RetMatch, HasSelf, HasExprAfter]
+            return [ArgsMatch, RetMatch, RetPostproc]
 
     def getHistOrder(self):
         if not self.compressed:
-            return [SameName.descr(), StmtsCount.descr(), HasExprAfter.descr(),
-                HasSelf.descr(), RetMatch.descr(), ArgsMatch.descr()]
+            return [
+                CallerParent.descr(),
+                StmtsCount.descr(),
+                Arg0Match.descr(),
+                Arg0Preproc.descr(),
+                ArgsMatch.descr(),
+                ArgsPreproc.descr(),
+                RetMatch.descr(),
+                HasSelf.descr(),
+                CallerHasSelf.descr(),
+                SameName.descr(),
+                RetPostproc.descr(),
+            ]
         else:
-            return [HasExprAfter.descr(), HasSelf.descr(), ArgsMatch.descr(), RetMatch.descr()]
+            return [RetPostproc.descr(), ArgsMatch.descr(), RetMatch.descr()]
 
     def getEmptyDfMap(self):
         res = {}
@@ -127,12 +182,9 @@ class Stats:
         lines = self.stream.readlines()
 
         data = self.getEmptyDfMap()
-        index = [] # spans
+        index = []  # spans
 
-        methodsData = {
-            "methods delegation count": [],
-            "impl count": []
-        }
+        methodsData = {"methods delegation count": [], "impl count": []}
 
         access = False
         for line in lines:
@@ -175,27 +227,8 @@ class Stats:
                     methodsData[key_descr].append(key)
                     methodsData[val_descr].append(val)
 
-        self.df = pd.DataFrame(data = data, index = index)
-        self.mdf = pd.DataFrame(data = methodsData)
-        return
-
-    def dumpSingleHist(self, folderName, name):
-        plt.figure(figsize=(16,9))
-        histFile = open(f"{folderName}/{name}.pdf", "wb+")
-        new_df = self.df[name]
-        hist = new_df.value_counts()
-        hist.plot(kind='bar')
-        plt.savefig(histFile, format="pdf")
-        return
-
-    def dumpHeatMap(self, resultFolder):
-        heatMapFile = open(f"{resultFolder}/heatmap.pdf", "wb+")
-        df = self.df.replace(KReplaceMap).astype(int)
-        f, ax = plt.subplots(figsize=(16, 9))
-        corr = df.corr()
-        sns.heatmap(round(corr,2), annot=True, ax=ax, cmap="coolwarm",fmt='.2f', \
-            linewidths=.05)
-        plt.savefig(heatMapFile, format="pdf")
+        self.df = pd.DataFrame(data=data, index=index)
+        self.mdf = pd.DataFrame(data=methodsData)
 
     def dumpHist(self, resultFolder):
         order = self.getHistOrder()
@@ -204,46 +237,34 @@ class Stats:
         hist = hist.value_counts()
         hist = pd.DataFrame(hist)
 
-        def comparator(lhs, rhs):
-            lhs = lhs.split(" ", 1)[0]
-            rhs = rhs.split(" ", 1)[0]
-
-            match (lhs, rhs)
-
         hist = hist.sort_values(by=order)
         histFile = open(f"{resultFolder}/hist.html", "w+")
         hist.to_html(histFile)
 
     def dumpMethodsStat(self, resultFolder):
         methodsFile = open(f"{resultFolder}/methods.html", "w+")
-        self.mdf.sort_values(by=['impl count'], ascending = False).to_html(methodsFile)
+        self.mdf.sort_values(by=["impl count"], ascending=False).to_html(methodsFile)
 
     def dumpResults(self):
         resultFolder = "stats"
-
         dataframeFile = open(f"{resultFolder}/dataframe.html", "w+")
         self.df.to_html(dataframeFile)
-        for stat in self.getStatsList():
-            self.dumpSingleHist(resultFolder, stat.descr())
-
-        self.dumpHeatMap(resultFolder)
         self.dumpHist(resultFolder)
         self.dumpMethodsStat(resultFolder)
-        return
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Cosimulation")
+    parser = argparse.ArgumentParser(description="Delegation")
     parser.add_argument(
         "--logs", type=Path, required=True, help="Path to compiler logs"
     )
-    parser.add_argument(
-        "--compressed", action=argparse.BooleanOptionalAction
-    )
+    parser.add_argument("--compressed", action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
 
     stats = Stats(args.logs, args.compressed)
     stats.parse()
     stats.dumpResults()
+
 
 if __name__ == "__main__":
     main()
