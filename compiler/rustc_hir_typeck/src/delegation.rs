@@ -2,7 +2,7 @@ use crate::{errors, FnCtxt, Inherited};
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::intravisit::{self, FnKind, Visitor};
-use rustc_hir::{BodyId, Expr, ExprKind, FnDecl, Param, Path, QPath, StmtKind, CRATE_HIR_ID};
+use rustc_hir::{BodyId, Expr, ExprKind, FnDecl, Param, Path, QPath, Stmt, StmtKind, CRATE_HIR_ID};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_middle::query::Providers;
 use rustc_middle::traits::{DefiningAnchor, ObligationCause};
@@ -13,26 +13,6 @@ use rustc_span::{Span, Symbol};
 use rustc_trait_selection::traits::ObligationCtxt;
 use std::collections::BTreeMap;
 use std::{fmt, iter};
-
-#[derive(Default, Debug, Copy, Clone)]
-enum StmtsCount {
-    ZeroWithTail,
-    OneWithoutTail,
-    OneWithTail,
-    #[default]
-    Other,
-}
-
-impl fmt::Display for StmtsCount {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            StmtsCount::ZeroWithTail => "ZeroWithTail",
-            StmtsCount::OneWithoutTail => "OneWithoutTail",
-            StmtsCount::OneWithTail => "OneWithTail",
-            StmtsCount::Other => "Other",
-        })
-    }
-}
 
 #[derive(Default, Debug, Copy, Clone)]
 enum ArgsMatch {
@@ -57,6 +37,7 @@ impl fmt::Display for ArgsMatch {
 enum ArgPreproc {
     No,
     Field,
+    Getter,
     #[default]
     Other,
 }
@@ -66,6 +47,7 @@ impl fmt::Display for ArgPreproc {
         f.write_str(match self {
             ArgPreproc::No => "No",
             ArgPreproc::Field => "Field",
+            ArgPreproc::Getter => "Getter",
             ArgPreproc::Other => "Other",
         })
     }
@@ -116,6 +98,7 @@ struct Callee {
     span: Span,
     ret_postproc: bool,
     ret_match: TyMatch,
+    stmts_before: bool,
     arg0_preproc: ArgPreproc,
     arg0_match: TyMatch,
     args_preproc: ArgPreproc,
@@ -127,10 +110,27 @@ fn has_self(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
     tcx.def_kind(def_id) == DefKind::AssocFn && tcx.associated_item(def_id).fn_has_self_parameter
 }
 
+// FIXME: `Self` type is approximated as `typeof(self)` with references removed,
+// with a fallback to parent's `type_of`, that's probably not a good solution.
+fn self_ty<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    arg_tys: &[Ty<'tcx>],
+    has_self: bool,
+) -> Option<Ty<'tcx>> {
+    has_self.then(|| arg_tys[0].peel_refs()).or_else(|| match tcx.def_kind(def_id) {
+        DefKind::Impl { .. } | DefKind::Trait => {
+            Some(tcx.type_of(tcx.parent(def_id)).instantiate_identity())
+        }
+        _ => None,
+    })
+}
+
 fn refers_to_param(expr: &Expr<'_>, param: &Param<'_>) -> bool {
     if let ExprKind::Path(QPath::Resolved(None, path)) = expr.kind
         && let Path { res: Res::Local(arg_res_id), .. } = path
-        && *arg_res_id == param.pat.hir_id {
+        && *arg_res_id == param.pat.hir_id
+    {
         true
     } else {
         false
@@ -141,8 +141,14 @@ fn arg_preproc(arg: &Expr<'_>, param: &Param<'_>) -> ArgPreproc {
     if refers_to_param(arg, param) {
         ArgPreproc::No
     } else if let ExprKind::Field(receiver, _) = arg.kind
-        && refers_to_param(receiver, param) {
+        && refers_to_param(receiver, param)
+    {
         ArgPreproc::Field
+    } else if let ExprKind::MethodCall(_, receiver, args, _) = arg.kind
+        && args.is_empty()
+        && refers_to_param(receiver, param)
+    {
+        ArgPreproc::Getter
     } else {
         ArgPreproc::Other
     }
@@ -151,12 +157,13 @@ fn arg_preproc(arg: &Expr<'_>, param: &Param<'_>) -> ArgPreproc {
 struct ExprVisitor<'c, 'tcx> {
     caller: &'c Caller<'tcx>,
     ret_postproc: bool,
+    stmts_before: bool,
     callees: Vec<Callee>,
 }
 
 impl<'c, 'tcx> ExprVisitor<'c, 'tcx> {
-    fn new(caller: &'c Caller<'tcx>, ret_postproc: bool) -> Self {
-        ExprVisitor { caller, ret_postproc, callees: Default::default() }
+    fn new(caller: &'c Caller<'tcx>, ret_postproc: bool, stmts_before: bool) -> Self {
+        ExprVisitor { caller, ret_postproc, stmts_before, callees: Default::default() }
     }
 
     fn ret_match(&self, ret_ty: Ty<'tcx>, self_ty: Option<Ty<'tcx>>) -> TyMatch {
@@ -231,26 +238,28 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'_, 'tcx> {
         let callee = match expr.kind {
             ExprKind::MethodCall(seg, self_arg, other_args, _) => {
                 let args: Vec<_> = iter::once(self_arg).chain(other_args).collect();
-                Some((seg.ident.name, true, args))
+                Some((seg.ident.name, true, args, caller.def_id.to_def_id() /*never used*/))
             }
-            ExprKind::Call(func, args) if let FnDef(def_id, ..) = typeck_results.expr_ty(func).kind() => {
+            ExprKind::Call(func, args)
+                if let FnDef(def_id, ..) = typeck_results.expr_ty(func).kind() =>
+            {
                 let args: Vec<_> = args.iter().collect();
-                Some((caller.tcx.item_name(*def_id), has_self(caller.tcx, *def_id), args))
+                Some((caller.tcx.item_name(*def_id), has_self(caller.tcx, *def_id), args, *def_id))
             }
             _ => None,
         };
 
-        if let Some((name, has_self, args)) = callee {
+        if let Some((name, has_self, args, def_id)) = callee {
             let arg_tys: Vec<_> =
                 args.iter().map(|arg| typeck_results.expr_ty_adjusted(arg)).collect();
-            // FIXME: `Self` type is approximated as `typeof(self)` with references removed.
-            let self_ty = has_self.then(|| arg_tys[0].peel_refs());
+            let self_ty = self_ty(caller.tcx, def_id, &arg_tys, has_self);
 
             self.callees.push(Callee {
                 name,
                 span: expr.span,
                 ret_postproc: self.ret_postproc,
                 ret_match: self.ret_match(typeck_results.expr_ty(expr), self_ty),
+                stmts_before: self.stmts_before,
                 arg0_preproc: self.arg0_preproc(&args),
                 arg0_match: self.arg0_match(&arg_tys, self_ty),
                 args_preproc: self.args_preproc(&args),
@@ -262,6 +271,11 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'_, 'tcx> {
         self.ret_postproc = true;
         intravisit::walk_expr(self, expr);
     }
+
+    fn visit_stmt(&mut self, s: &'tcx Stmt<'tcx>) {
+        intravisit::walk_stmt(self, s);
+        self.stmts_before = true;
+    }
 }
 
 struct Caller<'tcx> {
@@ -271,12 +285,12 @@ struct Caller<'tcx> {
     param_env: ParamEnv<'tcx>,
     name: Symbol,
     span: Span,
+    parent: Parent,
     self_ty: Option<Ty<'tcx>>,
     ret_ty: Ty<'tcx>,
     params: &'tcx [Param<'tcx>],
     param_tys: &'tcx [Ty<'tcx>],
     has_self: bool,
-    stmts_count: StmtsCount,
 }
 
 impl<'tcx> Caller<'tcx> {
@@ -334,62 +348,61 @@ impl<'tcx> Caller<'tcx> {
 
     fn try_emit(&self, callee: &Callee) {
         let tcx = self.tcx;
-        let caller_parent = match tcx.def_kind(tcx.local_parent(self.def_id)) {
-            DefKind::Impl { of_trait: false } => Parent::InherentImpl,
-            DefKind::Impl { of_trait: true } => Parent::TraitImpl,
-            DefKind::Trait => Parent::Trait,
-            _ => Parent::Other,
-        };
         let hir_id = tcx.hir().local_def_id_to_hir_id(self.def_id);
+        let lint = errors::Delegation {
+            caller_span: self.span,
+            caller_parent: self.parent.to_string(),
+            caller_has_self: self.has_self,
+            same_name: callee.name == self.name,
+            span: callee.span,
+            ret_postproc: callee.ret_postproc,
+            ret_match: callee.ret_match.to_string(),
+            stmts_before: callee.stmts_before,
+            arg0_preproc: callee.arg0_preproc.to_string(),
+            arg0_match: callee.arg0_match.to_string(),
+            args_preproc: callee.args_preproc.to_string(),
+            args_match: callee.args_match.to_string(),
+            has_self: callee.has_self,
+        };
         tcx.emit_spanned_lint(
             lint::builtin::DELEGATIONS_DETAILED,
             hir_id,
             callee.span,
-            errors::DelegationDetailed {
-                caller_span: self.span,
-                caller_parent: caller_parent.to_string(),
-                caller_has_self: self.has_self,
-                same_name: callee.name == self.name,
-                span: callee.span,
-                ret_postproc: callee.ret_postproc,
-                ret_match: callee.ret_match.to_string(),
-                arg0_preproc: callee.arg0_preproc.to_string(),
-                arg0_match: callee.arg0_match.to_string(),
-                args_preproc: callee.args_preproc.to_string(),
-                args_match: callee.args_match.to_string(),
-                has_self: callee.has_self,
-                // Audit
-                stmts: self.stmts_count.to_string(),
-            },
+            lint.clone(),
         );
-
-        if !self.is_detailed(callee) {
-            tcx.emit_spanned_lint(
-                lint::builtin::DELEGATIONS,
-                hir_id,
-                callee.span,
-                errors::Delegation {
-                    callee: callee.span,
-                    ret_match: callee.ret_match.to_string(),
-                    ret_postproc: callee.ret_postproc,
-                    callee_has_self: callee.has_self,
-                    caller_has_self: self.has_self,
-                    args_match: callee.args_match.to_string(),
-                    args_preproc: callee.args_preproc.to_string(),
-                },
-            );
+        if self.is_delegation(callee) {
+            tcx.emit_spanned_lint(lint::builtin::DELEGATIONS, hir_id, callee.span, lint);
         }
     }
 
-    fn is_detailed(&self, callee: &Callee) -> bool {
-        matches!(self.stmts_count, StmtsCount::Other | StmtsCount::OneWithTail)
-            || matches!(callee.args_match, ArgsMatch::DifferentCount)
-            || callee.name != self.name
-    }
-
     fn is_delegation(&self, callee: &Callee) -> bool {
-        !self.is_detailed(callee)
-            && !matches!(callee.args_match, ArgsMatch::SameCount(TyMatch::Different))
+        let sig_known = matches!(self.parent, Parent::TraitImpl);
+        let arg0_sig_known = self.has_self;
+
+        let ret_ok = match callee.ret_match {
+            TyMatch::Same => !callee.ret_postproc,
+            TyMatch::SameUpToSelfType => true,
+            TyMatch::Coerced => !callee.ret_postproc && sig_known,
+            TyMatch::Different => false,
+        };
+        let stmts_before_ok = !callee.stmts_before
+            || matches!(callee.arg0_preproc, ArgPreproc::Other)
+            || matches!(callee.args_preproc, ArgPreproc::Other);
+        let arg0_ok = match callee.arg0_match {
+            TyMatch::Same | TyMatch::SameUpToSelfType => true,
+            TyMatch::Coerced | TyMatch::Different => arg0_sig_known,
+        };
+        let args_ok = match callee.args_match {
+            ArgsMatch::SameCount(TyMatch::Same) => matches!(callee.args_preproc, ArgPreproc::No),
+            ArgsMatch::SameCount(TyMatch::SameUpToSelfType) => true,
+            ArgsMatch::SameCount(TyMatch::Coerced) => {
+                matches!(callee.args_preproc, ArgPreproc::No) && sig_known
+            }
+            ArgsMatch::SameCount(TyMatch::Different) | ArgsMatch::DifferentCount => false,
+        };
+        let has_self_ok = callee.has_self == self.has_self || matches!(self.parent, Parent::Other);
+
+        ret_ok && stmts_before_ok && arg0_ok && args_ok && has_self_ok
     }
 }
 
@@ -431,7 +444,8 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         if matches!(fk, FnKind::Closure) {
             return;
         }
-        let body = self.tcx.hir().body(body_id);
+        let tcx = self.tcx;
+        let body = tcx.hir().body(body_id);
         let block = match body.value.kind {
             ExprKind::Block(block, _) => block,
             // Async functions are lowered to this, consider later.
@@ -441,42 +455,41 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
 
         // Caller signature
         let params = body.params;
-        let sig = self.tcx.liberate_late_bound_regions(
+        let sig = tcx.liberate_late_bound_regions(
             def_id.to_def_id(),
-            self.tcx.fn_sig(def_id.to_def_id()).instantiate_identity(),
+            tcx.fn_sig(def_id.to_def_id()).instantiate_identity(),
         );
         let param_tys = sig.inputs();
         assert_eq!(params.len(), param_tys.len());
 
-        // FIXME: `Self` type is approximated as `typeof(self)` with references removed.
-        let has_self = has_self(self.tcx, def_id.to_def_id());
-        let self_ty = has_self.then(|| param_tys[0].peel_refs());
+        let has_self = has_self(tcx, def_id.to_def_id());
+        let self_ty = self_ty(tcx, def_id.to_def_id(), param_tys, has_self);
 
         // Combine caller data
-        let stmts_count = match (block.expr, block.stmts.len()) {
-            (Some(_), 0) => StmtsCount::ZeroWithTail,
-            (None, 1) => StmtsCount::OneWithoutTail,
-            (Some(_), 1) => StmtsCount::OneWithTail,
-            _ => StmtsCount::Other,
+        let parent = match tcx.def_kind(tcx.local_parent(def_id)) {
+            DefKind::Impl { of_trait: false } => Parent::InherentImpl,
+            DefKind::Impl { of_trait: true } => Parent::TraitImpl,
+            DefKind::Trait => Parent::Trait,
+            _ => Parent::Other,
         };
         let caller = Caller {
-            tcx: self.tcx,
+            tcx,
             def_id,
-            typeck_results: self.tcx.typeck_body(body_id),
-            param_env: self.tcx.param_env(def_id),
-            name: self.tcx.item_name(def_id.to_def_id()),
+            typeck_results: tcx.typeck_body(body_id),
+            param_env: tcx.param_env(def_id),
+            name: tcx.item_name(def_id.to_def_id()),
             span,
+            parent,
             self_ty,
             ret_ty: sig.output(),
             params,
             param_tys,
             has_self,
-            stmts_count,
         };
 
         let mut is_delegation = false;
-        let mut process_expr = |expr, ret_postproc: bool| {
-            let mut expr_visitor = ExprVisitor::new(&caller, ret_postproc);
+        let mut process_expr = |expr, ret_postproc, stmts_before| {
+            let mut expr_visitor = ExprVisitor::new(&caller, ret_postproc, stmts_before);
             expr_visitor.visit_expr(expr);
             for callee in expr_visitor.callees {
                 is_delegation |= caller.is_delegation(&callee);
@@ -491,16 +504,16 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
                 let ret_postproc = i + 1 != block.stmts.len()
                     || block.expr.is_some()
                     || !caller.same_ty(caller.typeck_results.expr_ty(expr), caller.ret_ty);
-                process_expr(expr, ret_postproc);
+                process_expr(expr, ret_postproc, i != 0);
             }
         }
 
         if let Some(expr) = block.expr {
-            process_expr(expr, false);
+            process_expr(expr, false, !block.stmts.is_empty());
         }
 
         if is_delegation {
-            let parent_def_id = self.tcx.local_parent(def_id);
+            let parent_def_id = tcx.local_parent(def_id);
             *self.delegations_per_parent_stats.entry(parent_def_id).or_default() += 1;
         }
     }

@@ -45,16 +45,12 @@ hir_typeck_convert_using_method = try using `{$sugg}` to convert `{$found}` to `
 hir_typeck_ctor_is_private = tuple struct constructor `{$def}` is private
 
 hir_typeck_delegation =
-    dstats. args_match: {$args_match}, args_preproc: {$args_preproc}, ret_match: {$ret_match}, callee_has_self: {$callee_has_self}, caller_has_self: {$caller_has_self}, ret_postproc: {$ret_postproc}.
-    .callee_label = callee
-
-hir_typeck_delegation_detailed =
-    dstats. caller_parent: {$caller_parent}, stmts: {$stmts}, arg0_match: {$arg0_match}, arg0_preproc: {$arg0_preproc}, args_match: {$args_match}, args_preproc: {$args_preproc}, ret_match: {$ret_match}, has_self: {$has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, ret_postproc: {$ret_postproc}.
+    caller_parent: {$caller_parent}, stmts_before: {$stmts_before}, arg0_match: {$arg0_match}, arg0_preproc: {$arg0_preproc}, args_match: {$args_match}, args_preproc: {$args_preproc}, ret_match: {$ret_match}, has_self: {$has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, ret_postproc: {$ret_postproc}
     .caller_label = caller
     .callee_label = callee
 
 hir_typeck_delegations_per_parent_stats =
-    delegation methods stats. methods_count: {$delegation_count}, {$parent_count}.
+    delegation count: {$delegation_count}, parent count: {$parent_count}
 
 hir_typeck_deref_is_empty = this expression `Deref`s to `{$deref_ty}` which implements `is_empty`
 

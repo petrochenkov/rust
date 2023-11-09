@@ -4628,18 +4628,21 @@ declare_lint! {
     Allow,
     "search functions that call other functions and collect statistics \
      about the call contexts and the caller and callee similarity",
+    report_in_external_macro
 }
 
 declare_lint! {
     pub DELEGATIONS,
     Allow,
     "same as `DELEGATION_PATTERNS_DETAILED`, but only reports cases that \
-     look similar to delegation, to avoid large amount of output"
+     look similar to delegation, to avoid large amount of output",
+    report_in_external_macro
 }
 
 declare_lint! {
     pub DELEGATIONS_PER_PARENT_STATS,
     Allow,
     "collects statistics about the number of items that could potentially \
-     be turned into delegation items in a single containing parent item"
+     be turned into delegation items in a single containing parent item",
+    report_in_external_macro
 }

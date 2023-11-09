@@ -18,20 +18,20 @@ struct NonZeroU32(u32);
 impl NonZeroU32 {
     fn foo(&mut self) -> Self {
         Self(self.0.foo())
-        //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Other, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
-        //~| ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: SameUpToSelfType, has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
+        //~^ ERROR caller_parent: InherentImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Other, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: true, same_name: false, ret_postproc: false
+        //~| ERROR caller_parent: InherentImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: SameUpToSelfType, has_self: true, caller_has_self: true, same_name: true, ret_postproc: true
     }
 
     fn bar(&self) -> i32 {
         self.0.bar()
-        //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+        //~^ ERROR caller_parent: InherentImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false
     }
 }
 
 impl Hash for NonZeroU32 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.hash(state);
-        //~^ ERROR dstats. caller_parent: TraitImpl, stmts: OneWithoutTail, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+        //~^ ERROR caller_parent: TraitImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false
     }
 }
 
@@ -40,8 +40,8 @@ impl Add for NonZeroU32 {
 
     fn add(self, other: Self) -> Self {
         Self (self.0.add(other.0))
-        //~^ ERROR dstats. caller_parent: TraitImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Same, has_self: false, caller_has_self: true, same_name: false, ret_postproc: false.
-        //~| ERROR dstats. caller_parent: TraitImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Field, args_match: SameUpToSelfType, args_preproc: Field, ret_match: SameUpToSelfType, has_self: true, caller_has_self: true, same_name: true, ret_postproc: true.
+        //~^ ERROR caller_parent: TraitImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Same, has_self: false, caller_has_self: true, same_name: false, ret_postproc: false
+        //~| ERROR caller_parent: TraitImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Field, args_match: SameUpToSelfType, args_preproc: Field, ret_match: SameUpToSelfType, has_self: true, caller_has_self: true, same_name: true, ret_postproc: true
     }
 }
 
@@ -58,11 +58,11 @@ mod iter {
         #[inline]
         fn next(&self) -> Option<T::Item> {
             (**self).next()
-            //~^ ERROR dstats. caller_parent: TraitImpl, stmts: ZeroWithTail, arg0_match: SameUpToSelfType, arg0_preproc: Other, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+            //~^ ERROR caller_parent: TraitImpl, stmts_before: false, arg0_match: SameUpToSelfType, arg0_preproc: Other, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false
         }
         fn last(&self) -> Option<Self::Item> {
             (**self).last()
-            //~^ ERROR dstats. caller_parent: TraitImpl, stmts: ZeroWithTail, arg0_match: SameUpToSelfType, arg0_preproc: Other, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+            //~^ ERROR caller_parent: TraitImpl, stmts_before: false, arg0_match: SameUpToSelfType, arg0_preproc: Other, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false
         }
     }
 }
@@ -78,12 +78,12 @@ mod anon1 {
     impl Struct {
         pub fn new() -> Box<dyn Trait> {
             Box::new(Struct)
-            //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Coerced, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+            //~^ ERROR caller_parent: InherentImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Coerced, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false
         }
 
         pub fn bar() -> impl Trait {
             bar()
-            //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+            //~^ ERROR caller_parent: InherentImpl, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false
         }
     }
 }
@@ -99,7 +99,7 @@ mod anon2 {
 
     fn foo<'a>(f: &F<'a>) -> &'a dyn Display {
         f.foo()
-        //~^ ERROR dstats. caller_parent: Other, stmts: ZeroWithTail, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Coerced, has_self: true, caller_has_self: false, same_name: true, ret_postproc: false.
+        //~^ ERROR caller_parent: Other, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Coerced, has_self: true, caller_has_self: false, same_name: true, ret_postproc: false
     }
 }
 
@@ -117,12 +117,12 @@ mod coerce {
     impl S {
         fn foo(&self, str: &mut str) {
             self.0.foo(str)
-            //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Different, arg0_preproc: Field, args_match: Coerced, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false.
+            //~^ ERROR caller_parent: InherentImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Field, args_match: Coerced, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false
         }
 
         fn bar(x: &u32) -> &dyn Display {
             F::bar(x)
-            //~^ ERROR dstats. caller_parent: InherentImpl, stmts: ZeroWithTail, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Coerced, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false.
+            //~^ ERROR caller_parent: InherentImpl, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Coerced, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false
         }
     }
 }
