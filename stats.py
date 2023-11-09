@@ -1,6 +1,7 @@
 import argparse
-import re
 import pandas as pd
+import re
+from collections import defaultdict
 from ordered_enum import OrderedEnum
 from pathlib import Path
 
@@ -8,17 +9,17 @@ kNumRegex = r"[0-9]+"
 kWordRegex = r"[a-zA-Z]+"
 kStatsRegex = (
     r"dstats. "
-    rf"(caller_parent: ({kWordRegex}), )*"
-    + rf"(stmts: ({kWordRegex}), )*"
-    + rf"(arg0_match: ({kWordRegex}), )"
-    + rf"(arg0_preproc: ({kWordRegex}), )"
-    + rf"(args_match: ({kWordRegex}), )"
-    + rf"(args_preproc: ({kWordRegex}), )"
-    + rf"(ret_match: ({kWordRegex}), )"
-    + rf"(has_self: ({kWordRegex}), )"
-    + rf"(caller_has_self: ({kWordRegex}), )"
-    + rf"(same_name: ({kWordRegex}), )*"
-    + rf"(ret_postproc: ({kWordRegex}))"
+    + rf"caller_parent: ({kWordRegex}), "
+    + rf"stmts: ({kWordRegex}), "
+    + rf"arg0_match: ({kWordRegex}), "
+    + rf"arg0_preproc: ({kWordRegex}), "
+    + rf"args_match: ({kWordRegex}), "
+    + rf"args_preproc: ({kWordRegex}), "
+    + rf"ret_match: ({kWordRegex}), "
+    + rf"has_self: ({kWordRegex}), "
+    + rf"caller_has_self: ({kWordRegex}), "
+    + rf"same_name: ({kWordRegex}), "
+    + rf"ret_postproc: ({kWordRegex})"
 )
 
 kMethodsRegex = (
@@ -26,7 +27,7 @@ kMethodsRegex = (
 )
 
 kPathRegex = r"[a-zA-z\/.:0-9]+"
-kPrimapySpanRegex = r"--> ({})".format(kPathRegex)
+kPrimapySpanRegex = rf"--> ({kPathRegex})"
 
 
 class CallerParent(OrderedEnum):
@@ -131,119 +132,72 @@ class RetPostproc(OrderedEnum):
 
 
 class Stats:
-    def __init__(self, streamFilename: Path, compressed: bool):
+    def __init__(self, streamFilename: Path):
         self.stream = streamFilename.open(encoding="utf-8")
-        self.compressed = compressed
 
     def getStatsList(self):
-        if not self.compressed:
-            return [
-                CallerParent,
-                StmtsCount,
-                Arg0Match,
-                Arg0Preproc,
-                ArgsMatch,
-                ArgsPreproc,
-                RetMatch,
-                HasSelf,
-                CallerHasSelf,
-                SameName,
-                RetPostproc,
-            ]
-        else:
-            return [ArgsMatch, RetMatch, RetPostproc]
+        return [
+            CallerParent,
+            StmtsCount,
+            Arg0Match,
+            Arg0Preproc,
+            ArgsMatch,
+            ArgsPreproc,
+            RetMatch,
+            HasSelf,
+            CallerHasSelf,
+            SameName,
+            RetPostproc,
+        ]
 
     def getHistOrder(self):
-        if not self.compressed:
-            return [
-                CallerParent.descr(),
-                StmtsCount.descr(),
-                Arg0Match.descr(),
-                Arg0Preproc.descr(),
-                ArgsMatch.descr(),
-                ArgsPreproc.descr(),
-                RetMatch.descr(),
-                HasSelf.descr(),
-                CallerHasSelf.descr(),
-                SameName.descr(),
-                RetPostproc.descr(),
-            ]
-        else:
-            return [RetPostproc.descr(), ArgsMatch.descr(), RetMatch.descr()]
-
-    def getEmptyDfMap(self):
-        res = {}
-        for stat in self.getStatsList():
-            res[stat.descr()] = []
-
-        return res
+        return [stat_class.descr() for stat_class in self.getStatsList()]
 
     def parse(self):
-        lines = self.stream.readlines()
+        data = defaultdict(list)
+        locations = []
+        delegation_count_descr = "delegation count"
+        parent_count_descr = "parent count"
+        methodsData = {delegation_count_descr: [], parent_count_descr: []}
 
-        data = self.getEmptyDfMap()
-        index = []  # spans
+        stats_parsed = False
+        for line in self.stream.readlines():
+            if stats_match := re.search(kStatsRegex, line):
+                for i, stat_class in enumerate(self.getStatsList()):
+                    stat = stat_class(f"{stats_match.group(i + 1)}")
+                    data[stat_class.descr()].append(stat)
 
-        methodsData = {"methods delegation count": [], "impl count": []}
-
-        access = False
-        for line in lines:
-            match = re.search(kStatsRegex, line)
-            if match != None:
-                i = 2
-                for stat in self.getStatsList():
-                    while match.group(i) == None:
-                        i += 2
-
-                    s = f"{match.group(i)}"
-                    elem = stat(s)
-                    data[stat.descr()].append(elem)
-                    i += 2
-
-                access = True
+                stats_parsed = True
                 continue
 
-            match = re.search(kPrimapySpanRegex, line)
-            if match != None and access:
-                index.append(match.group(1).strip())
-                access = False
+            if stats_parsed and (location_match := re.search(kPrimapySpanRegex, line)):
+                locations.append(location_match.group(1))
+                stats_parsed = False
                 continue
 
-            match = re.search(kMethodsRegex, line)
-            if match != None:
-                key_descr = "methods delegation count"
-                val_descr = "impl count"
-                key = int(match.group(1))
-                val = int(match.group(2))
-                methods_count = key
-                found = False
-                for i in range(0, len(methodsData[key_descr])):
-                    if methodsData[key_descr][i] == methods_count:
-                        methodsData[val_descr][i] += val
-                        found = True
-                        break
+            if methods_match := re.search(kMethodsRegex, line):
+                delegation_count = int(methods_match.group(1))
+                parent_count = int(methods_match.group(2))
+                try:
+                    index = methodsData[delegation_count_descr].index(delegation_count)
+                    methodsData[parent_count_descr][index] += parent_count
+                except:
+                    methodsData[delegation_count_descr].append(delegation_count)
+                    methodsData[parent_count_descr].append(parent_count)
 
-                if not found:
-                    methodsData[key_descr].append(key)
-                    methodsData[val_descr].append(val)
-
-        self.df = pd.DataFrame(data=data, index=index)
+        self.df = pd.DataFrame(data=data, index=locations)
         self.mdf = pd.DataFrame(data=methodsData)
 
     def dumpHist(self, resultFolder):
-        order = self.getHistOrder()
+        hist = pd.DataFrame(self.df.value_counts())
+        hist = hist.sort_values(by=self.getHistOrder())
 
-        hist = self.df.reindex(columns=order)
-        hist = hist.value_counts()
-        hist = pd.DataFrame(hist)
-
-        hist = hist.sort_values(by=order)
         histFile = open(f"{resultFolder}/hist.html", "w+")
         hist.to_html(histFile)
 
     def dumpMethodsStat(self, resultFolder):
         methodsFile = open(f"{resultFolder}/methods.html", "w+")
-        self.mdf.sort_values(by=["impl count"], ascending=False).to_html(methodsFile)
+        self.mdf.sort_values(by=["parent count"], ascending=False).to_html(methodsFile)
 
     def dumpResults(self):
         resultFolder = "stats"
@@ -258,10 +212,9 @@ def main():
     parser.add_argument(
         "--logs", type=Path, required=True, help="Path to compiler logs"
     )
-    parser.add_argument("--compressed", action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
 
-    stats = Stats(args.logs, args.compressed)
+    stats = Stats(args.logs)
     stats.parse()
     stats.dumpResults()
 
