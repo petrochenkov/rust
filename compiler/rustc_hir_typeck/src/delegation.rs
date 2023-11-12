@@ -9,7 +9,7 @@ use rustc_middle::traits::{DefiningAnchor, ObligationCause};
 use rustc_middle::ty::{FnDef, ParamEnv, Ty, TyCtxt, TypeckResults};
 use rustc_session::lint;
 use rustc_span::def_id::{DefId, LocalDefId};
-use rustc_span::{Span, Symbol};
+use rustc_span::{ExpnKind, MacroKind, Span, Symbol};
 use rustc_trait_selection::traits::ObligationCtxt;
 use std::collections::BTreeMap;
 use std::{fmt, iter};
@@ -92,6 +92,27 @@ impl fmt::Display for Parent {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+enum Source {
+    User,
+    Lang,
+    Bang,
+    Attr,
+    Derive,
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Source::User => "User",
+            Source::Lang => "Lang",
+            Source::Bang => "Bang",
+            Source::Attr => "Attr",
+            Source::Derive => "Derive",
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Callee {
     name: Symbol,
@@ -104,6 +125,7 @@ struct Callee {
     args_preproc: ArgPreproc,
     args_match: ArgsMatch,
     has_self: bool,
+    source: Source,
 }
 
 fn has_self(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
@@ -151,6 +173,17 @@ fn arg_preproc(arg: &Expr<'_>, param: &Param<'_>) -> ArgPreproc {
         ArgPreproc::Getter
     } else {
         ArgPreproc::Other
+    }
+}
+
+fn source(span: Span) -> Source {
+    let expn_data = span.ctxt().outer_expn_data();
+    match expn_data.kind {
+        ExpnKind::Root => Source::User,
+        ExpnKind::AstPass(_) | ExpnKind::Desugaring(_) => Source::Lang,
+        ExpnKind::Macro(MacroKind::Bang, _) => Source::Bang,
+        ExpnKind::Macro(MacroKind::Attr, _) => Source::Attr,
+        ExpnKind::Macro(MacroKind::Derive, _) => Source::Derive,
     }
 }
 
@@ -265,6 +298,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'_, 'tcx> {
                 args_preproc: self.args_preproc(&args),
                 args_match: self.args_match(&arg_tys, self_ty),
                 has_self,
+                source: source(expr.span),
             });
         }
 
@@ -363,6 +397,7 @@ impl<'tcx> Caller<'tcx> {
             args_preproc: callee.args_preproc.to_string(),
             args_match: callee.args_match.to_string(),
             has_self: callee.has_self,
+            source: callee.source.to_string(),
         };
         tcx.emit_spanned_lint(
             lint::builtin::DELEGATIONS_DETAILED,
@@ -401,8 +436,9 @@ impl<'tcx> Caller<'tcx> {
             ArgsMatch::SameCount(TyMatch::Different) | ArgsMatch::DifferentCount => false,
         };
         let has_self_ok = callee.has_self == self.has_self || matches!(self.parent, Parent::Other);
+        let source_ok = !matches!(callee.source, Source::Lang | Source::Derive);
 
-        ret_ok && stmts_before_ok && arg0_ok && args_ok && has_self_ok
+        ret_ok && stmts_before_ok && arg0_ok && args_ok && has_self_ok && source_ok
     }
 }
 

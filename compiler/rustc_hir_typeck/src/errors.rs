@@ -650,6 +650,7 @@ pub(crate) struct Delegation {
     pub args_preproc: String,
     pub args_match: String,
     pub has_self: bool,
+    pub source: String,
 }
 
 #[derive(LintDiagnostic)]

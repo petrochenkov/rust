@@ -45,7 +45,7 @@ hir_typeck_convert_using_method = try using `{$sugg}` to convert `{$found}` to `
 hir_typeck_ctor_is_private = tuple struct constructor `{$def}` is private
 
 hir_typeck_delegation =
-    caller_parent: {$caller_parent}, stmts_before: {$stmts_before}, arg0_match: {$arg0_match}, arg0_preproc: {$arg0_preproc}, args_match: {$args_match}, args_preproc: {$args_preproc}, ret_match: {$ret_match}, has_self: {$has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, ret_postproc: {$ret_postproc}
+    caller_parent: {$caller_parent}, stmts_before: {$stmts_before}, arg0_match: {$arg0_match}, arg0_preproc: {$arg0_preproc}, args_match: {$args_match}, args_preproc: {$args_preproc}, ret_match: {$ret_match}, has_self: {$has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, ret_postproc: {$ret_postproc}, source: {$source}
     .caller_label = caller
     .callee_label = callee
 

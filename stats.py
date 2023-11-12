@@ -16,7 +16,8 @@ kStatsRegex = (
     + rf"has_self: (\w+), "
     + rf"caller_has_self: (\w+), "
     + rf"same_name: (\w+), "
-    + rf"ret_postproc: (\w+)"
+    + rf"ret_postproc: (\w+), "
+    + rf"source: (\w+)"
 )
 kParentStatRegex = rf"delegation count: (\d+), parent count: (\d+)"
 kLocationRegex = rf"--> (.+)$"
@@ -123,6 +124,17 @@ class RetPostproc(OrderedEnum):
         return "ret postproc"
 
 
+class Source(OrderedEnum):
+    User = "User"
+    Lang = "Lang"
+    Bang = "Bang"
+    Attr = "Attr"
+    Derive = "Derive"
+
+    def descr():
+        return "source"
+
+
 def is_delegation_impl(
     caller_parent,
     stmts_before,
@@ -134,6 +146,7 @@ def is_delegation_impl(
     has_self,
     caller_has_self,
     ret_postproc,
+    source,
 ):
     sig_known = caller_parent == CallerParent.TraitImpl
     arg0_sig_known = caller_has_self == CallerHasSelf.TRUE
@@ -171,8 +184,11 @@ def is_delegation_impl(
         or (has_self == HasSelf.FALSE and caller_has_self == CallerHasSelf.FALSE)
         or (caller_parent == CallerParent.Other)
     )
+    source_ok = source != Source.Lang and source != Source.Derive
 
-    return ret_ok and stmts_before_ok and arg0_ok and args_ok and has_self_ok
+    return (
+        ret_ok and stmts_before_ok and arg0_ok and args_ok and has_self_ok and source_ok
+    )
 
 
 def is_delegation(item):
@@ -187,6 +203,7 @@ def is_delegation(item):
         item["has self"],
         item["caller has self"],
         item["ret postproc"],
+        item["source"],
     )
 
 
@@ -207,6 +224,7 @@ class Stats:
             CallerHasSelf,
             SameName,
             RetPostproc,
+            Source,
         ]
 
     def getColumnOrder(self):
