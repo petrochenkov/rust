@@ -5,29 +5,21 @@ from collections import defaultdict
 from ordered_enum import OrderedEnum
 from pathlib import Path
 
-kNumRegex = r"[0-9]+"
-kWordRegex = r"[a-zA-Z]+"
 kStatsRegex = (
-    r"dstats. "
-    + rf"caller_parent: ({kWordRegex}), "
-    + rf"stmts: ({kWordRegex}), "
-    + rf"arg0_match: ({kWordRegex}), "
-    + rf"arg0_preproc: ({kWordRegex}), "
-    + rf"args_match: ({kWordRegex}), "
-    + rf"args_preproc: ({kWordRegex}), "
-    + rf"ret_match: ({kWordRegex}), "
-    + rf"has_self: ({kWordRegex}), "
-    + rf"caller_has_self: ({kWordRegex}), "
-    + rf"same_name: ({kWordRegex}), "
-    + rf"ret_postproc: ({kWordRegex})"
+    rf"caller_parent: (\w+), "
+    + rf"stmts_before: (\w+), "
+    + rf"arg0_match: (\w+), "
+    + rf"arg0_preproc: (\w+), "
+    + rf"args_match: (\w+), "
+    + rf"args_preproc: (\w+), "
+    + rf"ret_match: (\w+), "
+    + rf"has_self: (\w+), "
+    + rf"caller_has_self: (\w+), "
+    + rf"same_name: (\w+), "
+    + rf"ret_postproc: (\w+)"
 )
-
-kMethodsRegex = (
-    rf"warning: delegation methods stats. methods_count: ({kNumRegex}), ({kNumRegex})."
-)
-
-kPathRegex = r"[a-zA-z\/.:0-9]+"
-kPrimapySpanRegex = rf"--> ({kPathRegex})"
+kParentStatRegex = rf"delegation count: (\d+), parent count: (\d+)"
+kLocationRegex = rf"--> (.+)$"
 
 
 class CallerParent(OrderedEnum):
@@ -40,14 +32,12 @@ class CallerParent(OrderedEnum):
         return "caller parent"
 
 
-class StmtsCount(OrderedEnum):
-    ZeroWithTail = "ZeroWithTail"
-    OneWithoutTail = "OneWithoutTail"
-    OneWithTail = "OneWithTail"
-    Other = "Other"
+class StmtsBefore(OrderedEnum):
+    TRUE = "true"
+    FALSE = "false"
 
     def descr():
-        return "stmt count"
+        return "stmts before"
 
 
 class Arg0Match(OrderedEnum):
@@ -63,6 +53,7 @@ class Arg0Match(OrderedEnum):
 class Arg0Preproc(OrderedEnum):
     No = "No"
     Field = "Field"
+    Getter = "Getter"
     Other = "Other"
 
     def descr():
@@ -83,6 +74,7 @@ class ArgsMatch(OrderedEnum):
 class ArgsPreproc(OrderedEnum):
     No = "No"
     Field = "Field"
+    Getter = "Getter"
     Other = "Other"
 
     def descr():
@@ -131,14 +123,81 @@ class RetPostproc(OrderedEnum):
         return "ret postproc"
 
 
+def is_delegation_impl(
+    caller_parent,
+    stmts_before,
+    arg0_preproc,
+    arg0_match,
+    args_match,
+    args_preproc,
+    ret_match,
+    has_self,
+    caller_has_self,
+    ret_postproc,
+):
+    sig_known = caller_parent == CallerParent.TraitImpl
+    arg0_sig_known = caller_has_self == CallerHasSelf.TRUE
+
+    ret_ok = (
+        (ret_match == RetMatch.Same and ret_postproc == RetPostproc.FALSE)
+        or (ret_match == RetMatch.SameUpToSelfType)
+        or (
+            ret_match == RetMatch.Coerced
+            and ret_postproc == RetPostproc.FALSE
+            and sig_known
+        )
+    )
+    stmts_before_ok = (
+        stmts_before == StmtsBefore.FALSE
+        or arg0_preproc == Arg0Preproc.Other
+        or args_preproc == Arg0Preproc.Other
+    )
+    arg0_ok = (
+        (arg0_match == Arg0Match.Same)
+        or (arg0_match == Arg0Match.SameUpToSelfType)
+        or arg0_sig_known
+    )
+    args_ok = (
+        (args_match == ArgsMatch.Same and args_preproc == ArgsPreproc.No)
+        or (args_match == ArgsMatch.SameUpToSelfType)
+        or (
+            args_match == ArgsMatch.Coerced
+            and args_preproc == ArgsPreproc.No
+            and sig_known
+        )
+    )
+    has_self_ok = (
+        (has_self == HasSelf.TRUE and caller_has_self == CallerHasSelf.TRUE)
+        or (has_self == HasSelf.FALSE and caller_has_self == CallerHasSelf.FALSE)
+        or (caller_parent == CallerParent.Other)
+    )
+
+    return ret_ok and stmts_before_ok and arg0_ok and args_ok and has_self_ok
+
+
+def is_delegation(item):
+    return is_delegation_impl(
+        item["caller parent"],
+        item["stmts before"],
+        item["arg0 preproc"],
+        item["arg0 match"],
+        item["args match"],
+        item["args preproc"],
+        item["ret match"],
+        item["has self"],
+        item["caller has self"],
+        item["ret postproc"],
+    )
+
+
 class Stats:
     def __init__(self, streamFilename: Path):
         self.stream = streamFilename.open(encoding="utf-8")
 
-    def getStatsList(self):
+    def getStatClasses(self):
         return [
             CallerParent,
-            StmtsCount,
+            StmtsBefore,
             Arg0Match,
             Arg0Preproc,
             ArgsMatch,
@@ -150,61 +209,78 @@ class Stats:
             RetPostproc,
         ]
 
-    def getHistOrder(self):
-        return [stat_class.descr() for stat_class in self.getStatsList()]
+    def getColumnOrder(self):
+        return [stat_class.descr() for stat_class in self.getStatClasses()]
 
     def parse(self):
         data = defaultdict(list)
-        locations = []
         delegation_count_descr = "delegation count"
         parent_count_descr = "parent count"
-        methodsData = {delegation_count_descr: [], parent_count_descr: []}
+        parentData = {delegation_count_descr: [], parent_count_descr: []}
 
         stats_parsed = False
         for line in self.stream.readlines():
             if stats_match := re.search(kStatsRegex, line):
-                for i, stat_class in enumerate(self.getStatsList()):
+                for i, stat_class in enumerate(self.getStatClasses()):
                     stat = stat_class(f"{stats_match.group(i + 1)}")
                     data[stat_class.descr()].append(stat)
 
                 stats_parsed = True
                 continue
 
-            if stats_parsed and (location_match := re.search(kPrimapySpanRegex, line)):
-                locations.append(location_match.group(1))
+            if stats_parsed:
+                if location_match := re.search(kLocationRegex, line):
+                    location = location_match.group(1)
+                else:
+                    location = "<unknown>"
+                data["location"].append(location)
                 stats_parsed = False
                 continue
 
-            if methods_match := re.search(kMethodsRegex, line):
-                delegation_count = int(methods_match.group(1))
-                parent_count = int(methods_match.group(2))
-                try:
-                    index = methodsData[delegation_count_descr].index(delegation_count)
-                    methodsData[parent_count_descr][index] += parent_count
-                except:
-                    methodsData[delegation_count_descr].append(delegation_count)
-                    methodsData[parent_count_descr].append(parent_count)
+            if parent_stat_match := re.search(kParentStatRegex, line):
+                delegation_count = int(parent_stat_match.group(1))
+                parent_count = int(parent_stat_match.group(2))
+                parentData[delegation_count_descr].append(delegation_count)
+                parentData[parent_count_descr].append(parent_count)
 
-        self.df = pd.DataFrame(data=data, index=locations)
-        self.mdf = pd.DataFrame(data=methodsData)
+        self.df = pd.DataFrame(data)
+        self.pdf = pd.DataFrame(parentData)
 
-    def dumpHist(self, resultFolder):
-        hist = pd.DataFrame(self.df.value_counts())
-        hist = hist.sort_values(by=self.getHistOrder())
+    def dumpCounts(self, resultFolder):
+        counts = pd.DataFrame(self.df.value_counts())
+        countsFile = open(f"{resultFolder}/counts-all.html", "w")
+        counts.to_html(countsFile)
 
-        histFile = open(f"{resultFolder}/hist.html", "w+")
-        hist.to_html(histFile)
+        for descr in self.getColumnOrder():
+            counts = pd.DataFrame(self.df[descr].value_counts())
+            countsFile = open(f"{resultFolder}/counts-{descr}.html", "w")
+            counts.to_html(countsFile)
 
-    def dumpMethodsStat(self, resultFolder):
-        methodsFile = open(f"{resultFolder}/methods.html", "w+")
-        self.mdf.sort_values(by=["parent count"], ascending=False).to_html(methodsFile)
+    def dumpParentCounts(self, resultFolder):
+        parent_counts = pd.DataFrame(
+            self.pdf.groupby("delegation count")["parent count"].sum()
+        )
+        parent_counts = parent_counts.sort_values("parent count", ascending=False)
+        parentCountsFile = open(f"{resultFolder}/parent-counts.html", "w")
+        parent_counts.to_html(parentCountsFile)
 
-    def dumpResults(self):
-        resultFolder = "stats"
-        dataframeFile = open(f"{resultFolder}/dataframe.html", "w+")
+    def dumpResults(self, resultFolder):
+        filtered_rows = []
+        for _, row in self.df.iterrows():
+            if is_delegation(row):
+                filtered_rows.append(row)
+        self.df = pd.DataFrame(filtered_rows)
+        self.df = self.df.reset_index(drop=True)
+
+        dataframeFile = open(f"{resultFolder}/dataframe.html", "w")
         self.df.to_html(dataframeFile)
-        self.dumpHist(resultFolder)
-        self.dumpMethodsStat(resultFolder)
+        dataframeFileParent = open(f"{resultFolder}/parent-dataframe.html", "w")
+        self.pdf.to_html(dataframeFileParent)
+
+        self.df = self.df.drop("location", axis=1)
+
+        self.dumpCounts(resultFolder)
+        self.dumpParentCounts(resultFolder)
 
 
 def main():
@@ -214,9 +290,20 @@ def main():
     )
     args = parser.parse_args()
 
+    resultFolder = "stats"
+    df_path = Path(f"{resultFolder}/df.pkl")
+    pdf_path = Path(f"{resultFolder}/pdf.pkl")
+
     stats = Stats(args.logs)
-    stats.parse()
-    stats.dumpResults()
+    if df_path.exists():
+        stats.df = pd.read_pickle(df_path)
+        stats.pdf = pd.read_pickle(pdf_path)
+    else:
+        stats.parse()
+        stats.df.to_pickle(df_path)
+        stats.pdf.to_pickle(pdf_path)
+
+    stats.dumpResults(resultFolder)
 
 
 if __name__ == "__main__":
