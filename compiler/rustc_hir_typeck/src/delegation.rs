@@ -2,11 +2,12 @@ use crate::{errors, FnCtxt, Inherited};
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::intravisit::{self, FnKind, Visitor};
-use rustc_hir::{BodyId, Expr, ExprKind, FnDecl, Param, Path, QPath, Stmt, StmtKind, CRATE_HIR_ID};
+use rustc_hir::{BodyId, BorrowKind, Expr, ExprKind, FnDecl};
+use rustc_hir::{Param, Path, QPath, Stmt, StmtKind, CRATE_HIR_ID};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_middle::query::Providers;
 use rustc_middle::traits::{DefiningAnchor, ObligationCause};
-use rustc_middle::ty::{FnDef, ParamEnv, Ty, TyCtxt, TypeckResults};
+use rustc_middle::ty::{AssocKind, FnDef, ParamEnv, Ty, TyCtxt, TypeckResults};
 use rustc_session::lint;
 use rustc_span::def_id::{DefId, LocalDefId};
 use rustc_span::{ExpnKind, MacroKind, Span, Symbol};
@@ -37,6 +38,7 @@ impl fmt::Display for ArgsMatch {
 enum ArgPreproc {
     No,
     Field,
+    RefField,
     Getter,
     #[default]
     Other,
@@ -47,6 +49,7 @@ impl fmt::Display for ArgPreproc {
         f.write_str(match self {
             ArgPreproc::No => "No",
             ArgPreproc::Field => "Field",
+            ArgPreproc::RefField => "RefField",
             ArgPreproc::Getter => "Getter",
             ArgPreproc::Other => "Other",
         })
@@ -113,10 +116,28 @@ impl fmt::Display for Source {
     }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+enum TraitImplDelegation {
+    Partial,
+    OnlyFns,
+    Full,
+}
+
+impl fmt::Display for TraitImplDelegation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            TraitImplDelegation::Partial => "Partial",
+            TraitImplDelegation::OnlyFns => "OnlyFns",
+            TraitImplDelegation::Full => "Full",
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Callee {
     name: Symbol,
     span: Span,
+    parent: Parent,
     ret_postproc: bool,
     ret_match: TyMatch,
     stmts_before: bool,
@@ -130,6 +151,15 @@ struct Callee {
 
 fn has_self(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
     tcx.def_kind(def_id) == DefKind::AssocFn && tcx.associated_item(def_id).fn_has_self_parameter
+}
+
+fn parent(tcx: TyCtxt<'_>, def_id: DefId) -> Parent {
+    match tcx.def_kind(tcx.parent(def_id)) {
+        DefKind::Impl { of_trait: false } => Parent::InherentImpl,
+        DefKind::Impl { of_trait: true } => Parent::TraitImpl,
+        DefKind::Trait => Parent::Trait,
+        _ => Parent::Other,
+    }
 }
 
 // FIXME: `Self` type is approximated as `typeof(self)` with references removed,
@@ -166,6 +196,11 @@ fn arg_preproc(arg: &Expr<'_>, param: &Param<'_>) -> ArgPreproc {
         && refers_to_param(receiver, param)
     {
         ArgPreproc::Field
+    } else if let ExprKind::AddrOf(BorrowKind::Ref, _, expr) = arg.kind
+        && let ExprKind::Field(receiver, _) = expr.kind
+        && refers_to_param(receiver, param)
+    {
+        ArgPreproc::RefField
     } else if let ExprKind::MethodCall(_, receiver, args, _) = arg.kind
         && args.is_empty()
         && refers_to_param(receiver, param)
@@ -271,7 +306,8 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'_, 'tcx> {
         let callee = match expr.kind {
             ExprKind::MethodCall(seg, self_arg, other_args, _) => {
                 let args: Vec<_> = iter::once(self_arg).chain(other_args).collect();
-                Some((seg.ident.name, true, args, caller.def_id.to_def_id() /*never used*/))
+                let def_id = typeck_results.type_dependent_def_id(expr.hir_id).unwrap();
+                Some((seg.ident.name, true, args, def_id))
             }
             ExprKind::Call(func, args)
                 if let FnDef(def_id, ..) = typeck_results.expr_ty(func).kind() =>
@@ -290,6 +326,7 @@ impl<'tcx> Visitor<'tcx> for ExprVisitor<'_, 'tcx> {
             self.callees.push(Callee {
                 name,
                 span: expr.span,
+                parent: parent(caller.tcx, def_id),
                 ret_postproc: self.ret_postproc,
                 ret_match: self.ret_match(typeck_results.expr_ty(expr), self_ty),
                 stmts_before: self.stmts_before,
@@ -389,6 +426,7 @@ impl<'tcx> Caller<'tcx> {
             caller_has_self: self.has_self,
             same_name: callee.name == self.name,
             span: callee.span,
+            parent: callee.parent.to_string(),
             ret_postproc: callee.ret_postproc,
             ret_match: callee.ret_match.to_string(),
             stmts_before: callee.stmts_before,
@@ -454,8 +492,31 @@ impl<'tcx> DelegationPatternVisitor<'tcx> {
 
     fn emit_methods_stats(&self) {
         let mut accumulated = BTreeMap::default();
-        for (_, &delegation_count) in &self.delegations_per_parent_stats {
+        let mut trait_impl_delegations = BTreeMap::default();
+        for (&def_id, &delegation_count) in &self.delegations_per_parent_stats {
             *accumulated.entry(delegation_count).or_default() += 1;
+
+            if let DefKind::Impl { of_trait: true } = self.tcx.def_kind(def_id) {
+                let mut fn_count = 0;
+                let mut other_count = 0;
+                for assoc_item in self.tcx.associated_items(def_id).in_definition_order() {
+                    match assoc_item.kind {
+                        AssocKind::Fn => fn_count += 1,
+                        _ => other_count += 1,
+                    }
+                }
+                assert_ne!(delegation_count, 0);
+                assert!(delegation_count <= fn_count);
+
+                let tid = if delegation_count < fn_count {
+                    TraitImplDelegation::Partial
+                } else if other_count != 0 {
+                    TraitImplDelegation::OnlyFns
+                } else {
+                    TraitImplDelegation::Full
+                };
+                *trait_impl_delegations.entry(tid).or_default() += 1;
+            }
         }
 
         for (delegation_count, parent_count) in accumulated {
@@ -463,6 +524,13 @@ impl<'tcx> DelegationPatternVisitor<'tcx> {
                 lint::builtin::DELEGATIONS_PER_PARENT_STATS,
                 CRATE_HIR_ID,
                 errors::DelegationsPerParentStats { delegation_count, parent_count },
+            );
+        }
+        for (tid, count) in trait_impl_delegations {
+            self.tcx.emit_lint(
+                lint::builtin::DELEGATIONS_PER_PARENT_STATS,
+                CRATE_HIR_ID,
+                errors::TraitImplDelegationStats { tid: tid.to_string(), count },
             );
         }
     }
@@ -502,12 +570,6 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
         let self_ty = self_ty(tcx, def_id.to_def_id(), param_tys, has_self);
 
         // Combine caller data
-        let parent = match tcx.def_kind(tcx.local_parent(def_id)) {
-            DefKind::Impl { of_trait: false } => Parent::InherentImpl,
-            DefKind::Impl { of_trait: true } => Parent::TraitImpl,
-            DefKind::Trait => Parent::Trait,
-            _ => Parent::Other,
-        };
         let caller = Caller {
             tcx,
             def_id,
@@ -515,7 +577,7 @@ impl<'tcx> Visitor<'tcx> for DelegationPatternVisitor<'tcx> {
             param_env: tcx.param_env(def_id),
             name: tcx.item_name(def_id.to_def_id()),
             span,
-            parent,
+            parent: parent(tcx, def_id.to_def_id()),
             self_ty,
             ret_ty: sig.output(),
             params,

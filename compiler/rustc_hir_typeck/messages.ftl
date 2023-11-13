@@ -45,7 +45,7 @@ hir_typeck_convert_using_method = try using `{$sugg}` to convert `{$found}` to `
 hir_typeck_ctor_is_private = tuple struct constructor `{$def}` is private
 
 hir_typeck_delegation =
-    caller_parent: {$caller_parent}, stmts_before: {$stmts_before}, arg0_match: {$arg0_match}, arg0_preproc: {$arg0_preproc}, args_match: {$args_match}, args_preproc: {$args_preproc}, ret_match: {$ret_match}, has_self: {$has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, ret_postproc: {$ret_postproc}, source: {$source}
+    caller_parent: {$caller_parent}, stmts_before: {$stmts_before}, arg0_match: {$arg0_match}, arg0_preproc: {$arg0_preproc}, args_match: {$args_match}, args_preproc: {$args_preproc}, ret_match: {$ret_match}, has_self: {$has_self}, caller_has_self: {$caller_has_self}, same_name: {$same_name}, ret_postproc: {$ret_postproc}, parent: {$parent}, source: {$source}
     .caller_label = caller
     .callee_label = callee
 
@@ -144,6 +144,8 @@ hir_typeck_suggest_boxing_note = for more on the distinction between the stack a
 hir_typeck_suggest_boxing_when_appropriate = store this in the heap by calling `Box::new`
 
 hir_typeck_suggest_ptr_null_mut = consider using `core::ptr::null_mut` instead
+
+hir_typeck_trait_impl_delegation_stats = trait impl delegation: {$tid}, count: {$count}
 
 hir_typeck_trivial_cast = trivial {$numeric ->
     [true] numeric cast

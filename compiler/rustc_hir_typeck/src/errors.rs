@@ -642,6 +642,7 @@ pub(crate) struct Delegation {
     pub same_name: bool,
     #[label(hir_typeck_callee_label)]
     pub span: Span,
+    pub parent: String,
     pub ret_postproc: bool,
     pub ret_match: String,
     pub stmts_before: bool,
@@ -658,4 +659,11 @@ pub(crate) struct Delegation {
 pub(crate) struct DelegationsPerParentStats {
     pub delegation_count: u64,
     pub parent_count: u64,
+}
+
+#[derive(LintDiagnostic)]
+#[diag(hir_typeck_trait_impl_delegation_stats)]
+pub(crate) struct TraitImplDelegationStats {
+    pub tid: String,
+    pub count: u64,
 }

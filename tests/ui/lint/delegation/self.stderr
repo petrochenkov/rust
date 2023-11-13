@@ -1,4 +1,4 @@
-error: caller_parent: Other, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: false, ret_postproc: false, source: User
+error: caller_parent: Other, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: false, ret_postproc: false, parent: InherentImpl, source: User
   --> $DIR/self.rs:30:5
    |
 LL | / fn foo<T>(x: T) -> T {
@@ -14,7 +14,7 @@ note: the lint level is defined here
 LL | #![deny(delegations_detailed, delegations_per_parent_stats)]
    |         ^^^^^^^^^^^^^^^^^^^^
 
-error: caller_parent: Other, stmts_before: false, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Different, has_self: true, caller_has_self: false, same_name: false, ret_postproc: true, source: User
+error: caller_parent: Other, stmts_before: false, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Different, has_self: true, caller_has_self: false, same_name: false, ret_postproc: true, parent: InherentImpl, source: User
   --> $DIR/self.rs:35:5
    |
 LL | / fn bar(x: i32) {
@@ -25,7 +25,7 @@ LL | |
 LL | | }
    | |_- caller
 
-error: caller_parent: Other, stmts_before: false, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Different, has_self: false, caller_has_self: false, same_name: false, ret_postproc: true, source: User
+error: caller_parent: Other, stmts_before: false, arg0_match: Different, arg0_preproc: Other, args_match: DifferentCount, args_preproc: Other, ret_match: Different, has_self: false, caller_has_self: false, same_name: false, ret_postproc: true, parent: InherentImpl, source: User
   --> $DIR/self.rs:35:5
    |
 LL | / fn bar(x: i32) {
@@ -36,7 +36,7 @@ LL | |
 LL | | }
    | |_- caller
 
-error: caller_parent: Trait, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false, source: User
+error: caller_parent: Trait, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false, parent: Other, source: User
   --> $DIR/self.rs:42:9
    |
 LL | /     fn foo<T>(x: T) -> T {
@@ -46,7 +46,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: caller_parent: InherentImpl, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false, source: User
+error: caller_parent: InherentImpl, stmts_before: false, arg0_match: Same, arg0_preproc: No, args_match: Same, args_preproc: No, ret_match: Same, has_self: false, caller_has_self: false, same_name: true, ret_postproc: false, parent: InherentImpl, source: User
   --> $DIR/self.rs:19:9
    |
 LL | /     fn bar<T>(x: T) -> T {
@@ -56,7 +56,7 @@ LL | |
 LL | |     }
    | |_____- caller
 
-error: caller_parent: InherentImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false, source: User
+error: caller_parent: InherentImpl, stmts_before: false, arg0_match: Different, arg0_preproc: Field, args_match: Same, args_preproc: No, ret_match: Same, has_self: true, caller_has_self: true, same_name: true, ret_postproc: false, parent: InherentImpl, source: User
   --> $DIR/self.rs:24:9
    |
 LL | /     fn foo<T>(self, x: T) -> T {

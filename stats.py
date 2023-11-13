@@ -6,21 +6,33 @@ from ordered_enum import OrderedEnum
 from pathlib import Path
 
 kStatsRegex = (
-    rf"caller_parent: (\w+), "
-    + rf"stmts_before: (\w+), "
-    + rf"arg0_match: (\w+), "
-    + rf"arg0_preproc: (\w+), "
-    + rf"args_match: (\w+), "
-    + rf"args_preproc: (\w+), "
-    + rf"ret_match: (\w+), "
-    + rf"has_self: (\w+), "
-    + rf"caller_has_self: (\w+), "
-    + rf"same_name: (\w+), "
-    + rf"ret_postproc: (\w+), "
-    + rf"source: (\w+)"
+    r"caller_parent: (\w+), "
+    + r"stmts_before: (\w+), "
+    + r"arg0_match: (\w+), "
+    + r"arg0_preproc: (\w+), "
+    + r"args_match: (\w+), "
+    + r"args_preproc: (\w+), "
+    + r"ret_match: (\w+), "
+    + r"has_self: (\w+), "
+    + r"caller_has_self: (\w+), "
+    + r"same_name: (\w+), "
+    + r"ret_postproc: (\w+), "
+    + r"parent: (\w+), "
+    + r"source: (\w+)"
 )
-kParentStatRegex = rf"delegation count: (\d+), parent count: (\d+)"
-kLocationRegex = rf"--> (.+)$"
+kParentStatRegex = r"delegation count: (\d+), parent count: (\d+)"
+kTraitImplStatRegex = r"trait impl delegation: (\w+), count: (\d+)"
+kLocationRegex = r"--> (.+)$"
+
+
+class Parent(OrderedEnum):
+    InherentImpl = "InherentImpl"
+    TraitImpl = "TraitImpl"
+    Trait = "Trait"
+    Other = "Other"
+
+    def descr():
+        return "parent"
 
 
 class CallerParent(OrderedEnum):
@@ -54,6 +66,7 @@ class Arg0Match(OrderedEnum):
 class Arg0Preproc(OrderedEnum):
     No = "No"
     Field = "Field"
+    RefField = "RefField"
     Getter = "Getter"
     Other = "Other"
 
@@ -75,6 +88,7 @@ class ArgsMatch(OrderedEnum):
 class ArgsPreproc(OrderedEnum):
     No = "No"
     Field = "Field"
+    RefField = "RefField"
     Getter = "Getter"
     Other = "Other"
 
@@ -224,6 +238,7 @@ class Stats:
             CallerHasSelf,
             SameName,
             RetPostproc,
+            Parent,
             Source,
         ]
 
@@ -235,6 +250,9 @@ class Stats:
         delegation_count_descr = "delegation count"
         parent_count_descr = "parent count"
         parentData = {delegation_count_descr: [], parent_count_descr: []}
+        tid_descr = "trait impl delegation"
+        count_descr = "count"
+        traitImplData = {tid_descr: [], count_descr: []}
 
         stats_parsed = False
         for line in self.stream.readlines():
@@ -261,8 +279,15 @@ class Stats:
                 parentData[delegation_count_descr].append(delegation_count)
                 parentData[parent_count_descr].append(parent_count)
 
+            if trait_impl_stat_match := re.search(kTraitImplStatRegex, line):
+                tid = trait_impl_stat_match.group(1)
+                count = int(trait_impl_stat_match.group(2))
+                traitImplData[tid_descr].append(tid)
+                traitImplData[count_descr].append(count)
+
         self.df = pd.DataFrame(data)
         self.pdf = pd.DataFrame(parentData)
+        self.tidf = pd.DataFrame(traitImplData)
 
     def dumpCounts(self, resultFolder):
         counts = pd.DataFrame(self.df.value_counts())
@@ -273,6 +298,8 @@ class Stats:
             counts = pd.DataFrame(self.df[descr].value_counts())
             countsFile = open(f"{resultFolder}/counts-{descr}.html", "w")
             counts.to_html(countsFile)
+            countsFile = open(f"{resultFolder}/counts-{descr}.md", "w")
+            counts.to_markdown(countsFile)
 
     def dumpParentCounts(self, resultFolder):
         parent_counts = pd.DataFrame(
@@ -281,6 +308,12 @@ class Stats:
         parent_counts = parent_counts.sort_values("parent count", ascending=False)
         parentCountsFile = open(f"{resultFolder}/parent-counts.html", "w")
         parent_counts.to_html(parentCountsFile)
+
+    def dumpTraitImplCounts(self, resultFolder):
+        counts = pd.DataFrame(self.tidf.groupby("trait impl delegation")["count"].sum())
+        counts = counts.sort_values("count", ascending=False)
+        traitImplCountsFile = open(f"{resultFolder}/trait-impl-counts.html", "w")
+        counts.to_html(traitImplCountsFile)
 
     def dumpResults(self, resultFolder):
         filtered_rows = []
@@ -294,11 +327,14 @@ class Stats:
         self.df.to_html(dataframeFile)
         dataframeFileParent = open(f"{resultFolder}/parent-dataframe.html", "w")
         self.pdf.to_html(dataframeFileParent)
+        dataframeFileTraitImpl = open(f"{resultFolder}/trait-impl-dataframe.html", "w")
+        self.tidf.to_html(dataframeFileTraitImpl)
 
         self.df = self.df.drop("location", axis=1)
 
         self.dumpCounts(resultFolder)
         self.dumpParentCounts(resultFolder)
+        self.dumpTraitImplCounts(resultFolder)
 
 
 def main():
@@ -311,15 +347,18 @@ def main():
     resultFolder = "stats"
     df_path = Path(f"{resultFolder}/df.pkl")
     pdf_path = Path(f"{resultFolder}/pdf.pkl")
+    tidf_path = Path(f"{resultFolder}/tidf.pkl")
 
     stats = Stats(args.logs)
     if df_path.exists():
         stats.df = pd.read_pickle(df_path)
         stats.pdf = pd.read_pickle(pdf_path)
+        stats.tidf = pd.read_pickle(tidf_path)
     else:
         stats.parse()
         stats.df.to_pickle(df_path)
         stats.pdf.to_pickle(pdf_path)
+        stats.tidf.to_pickle(tidf_path)
 
     stats.dumpResults(resultFolder)
 
