@@ -715,15 +715,15 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
             && !self.tcx().features().trait_upcasting
         {
             // Renders better when we erase regions, since they're not really the point here.
-            let (sub, sup) = self.tcx.erase_regions((sub, sup));
-            let mut err = feature_err(
-                &self.tcx.sess.parse_sess,
-                sym::trait_upcasting,
-                self.cause.span,
-                format!("cannot cast `{sub}` to `{sup}`, trait upcasting coercion is experimental"),
-            );
-            err.note(format!("required when coercing `{source}` into `{target}`"));
-            err.emit();
+            let (_sub, _sup) = self.tcx.erase_regions((sub, sup));
+            // let mut err = feature_err(
+            //     &self.tcx.sess.parse_sess,
+            //     sym::trait_upcasting,
+            //     self.cause.span,
+            //     format!("cannot cast `{sub}` to `{sup}`, trait upcasting coercion is experimental"),
+            // );
+            // err.note(format!("required when coercing `{source}` into `{target}`"));
+            // err.emit();
         }
 
         if has_unsized_tuple_coercion && !self.tcx.features().unsized_tuple_coercion {

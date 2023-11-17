@@ -4625,7 +4625,7 @@ declare_lint! {
 
 declare_lint! {
     pub DELEGATIONS_DETAILED,
-    Allow,
+    Warn,
     "search functions that call other functions and collect statistics \
      about the call contexts and the caller and callee similarity",
     report_in_external_macro
@@ -4641,7 +4641,7 @@ declare_lint! {
 
 declare_lint! {
     pub DELEGATIONS_PER_PARENT_STATS,
-    Allow,
+    Warn,
     "collects statistics about the number of items that could potentially \
      be turned into delegation items in a single containing parent item",
     report_in_external_macro
