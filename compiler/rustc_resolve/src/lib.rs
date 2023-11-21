@@ -687,7 +687,7 @@ impl<'a> ToNameBinding<'a> for NameBinding<'a> {
 enum NameBindingKind<'a> {
     Res(Res),
     Module(Module<'a>),
-    Import { binding: NameBinding<'a>, import: Import<'a>, used: Cell<bool> },
+    Import { binding: NameBinding<'a>, import: Import<'a> },
 }
 
 impl<'a> NameBindingKind<'a> {
@@ -1780,7 +1780,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 self.ambiguity_errors.push(ambiguity_error);
             }
         }
-        if let NameBindingKind::Import { import, binding, ref used } = used_binding.kind {
+        if let NameBindingKind::Import { import, binding } = used_binding.kind {
             // Avoid marking `extern crate` items that refer to a name from extern prelude,
             // but not introduce it, as used if they are accessed from lexical scope.
             if is_lexical_scope {
@@ -1790,7 +1790,6 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     }
                 }
             }
-            used.set(true);
             import.used.set(true);
             if let Some(id) = import.id() {
                 self.used_imports.insert(id);

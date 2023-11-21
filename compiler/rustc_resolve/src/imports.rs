@@ -282,7 +282,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         }
 
         self.arenas.alloc_name_binding(NameBindingData {
-            kind: NameBindingKind::Import { binding, import, used: Cell::new(false) },
+            kind: NameBindingKind::Import { binding, import },
             ambiguity: None,
             warn_ambiguity: false,
             span: import.span,
