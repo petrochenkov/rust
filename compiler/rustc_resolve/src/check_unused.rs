@@ -286,7 +286,7 @@ impl Resolver<'_, '_> {
 
         for import in self.potentially_unused_imports.iter() {
             match import.kind {
-                _ if import.used.get()
+                _ if import.used.get().is_some()
                     || import.expect_vis().is_public()
                     || import.span.is_dummy() =>
                 {

@@ -178,6 +178,12 @@ enum ImplTraitContext {
     Universal(LocalDefId),
 }
 
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+enum Used {
+    Scope,
+    Other,
+}
+
 #[derive(Debug)]
 struct BindingError {
     name: Symbol,
@@ -1790,7 +1796,12 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     }
                 }
             }
-            import.used.set(true);
+            // FIXME: Pass `Used` from the outside instead of `is_lexical_scope`.
+            let old_used = import.used.get();
+            let used = Some(if is_lexical_scope { Used::Scope } else { Used::Other });
+            if used > old_used {
+                import.used.set(used);
+            }
             if let Some(id) = import.id() {
                 self.used_imports.insert(id);
             }

@@ -10,9 +10,9 @@ use crate::errors::{
 use crate::Determinacy::{self, *};
 use crate::{fluent_generated as fluent, Namespace::*};
 use crate::{module_to_string, names_to_string, ImportSuggestion};
-use crate::{AmbiguityKind, BindingKey, ModuleKind, ResolutionError, Resolver, Segment};
+use crate::{AmbiguityKind, BindingKey, ResolutionError, Resolver, Segment};
 use crate::{Finalize, Module, ModuleOrUniformRoot, ParentScope, PerNS, ScopeSet};
-use crate::{NameBinding, NameBindingData, NameBindingKind, PathResult};
+use crate::{NameBinding, NameBindingData, NameBindingKind, PathResult, Used};
 
 use rustc_ast::NodeId;
 use rustc_data_structures::fx::FxHashSet;
@@ -169,7 +169,7 @@ pub(crate) struct ImportData<'a> {
     /// The resolution of `module_path`.
     pub imported_module: Cell<Option<ModuleOrUniformRoot<'a>>>,
     pub vis: Cell<Option<ty::Visibility>>,
-    pub used: Cell<bool>,
+    pub used: Cell<Option<Used>>,
 }
 
 /// All imports are unique and allocated on a same arena,
@@ -480,7 +480,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             });
             self.record_use(target, dummy_binding, false);
         } else if import.imported_module.get().is_none() {
-            import.used.set(true);
+            import.used.set(Some(Used::Other));
             if let Some(id) = import.id() {
                 self.used_imports.insert(id);
             }
@@ -1314,9 +1314,11 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             return;
         }
 
-        // Skip if we are inside a named module (in contrast to an anonymous
-        // module defined by a block).
-        if let ModuleKind::Def(..) = import.parent_scope.module.kind {
+        // Skip if the import is public or was used through non scope-based resolution,
+        // e.g. through a module-relative path.
+        if import.vis.get() == Some(ty::Visibility::Public)
+            || import.used.get() == Some(Used::Other)
+        {
             return;
         }
 
