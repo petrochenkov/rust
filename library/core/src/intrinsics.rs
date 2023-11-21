@@ -2537,6 +2537,7 @@ macro_rules! assert_unsafe_precondition {
         }
     };
 }
+#[allow(unused_imports)]
 pub(crate) use assert_unsafe_precondition;
 
 /// Checks whether `ptr` is properly aligned with respect to

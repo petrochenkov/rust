@@ -1,4 +1,4 @@
-use crate::iter::{InPlaceIterable, Iterator};
+use crate::iter::InPlaceIterable;
 use crate::ops::{ChangeOutputType, ControlFlow, FromResidual, Residual, Try};
 
 mod array_chunks;

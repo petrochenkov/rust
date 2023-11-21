@@ -1,9 +1,6 @@
 use crate::intrinsics;
 use crate::iter::adapters::zip::try_get_unchecked;
-use crate::iter::{
-    DoubleEndedIterator, ExactSizeIterator, FusedIterator, TrustedLen, TrustedRandomAccess,
-    TrustedRandomAccessNoCoerce,
-};
+use crate::iter::{FusedIterator, TrustedLen, TrustedRandomAccess, TrustedRandomAccessNoCoerce};
 use crate::ops::Try;
 
 /// An iterator that yields `None` forever after the underlying iterator

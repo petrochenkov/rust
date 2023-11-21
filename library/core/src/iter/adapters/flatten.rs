@@ -1,5 +1,5 @@
 use crate::fmt;
-use crate::iter::{DoubleEndedIterator, Fuse, FusedIterator, Iterator, Map, TrustedLen};
+use crate::iter::{Fuse, FusedIterator, Map, TrustedLen};
 use crate::num::NonZeroUsize;
 use crate::ops::{ControlFlow, Try};
 

@@ -9,15 +9,10 @@
 use crate::cmp::Ordering::{self, Greater, Less};
 use crate::fmt;
 use crate::intrinsics::{assert_unsafe_precondition, exact_div};
-use crate::marker::Copy;
 use crate::mem::{self, SizedTypeProperties};
 use crate::num::NonZeroUsize;
-use crate::ops::{Bound, FnMut, OneSidedRange, Range, RangeBounds};
-use crate::option::Option;
-use crate::option::Option::{None, Some};
+use crate::ops::{Bound, OneSidedRange, Range, RangeBounds};
 use crate::ptr;
-use crate::result::Result;
-use crate::result::Result::{Err, Ok};
 use crate::simd::{self, Simd};
 use crate::slice;
 
