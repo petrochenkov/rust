@@ -590,6 +590,10 @@ impl<'a: 'ast, 'ast, 'tcx> LateResolutionVisitor<'a, '_, 'ast, 'tcx> {
         res: Option<Res>,
         base_error: &BaseError,
     ) -> (bool, Vec<ImportSuggestion>) {
+        if let PathSource::Delegation = source {
+            return (false, vec![]);
+        }
+
         // Try to lookup name in more relaxed fashion for better error reporting.
         let ident = path.last().unwrap().ident;
         let is_expected = &|res| source.is_expected(res);
@@ -1905,6 +1909,7 @@ impl<'a: 'ast, 'ast, 'tcx> LateResolutionVisitor<'a, '_, 'ast, 'tcx> {
                 (AssocItemKind::Const(..), Res::Def(DefKind::AssocConst, _)) => true,
                 (AssocItemKind::Fn(_), Res::Def(DefKind::AssocFn, _)) => true,
                 (AssocItemKind::Type(..), Res::Def(DefKind::AssocTy, _)) => true,
+                (AssocItemKind::Delegation(_), Res::Def(DefKind::AssocFn, _)) => true,
                 _ => false,
             })
             .map(|(key, _)| key.ident.name)
@@ -1966,6 +1971,12 @@ impl<'a: 'ast, 'ast, 'tcx> LateResolutionVisitor<'a, '_, 'ast, 'tcx> {
                         }
                         ast::AssocItemKind::Fn(..) => AssocSuggestion::AssocFn { called },
                         ast::AssocItemKind::Type(..) => AssocSuggestion::AssocType,
+                        ast::AssocItemKind::Delegation(..)
+                            if self.r.has_self.contains(&self.r.local_def_id(assoc_item.id)) =>
+                        {
+                            AssocSuggestion::MethodWithSelf { called }
+                        }
+                        ast::AssocItemKind::Delegation(..) => AssocSuggestion::AssocFn { called },
                         ast::AssocItemKind::MacCall(_) => continue,
                     });
                 }

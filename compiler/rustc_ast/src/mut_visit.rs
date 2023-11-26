@@ -1117,6 +1117,14 @@ pub fn noop_visit_item_kind<T: MutVisitor>(kind: &mut ItemKind, vis: &mut T) {
         }
         ItemKind::MacCall(m) => vis.visit_mac_call(m),
         ItemKind::MacroDef(def) => vis.visit_macro_def(def),
+        ItemKind::Delegation(box delegation) => {
+            vis.visit_id(&mut delegation.id);
+            vis.visit_qself(&mut delegation.qself);
+            vis.visit_path(&mut delegation.path);
+            if let Some(body) = &mut delegation.body {
+                vis.visit_block(body);
+            }
+        }
     }
 }
 
@@ -1155,6 +1163,14 @@ pub fn noop_flat_map_assoc_item<T: MutVisitor>(
             visit_opt(ty, |ty| visitor.visit_ty(ty));
         }
         AssocItemKind::MacCall(mac) => visitor.visit_mac_call(mac),
+        AssocItemKind::Delegation(box delegation) => {
+            visitor.visit_id(&mut delegation.id);
+            visitor.visit_qself(&mut delegation.qself);
+            visitor.visit_path(&mut delegation.path);
+            if let Some(body) = &mut delegation.body {
+                visitor.visit_block(body);
+            }
+        }
     }
     visitor.visit_span(span);
     visit_lazy_tts(tokens, visitor);

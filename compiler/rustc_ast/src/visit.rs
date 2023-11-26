@@ -375,6 +375,15 @@ pub fn walk_item<'a, V: Visitor<'a>>(visitor: &mut V, item: &'a Item) {
         }
         ItemKind::MacCall(mac) => visitor.visit_mac_call(mac),
         ItemKind::MacroDef(ts) => visitor.visit_mac_def(ts, item.id),
+        ItemKind::Delegation(box delegation) => {
+            if let Some(qself) = &delegation.qself {
+                visitor.visit_ty(&qself.ty);
+            }
+            walk_path(visitor, &delegation.path);
+            if let Some(body) = &delegation.body {
+                visitor.visit_block(body);
+            }
+        }
     }
     walk_list!(visitor, visit_attribute, &item.attrs);
 }
@@ -703,6 +712,15 @@ pub fn walk_assoc_item<'a, V: Visitor<'a>>(visitor: &mut V, item: &'a AssocItem,
         }
         AssocItemKind::MacCall(mac) => {
             visitor.visit_mac_call(mac);
+        }
+        AssocItemKind::Delegation(box delegation) => {
+            if let Some(qself) = &delegation.qself {
+                visitor.visit_ty(&qself.ty);
+            }
+            walk_path(visitor, &delegation.path);
+            if let Some(body) = &delegation.body {
+                visitor.visit_block(body);
+            }
         }
     }
 }

@@ -592,6 +592,7 @@ impl<'b, 'a: 'b> FmtVisitor<'a> {
                     );
                     self.push_rewrite(item.span, rewrite);
                 }
+                ast::ItemKind::Delegation(..) => {}
             };
         }
         self.skip_context = skip_context_saved;

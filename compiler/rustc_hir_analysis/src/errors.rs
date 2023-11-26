@@ -1409,3 +1409,13 @@ pub struct OnlyCurrentTraitsPointerSugg<'a> {
     pub mut_key: &'a str,
     pub ptr_ty: Ty<'a>,
 }
+
+#[derive(Diagnostic)]
+#[diag(hir_analysis_not_supported_delegation)]
+pub struct NotSupportedDelegation<'a> {
+    #[primary_span]
+    pub span: Span,
+    pub descr: &'a str,
+    #[label]
+    pub res_span: Span,
+}

@@ -432,6 +432,14 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 let macro_def = self.arena.alloc(ast::MacroDef { body, macro_rules: *macro_rules });
                 hir::ItemKind::Macro(macro_def, macro_kind)
             }
+            ItemKind::Delegation(box delegation) => {
+                let delegation_results = self.lower_delegation(delegation, id, span);
+                hir::ItemKind::Fn(
+                    delegation_results.sig,
+                    delegation_results.generics,
+                    delegation_results.body_id,
+                )
+            }
             ItemKind::MacCall(..) => {
                 panic!("`TyMac` should have been expanded by now")
             }
@@ -793,6 +801,14 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 );
                 (generics, kind, ty.is_some())
             }
+            AssocItemKind::Delegation(box delegation) => {
+                let delegation_results = self.lower_delegation(delegation, i.id, i.span);
+                let item_kind = hir::TraitItemKind::Fn(
+                    delegation_results.sig,
+                    hir::TraitFn::Provided(delegation_results.body_id),
+                );
+                (delegation_results.generics, item_kind, true)
+            }
             AssocItemKind::MacCall(..) => panic!("macro item shouldn't exist at this point"),
         };
 
@@ -813,6 +829,9 @@ impl<'hir> LoweringContext<'_, 'hir> {
             AssocItemKind::Type(..) => hir::AssocItemKind::Type,
             AssocItemKind::Fn(box Fn { sig, .. }) => {
                 hir::AssocItemKind::Fn { has_self: sig.decl.has_self() }
+            }
+            AssocItemKind::Delegation(..) => {
+                hir::AssocItemKind::Fn { has_self: self.delegation_has_self(i.id, i.span) }
             }
             AssocItemKind::MacCall(..) => unimplemented!(),
         };
@@ -896,6 +915,13 @@ impl<'hir> LoweringContext<'_, 'hir> {
                     },
                 )
             }
+            AssocItemKind::Delegation(box delegation) => {
+                let delegation_results = self.lower_delegation(delegation, i.id, i.span);
+                (
+                    delegation_results.generics,
+                    hir::ImplItemKind::Fn(delegation_results.sig, delegation_results.body_id),
+                )
+            }
             AssocItemKind::MacCall(..) => panic!("`TyMac` should have been expanded by now"),
         };
 
@@ -922,12 +948,16 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 AssocItemKind::Fn(box Fn { sig, .. }) => {
                     hir::AssocItemKind::Fn { has_self: sig.decl.has_self() }
                 }
+                AssocItemKind::Delegation(..) => {
+                    hir::AssocItemKind::Fn { has_self: self.delegation_has_self(i.id, i.span) }
+                }
                 AssocItemKind::MacCall(..) => unimplemented!(),
             },
             trait_item_def_id: self
                 .resolver
                 .get_partial_res(i.id)
-                .map(|r| r.expect_full_res().def_id()),
+                .map(|or| or.full_res().map(|r| r.opt_def_id()).unwrap_or(None))
+                .unwrap_or(None),
         }
     }
 

@@ -1,0 +1,110 @@
+error: delegation with early bound generics is not supported yet
+  --> $DIR/not-supported.rs:22:9
+   |
+LL |         fn foo(&self, x: T) -> T { x }
+   |         ------------------------ callee defined here
+...
+LL |         reuse <F as GenericTrait<T>>::foo { &self.0 }
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation with early bound generics is not supported yet
+  --> $DIR/not-supported.rs:24:9
+   |
+LL |         fn foo1() {}
+   |         --------- callee defined here
+...
+LL |         reuse GenericTrait::<T>::foo1;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation with early bound generics is not supported yet
+  --> $DIR/not-supported.rs:30:9
+   |
+LL |         fn foo2<T>(&self, x: T) -> T { x }
+   |         ---------------------------- callee defined here
+...
+LL |         reuse <F as Trait>::foo2 { &self.0 }
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation with early bound generics is not supported yet
+  --> $DIR/not-supported.rs:32:9
+   |
+LL |         fn foo3<'a: 'a>(_: &'a u32) {}
+   |         --------------------------- callee defined here
+...
+LL |         reuse <F as Trait>::foo3 { &self.0 }
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation with early bound generics is not supported yet
+  --> $DIR/not-supported.rs:41:9
+   |
+LL |         fn foo(&self, x: i32) -> i32 { x }
+   |         ---------------------------- callee defined here
+...
+LL |         reuse <T as Trait>::foo { &self.0 }
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation with early bound generics is not supported yet
+  --> $DIR/not-supported.rs:55:5
+   |
+LL |         pub fn opaque_arg(_: impl Trait) -> i32 { 0 }
+   |         --------------------------------------- callee defined here
+...
+LL |     reuse to_reuse::opaque_arg;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation to a function with opaque type is not supported yet
+  --> $DIR/not-supported.rs:57:5
+   |
+LL |         pub fn opaque_ret() -> impl Trait { unimplemented!() }
+   |         --------------------------------- callee defined here
+...
+LL |     reuse to_reuse::opaque_ret;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation to unsafe functions is not supported yet
+  --> $DIR/not-supported.rs:69:5
+   |
+LL |         pub unsafe fn unsafe_fn() {}
+   |         ------------------------- callee defined here
+...
+LL |     reuse to_reuse::unsafe_fn;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation to non Rust ABI functions is not supported yet
+  --> $DIR/not-supported.rs:71:5
+   |
+LL |         pub extern "C" fn extern_fn() {}
+   |         ----------------------------- callee defined here
+...
+LL |     reuse to_reuse::extern_fn;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation to variadic functions is not supported yet
+  --> $DIR/not-supported.rs:73:5
+   |
+LL |         pub unsafe extern "C" fn variadic_fn(n: usize, mut args: ...) {}
+   |         ------------------------------------------------------------- callee defined here
+...
+LL |     reuse to_reuse::variadic_fn;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: delegation to const functions is not supported yet
+  --> $DIR/not-supported.rs:75:5
+   |
+LL |         pub const fn const_fn() {}
+   |         ----------------------- callee defined here
+...
+LL |     reuse to_reuse::const_fn;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: recursive delegation is not supported yet
+  --> $DIR/not-supported.rs:88:5
+   |
+LL |         pub reuse to_reuse2::foo;
+   |         ------------------------- callee defined here
+...
+LL |     reuse to_reuse1::foo;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 12 previous errors
+

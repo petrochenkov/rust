@@ -2,7 +2,7 @@ use crate::pp::Breaks::Inconsistent;
 use crate::pprust::state::expr::FixupContext;
 use crate::pprust::state::{AnnNode, PrintState, State, INDENT_UNIT};
 
-use ast::StaticItem;
+use ast::{AstDeref, StaticItem};
 use itertools::{Itertools, Position};
 use rustc_ast as ast;
 use rustc_ast::ModKind;
@@ -376,6 +376,7 @@ impl<'a> State<'a> {
                     state.print_visibility(&item.vis)
                 });
             }
+            ast::ItemKind::Delegation(box delegation) => self.print_delegation(delegation),
         }
         self.ann.post(self, AnnNode::Item(item))
     }
@@ -554,8 +555,31 @@ impl<'a> State<'a> {
                     self.word(";");
                 }
             }
+            ast::AssocItemKind::Delegation(box delegation) => self.print_delegation(delegation),
         }
         self.ann.post(self, AnnNode::SubItem(id))
+    }
+
+    pub(crate) fn print_delegation(&mut self, delegation: &ast::Delegation) {
+        self.ibox(0);
+        self.word_space("reuse");
+        let (qself, path, body) = (&delegation.qself, &delegation.path, &delegation.body);
+
+        if let Some(qself) = qself {
+            self.print_qpath(path, qself.ast_deref(), false);
+        } else {
+            self.print_path(path, false, 0);
+        }
+        self.space();
+        if let Some(body) = body {
+            self.word_space("{");
+            self.print_block(body.ast_deref());
+            self.word(" }");
+        } else {
+            self.word(";");
+        }
+
+        self.end();
     }
 
     fn print_fn_full(

@@ -2332,6 +2332,104 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
         self.ast_ty_to_ty_inner(ast_ty, false, true)
     }
 
+    fn check_delegation_constraints(&self, res_id: DefId, span: Span, emit: bool) -> bool {
+        #[inline]
+        fn generics_param_count(param_count: ty::GenericParamCount) -> usize {
+            param_count.lifetimes + param_count.types + param_count.consts
+        }
+
+        let mut error_occured = false;
+        let res_span = self.tcx().def_span(res_id);
+        let mut try_emit = |descr| {
+            if emit {
+                self.tcx().sess.emit_err(crate::errors::NotSupportedDelegation {
+                    span,
+                    descr,
+                    res_span,
+                });
+            }
+            error_occured = true;
+        };
+
+        if let Some(node) = self.tcx().hir().get_if_local(res_id)
+            && let Some(decl) = node.fn_decl()
+            && let hir::FnRetTy::Return(ty) = decl.output
+        {
+            match ty.kind {
+                hir::TyKind::InferDelegation(_, _) => try_emit("recursive delegation"),
+                hir::TyKind::OpaqueDef(_, _, _) => {
+                    try_emit("delegation to a function with opaque type")
+                }
+                _ => {}
+            }
+        }
+
+        let res_generics = self.tcx().generics_of(res_id);
+        let parent = self.tcx().parent(self.item_def_id());
+        let parent_generics = self.tcx().generics_of(parent);
+        let self_ty_bias = (self.tcx().def_kind(parent) == DefKind::Trait) as usize;
+        if parent_generics.count() + generics_param_count(res_generics.own_counts()) > self_ty_bias
+        {
+            try_emit("delegation with early bound generics");
+        }
+
+        if self.tcx().asyncness(res_id) == ty::Asyncness::Yes {
+            try_emit("delegation to async functions");
+        }
+
+        if self.tcx().constness(res_id) == hir::Constness::Const {
+            try_emit("delegation to const functions");
+        }
+
+        let res_sig = self.tcx().fn_sig(res_id).instantiate_identity();
+        if res_sig.c_variadic() {
+            try_emit("delegation to variadic functions");
+            return error_occured;
+        }
+
+        if let hir::Unsafety::Unsafe = res_sig.unsafety() {
+            try_emit("delegation to unsafe functions");
+        }
+
+        if abi::Abi::Rust != res_sig.abi() {
+            try_emit("delegation to non Rust ABI functions");
+        }
+
+        error_occured
+    }
+
+    fn ty_from_delegation(
+        &self,
+        res_id: DefId,
+        idx: hir::InferDelegationKind,
+        span: Span,
+    ) -> Ty<'tcx> {
+        if self.check_delegation_constraints(res_id, span, idx == hir::InferDelegationKind::Output)
+        {
+            let e = self.tcx().sess.span_delayed_bug(span, "not supported delegation case");
+            self.set_tainted_by_errors(e);
+            return Ty::new_error(self.tcx(), e);
+        };
+        let res_sig = self.tcx().fn_sig(res_id);
+
+        let parent = self.tcx().parent(self.item_def_id());
+        let parent_def_kind = self.tcx().def_kind(parent);
+
+        let res_sig = if let DefKind::Impl { of_trait: true } = parent_def_kind {
+            let self_ty = self.tcx().type_of(parent).instantiate_identity();
+            let generic_self_ty = ty::GenericArg::from(self_ty);
+            let substs = self.tcx().mk_args_from_iter(std::iter::once(generic_self_ty));
+            res_sig.instantiate(self.tcx(), substs).skip_binder()
+        } else {
+            res_sig.instantiate_identity().skip_binder()
+        };
+
+        match idx {
+            hir::InferDelegationKind::Input(id) => res_sig.inputs()[id],
+            hir::InferDelegationKind::Output => res_sig.output(),
+        }
+    }
+
     /// Turns a `hir::Ty` into a `Ty`. For diagnostics' purposes we keep track of whether trait
     /// objects are borrowed like `&dyn Trait` to avoid emitting redundant errors.
     #[instrument(level = "debug", skip(self), ret)]
@@ -2339,6 +2437,9 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
         let tcx = self.tcx();
 
         let result_ty = match &ast_ty.kind {
+            hir::TyKind::InferDelegation(res_id, idx) => {
+                self.ty_from_delegation(*res_id, *idx, ast_ty.span)
+            }
             hir::TyKind::Slice(ty) => Ty::new_slice(tcx, self.ast_ty_to_ty(ty)),
             hir::TyKind::Ptr(mt) => {
                 Ty::new_ptr(tcx, ty::TypeAndMut { ty: self.ast_ty_to_ty(mt.ty), mutbl: mt.mutbl })
@@ -2530,7 +2631,13 @@ impl<'o, 'tcx> dyn AstConv<'tcx> + 'o {
         hir_ty: Option<&hir::Ty<'_>>,
     ) -> ty::PolyFnSig<'tcx> {
         let tcx = self.tcx();
-        let bound_vars = tcx.late_bound_vars(hir_id);
+        let bound_vars = if let hir::FnRetTy::Return(ret_ty) = decl.output
+            && let hir::TyKind::InferDelegation(res_id, _) = ret_ty.kind
+        {
+            tcx.fn_sig(res_id).skip_binder().bound_vars()
+        } else {
+            tcx.late_bound_vars(hir_id)
+        };
         debug!(?bound_vars);
 
         // We proactively collect all the inferred type params to emit a single error per fn def.

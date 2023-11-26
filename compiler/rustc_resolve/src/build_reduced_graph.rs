@@ -16,7 +16,7 @@ use crate::{Resolver, ResolverArenas, Segment, ToNameBinding, VisResolutionError
 
 use rustc_ast::visit::{self, AssocCtxt, Visitor};
 use rustc_ast::{self as ast, AssocItem, AssocItemKind, MetaItemKind, StmtKind};
-use rustc_ast::{Block, Fn, ForeignItem, ForeignItemKind, Impl, Item, ItemKind, NodeId};
+use rustc_ast::{Block, ForeignItem, ForeignItemKind, Impl, Item, ItemKind, NodeId};
 use rustc_attr as attr;
 use rustc_data_structures::sync::Lrc;
 use rustc_errors::{struct_span_err, Applicability};
@@ -686,10 +686,7 @@ impl<'a, 'b, 'tcx> BuildReducedGraphVisitor<'a, 'b, 'tcx> {
             }
 
             // These items live in the value namespace.
-            ItemKind::Static(..) => {
-                self.r.define(parent, ident, ValueNS, (res, vis, sp, expansion));
-            }
-            ItemKind::Const(..) => {
+            ItemKind::Const(..) | ItemKind::Delegation(..) | ItemKind::Static(..) => {
                 self.r.define(parent, ident, ValueNS, (res, vis, sp, expansion));
             }
             ItemKind::Fn(..) => {
@@ -1366,13 +1363,9 @@ impl<'a, 'b, 'tcx> Visitor<'b> for BuildReducedGraphVisitor<'a, 'b, 'tcx> {
 
         if ctxt == AssocCtxt::Trait {
             let ns = match item.kind {
-                AssocItemKind::Const(..) => ValueNS,
-                AssocItemKind::Fn(box Fn { ref sig, .. }) => {
-                    if sig.decl.has_self() {
-                        self.r.has_self.insert(local_def_id);
-                    }
-                    ValueNS
-                }
+                AssocItemKind::Const(..)
+                | AssocItemKind::Delegation(..)
+                | AssocItemKind::Fn(..) => ValueNS,
                 AssocItemKind::Type(..) => TypeNS,
                 AssocItemKind::MacCall(_) => bug!(), // handled above
             };
