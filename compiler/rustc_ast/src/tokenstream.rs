@@ -26,7 +26,7 @@ use rustc_span::{sym, Span, Symbol, DUMMY_SP};
 use smallvec::{smallvec, SmallVec};
 
 use std::borrow::Cow;
-use std::{cmp, fmt, iter, mem};
+use std::{cmp, fmt, iter};
 
 /// When the main Rust parser encounters a syntax-extension invocation, it
 /// parses the arguments to the invocation as a token tree. This is a very
@@ -78,14 +78,6 @@ impl TokenTree {
         match self {
             TokenTree::Token(token, _) => token.span,
             TokenTree::Delimited(sp, ..) => sp.entire(),
-        }
-    }
-
-    /// Modify the `TokenTree`'s span in-place.
-    pub fn set_span(&mut self, span: Span) {
-        match self {
-            TokenTree::Token(token, _) => token.span = span,
-            TokenTree::Delimited(dspan, ..) => *dspan = DelimSpan::from_single(span),
         }
     }
 
@@ -408,19 +400,6 @@ impl TokenStream {
         t1.next().is_none() && t2.next().is_none()
     }
 
-    /// Applies the supplied function to each `TokenTree` and its index in `self`, returning a new `TokenStream`
-    ///
-    /// It is equivalent to `TokenStream::new(self.trees().cloned().enumerate().map(|(i, tt)| f(i, tt)).collect())`.
-    pub fn map_enumerated_owned(
-        mut self,
-        mut f: impl FnMut(usize, TokenTree) -> TokenTree,
-    ) -> TokenStream {
-        let owned = Lrc::make_mut(&mut self.0); // clone if necessary
-        // rely on vec's in-place optimizations to avoid another allocation
-        *owned = mem::take(owned).into_iter().enumerate().map(|(i, tree)| f(i, tree)).collect();
-        self
-    }
-
     /// Create a token stream containing a single token with alone spacing.
     pub fn token_alone(kind: TokenKind, span: Span) -> TokenStream {
         TokenStream::new(vec![TokenTree::token_alone(kind, span)])
@@ -580,7 +559,7 @@ impl TokenStream {
             while let Some(tt) = stream.0.get(i) {
                 match tt {
                     &TokenTree::Token(
-                        Token { kind: token::DocComment(_, attr_style, data), span },
+                        Token { kind: token::DocComment(_, attr_style, data), span, .. },
                         _spacing,
                     ) => {
                         let desugared = desugared_tts(attr_style, data, span);
@@ -745,9 +724,9 @@ mod size_asserts {
     use rustc_data_structures::static_assert_size;
     // tidy-alphabetical-start
     static_assert_size!(AttrTokenStream, 8);
-    static_assert_size!(AttrTokenTree, 32);
+    static_assert_size!(AttrTokenTree, 40);
     static_assert_size!(LazyAttrTokenStream, 8);
     static_assert_size!(TokenStream, 8);
-    static_assert_size!(TokenTree, 32);
+    static_assert_size!(TokenTree, 40);
     // tidy-alphabetical-end
 }

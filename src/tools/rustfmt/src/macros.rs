@@ -720,14 +720,8 @@ impl MacroArgParser {
         MacroArgParser {
             buf: String::new(),
             is_meta_var: false,
-            last_tok: Token {
-                kind: TokenKind::Eof,
-                span: DUMMY_SP,
-            },
-            start_tok: Token {
-                kind: TokenKind::Eof,
-                span: DUMMY_SP,
-            },
+            last_tok: Token::new(TokenKind::Eof, DUMMY_SP),
+            start_tok: Token::new(TokenKind::Eof, DUMMY_SP),
             result: vec![],
         }
     }
@@ -910,10 +904,7 @@ impl MacroArgParser {
 
                     // Start keeping the name of this metavariable in the buffer.
                     self.is_meta_var = true;
-                    self.start_tok = Token {
-                        kind: TokenKind::Dollar,
-                        span,
-                    };
+                    self.start_tok = Token::new(TokenKind::Dollar, span);
                 }
                 TokenTree::Token(
                     Token {

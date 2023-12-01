@@ -342,6 +342,7 @@ impl Clone for TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
+    pub span2: Span,
 }
 
 impl TokenKind {
@@ -401,7 +402,7 @@ impl TokenKind {
 
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
-        Token { kind, span }
+        Token { kind, span, span2: span }
     }
 
     /// Some token that will be thrown away later.
@@ -1019,7 +1020,7 @@ mod size_asserts {
     static_assert_size!(Lit, 12);
     static_assert_size!(LitKind, 2);
     static_assert_size!(Nonterminal, 16);
-    static_assert_size!(Token, 24);
+    static_assert_size!(Token, 32);
     static_assert_size!(TokenKind, 16);
     // tidy-alphabetical-end
 }

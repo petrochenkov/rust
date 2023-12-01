@@ -211,18 +211,30 @@ pub(super) fn transcribe<'a>(
             }
 
             // Replace the meta-var with the matched token tree from the invocation.
-            mbe::TokenTree::MetaVar(mut sp, mut original_ident) => {
+            mbe::TokenTree::MetaVar(mut sp, mut original_ident, kvakuha) => {
                 // Find the matched nonterminal from the macro invocation, and use it to replace
                 // the meta-var.
                 let ident = MacroRulesNormalizedIdent::new(original_ident);
                 if let Some(cur_matched) = lookup_cur_matched(ident, interp, &repeats) {
                     match cur_matched {
-                        MatchedTokenTree(tt) => {
+                        (MatchedTokenTree(tt), _from_seq) => {
                             // `tt`s are emitted into the output stream directly as "raw tokens",
                             // without wrapping them into groups.
-                            result.push(tt.clone());
+                            // `$($tt)*` - grouped `tt`, any other `$tt` - isolated `tt`
+                            let new_tt = match tt {
+                                TokenTree::Token(Token { kind, span, span2: _ }, spacing) => {
+                                    let new_span =
+                                        if *kvakuha { *span } else { sp.with_ctxt(span.ctxt()) };
+                                    TokenTree::Token(
+                                        Token { kind: kind.clone(), span: new_span, span2: *span },
+                                        *spacing,
+                                    )
+                                }
+                                tt @ TokenTree::Delimited(..) => tt.clone(),
+                            };
+                            result.push(new_tt);
                         }
-                        MatchedNonterminal(nt) => {
+                        (MatchedNonterminal(nt), _) => {
                             // Other variables are emitted into the output stream as groups with
                             // `Delimiter::Invisible` to maintain parsing priorities.
                             // `Interpolated` is currently used for such groups in rustc parser.
@@ -230,7 +242,7 @@ pub(super) fn transcribe<'a>(
                             result
                                 .push(TokenTree::token_alone(token::Interpolated(nt.clone()), sp));
                         }
-                        MatchedSeq(..) => {
+                        (MatchedSeq(..), _) => {
                             // We were unable to descend far enough. This is an error.
                             return Err(cx.create_err(VarStillRepeating { span: sp, ident }));
                         }
@@ -294,16 +306,20 @@ fn lookup_cur_matched<'a>(
     ident: MacroRulesNormalizedIdent,
     interpolations: &'a FxHashMap<MacroRulesNormalizedIdent, NamedMatch>,
     repeats: &[(usize, usize)],
-) -> Option<&'a NamedMatch> {
+) -> Option<(&'a NamedMatch, bool)> {
     interpolations.get(&ident).map(|mut matched| {
+        let mut from_seq = false;
         for &(idx, _) in repeats {
             match matched {
                 MatchedTokenTree(_) | MatchedNonterminal(_) => break,
-                MatchedSeq(ads) => matched = ads.get(idx).unwrap(),
+                MatchedSeq(ads) => {
+                    from_seq = true;
+                    matched = ads.get(idx).unwrap();
+                }
             }
         }
 
-        matched
+        (matched, from_seq)
     })
 }
 
@@ -384,10 +400,10 @@ fn lockstep_iter_size(
                 size.with(lockstep_iter_size(tt, interpolations, repeats))
             })
         }
-        TokenTree::MetaVar(_, name) | TokenTree::MetaVarDecl(_, name, _) => {
+        TokenTree::MetaVar(_, name, _) | TokenTree::MetaVarDecl(_, name, _) => {
             let name = MacroRulesNormalizedIdent::new(*name);
             match lookup_cur_matched(name, interpolations, repeats) {
-                Some(matched) => match matched {
+                Some((matched, _)) => match matched {
                     MatchedTokenTree(_) | MatchedNonterminal(_) => LockstepIterSize::Unconstrained,
                     MatchedSeq(ads) => LockstepIterSize::Constraint(ads.len(), name),
                 },
@@ -401,7 +417,7 @@ fn lockstep_iter_size(
             };
             let name = MacroRulesNormalizedIdent::new(ident);
             match lookup_cur_matched(name, interpolations, repeats) {
-                Some(MatchedSeq(ads)) => {
+                Some((MatchedSeq(ads), _)) => {
                     default_rslt.with(LockstepIterSize::Constraint(ads.len(), name))
                 }
                 _ => default_rslt,

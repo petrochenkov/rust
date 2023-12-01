@@ -308,7 +308,7 @@ impl MetaItem {
         // FIXME: Share code with `parse_path`.
         let path = match tokens.next().map(|tt| TokenTree::uninterpolate(tt)).as_deref() {
             Some(&TokenTree::Token(
-                Token { kind: ref kind @ (token::Ident(..) | token::ModSep), span },
+                Token { kind: ref kind @ (token::Ident(..) | token::ModSep), span, .. },
                 _,
             )) => 'arm: {
                 let mut segments = if let &token::Ident(name, _) = kind {
@@ -324,8 +324,10 @@ impl MetaItem {
                     thin_vec![PathSegment::path_root(span)]
                 };
                 loop {
-                    if let Some(&TokenTree::Token(Token { kind: token::Ident(name, _), span }, _)) =
-                        tokens.next().map(|tt| TokenTree::uninterpolate(tt)).as_deref()
+                    if let Some(&TokenTree::Token(
+                        Token { kind: token::Ident(name, _), span, .. },
+                        _,
+                    )) = tokens.next().map(|tt| TokenTree::uninterpolate(tt)).as_deref()
                     {
                         segments.push(PathSegment::from_ident(Ident::new(name, span)));
                     } else {

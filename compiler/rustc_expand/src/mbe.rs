@@ -72,7 +72,7 @@ enum TokenTree {
     /// A kleene-style repetition sequence, e.g. `$($e:expr)*` (RHS) or `$($e),*` (LHS).
     Sequence(DelimSpan, SequenceRepetition),
     /// e.g., `$var`.
-    MetaVar(Span, Ident),
+    MetaVar(Span, Ident, bool),
     /// e.g., `$var:expr`. Only appears on the LHS.
     MetaVarDecl(Span, Ident /* name to bind */, Option<NonterminalKind>),
     /// A meta-variable expression inside `${...}`.
@@ -97,7 +97,7 @@ impl TokenTree {
     fn span(&self) -> Span {
         match *self {
             TokenTree::Token(Token { span, .. })
-            | TokenTree::MetaVar(span, _)
+            | TokenTree::MetaVar(span, ..)
             | TokenTree::MetaVarDecl(span, _, _) => span,
             TokenTree::Delimited(span, _)
             | TokenTree::MetaVarExpr(span, _)

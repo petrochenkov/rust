@@ -396,10 +396,10 @@ fn make_token_stream(
     let mut token_and_spacing = iter.next();
     while let Some((token, spacing)) = token_and_spacing {
         match token {
-            FlatToken::Token(Token { kind: TokenKind::OpenDelim(delim), span }) => {
+            FlatToken::Token(Token { kind: TokenKind::OpenDelim(delim), span, .. }) => {
                 stack.push(FrameData { open_delim_sp: Some((delim, span)), inner: vec![] });
             }
-            FlatToken::Token(Token { kind: TokenKind::CloseDelim(delim), span }) => {
+            FlatToken::Token(Token { kind: TokenKind::CloseDelim(delim), span, .. }) => {
                 let frame_data = stack
                     .pop()
                     .unwrap_or_else(|| panic!("Token stack was empty for token: {token:?}"));
@@ -459,6 +459,6 @@ mod size_asserts {
     use rustc_data_structures::static_assert_size;
     // tidy-alphabetical-start
     static_assert_size!(AttrWrapper, 16);
-    static_assert_size!(LazyAttrTokenStreamImpl, 104);
+    static_assert_size!(LazyAttrTokenStreamImpl, 112);
     // tidy-alphabetical-end
 }

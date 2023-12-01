@@ -97,7 +97,7 @@ impl FromInternal<(TokenStream, &mut Rustc<'_, '_>)> for Vec<TokenTree<TokenStre
         let mut cursor = stream.trees();
 
         while let Some(tree) = cursor.next() {
-            let (Token { kind, span }, joint) = match tree.clone() {
+            let (Token { kind, span, .. }, joint) = match tree.clone() {
                 tokenstream::TokenTree::Delimited(span, delim, tts) => {
                     let delimiter = pm::Delimiter::from_internal(delim);
                     trees.push(TokenTree::Group(Group {
