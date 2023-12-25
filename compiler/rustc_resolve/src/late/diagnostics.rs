@@ -590,10 +590,6 @@ impl<'a: 'ast, 'ast, 'tcx> LateResolutionVisitor<'a, '_, 'ast, 'tcx> {
         res: Option<Res>,
         base_error: &BaseError,
     ) -> (bool, Vec<ImportSuggestion>) {
-        if let PathSource::Delegation = source {
-            return (false, vec![]);
-        }
-
         // Try to lookup name in more relaxed fashion for better error reporting.
         let ident = path.last().unwrap().ident;
         let is_expected = &|res| source.is_expected(res);
@@ -663,7 +659,10 @@ impl<'a: 'ast, 'ast, 'tcx> LateResolutionVisitor<'a, '_, 'ast, 'tcx> {
         let typo_sugg = self
             .lookup_typo_candidate(path, following_seg, source.namespace(), is_expected)
             .to_opt_suggestion();
-        if path.len() == 1 && self.self_type_is_available() {
+        if path.len() == 1
+            && !matches!(source, PathSource::Delegation)
+            && self.self_type_is_available()
+        {
             if let Some(candidate) =
                 self.lookup_assoc_candidate(ident, ns, is_expected, source.is_call())
             {
