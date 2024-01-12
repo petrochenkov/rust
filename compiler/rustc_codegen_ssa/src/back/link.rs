@@ -793,7 +793,7 @@ fn link_natively<'a>(
         // then it should not default to linking executables as pie. Different
         // versions of gcc seem to use different quotes in the error message so
         // don't check for them.
-        if matches!(flavor, LinkerFlavor::Gnu(Cc::Yes, _))
+        if matches!(flavor, LinkerFlavor::Gnu(Cc::Yes | Cc::Clang, _))
             && unknown_arg_regex.is_match(&out)
             && out.contains("-no-pie")
             && cmd.get_args().iter().any(|e| e.to_string_lossy() == "-no-pie")
@@ -811,7 +811,7 @@ fn link_natively<'a>(
 
         // Detect '-static-pie' used with an older version of gcc or clang not supporting it.
         // Fallback from '-static-pie' to '-static' in that case.
-        if matches!(flavor, LinkerFlavor::Gnu(Cc::Yes, _))
+        if matches!(flavor, LinkerFlavor::Gnu(Cc::Yes | Cc::Clang, _))
             && unknown_arg_regex.is_match(&out)
             && (out.contains("-static-pie") || out.contains("--no-dynamic-linker"))
             && cmd.get_args().iter().any(|e| e.to_string_lossy() == "-static-pie")
@@ -1305,6 +1305,10 @@ pub fn linker_and_flavor(sess: &Session) -> (PathBuf, LinkerFlavor) {
                             "cc"
                         }
                     }
+                    LinkerFlavor::Gnu(Cc::Clang, _)
+                    | LinkerFlavor::Darwin(Cc::Clang, _)
+                    | LinkerFlavor::WasmLld(Cc::Clang)
+                    | LinkerFlavor::Unix(Cc::Clang) => "clang",
                     LinkerFlavor::Gnu(_, Lld::Yes)
                     | LinkerFlavor::Darwin(_, Lld::Yes)
                     | LinkerFlavor::WasmLld(..)
@@ -1765,7 +1769,9 @@ fn add_pre_link_objects(
     let empty = Default::default();
     let objects = if self_contained {
         &opts.pre_link_objects_self_contained
-    } else if !(sess.target.os == "fuchsia" && matches!(flavor, LinkerFlavor::Gnu(Cc::Yes, _))) {
+    } else if !(sess.target.os == "fuchsia"
+        && matches!(flavor, LinkerFlavor::Gnu(Cc::Yes | Cc::Clang, _)))
+    {
         &opts.pre_link_objects
     } else {
         &empty
@@ -2274,7 +2280,7 @@ fn add_order_independent_options(
 
     if sess.target.os == "fuchsia"
         && crate_type == CrateType::Executable
-        && !matches!(flavor, LinkerFlavor::Gnu(Cc::Yes, _))
+        && !matches!(flavor, LinkerFlavor::Gnu(Cc::Yes | Cc::Clang, _))
     {
         let prefix = if sess.opts.unstable_opts.sanitizer.contains(SanitizerSet::ADDRESS) {
             "asan/"
@@ -2901,7 +2907,7 @@ fn add_apple_sdk(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
     };
 
     match flavor {
-        LinkerFlavor::Darwin(Cc::Yes, _) => {
+        LinkerFlavor::Darwin(Cc::Yes | Cc::Clang, _) => {
             cmd.args(&["-isysroot", &sdk_root, "-Wl,-syslibroot", &sdk_root]);
         }
         LinkerFlavor::Darwin(Cc::No, _) => {
