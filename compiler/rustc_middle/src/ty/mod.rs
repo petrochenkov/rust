@@ -210,6 +210,8 @@ pub struct ResolverAstLowering {
     pub lifetimes_res_map: NodeMap<LifetimeRes>,
     /// Lifetime parameters that lowering will have to introduce.
     pub extra_lifetime_params_map: NodeMap<Vec<(Ident, ast::NodeId, LifetimeRes)>>,
+    /// Associated items in traits corresponding to associated items in their trait impls.
+    pub trait_impl_item_res_map: NodeMap<DefId>,
 
     pub next_node_id: ast::NodeId,
 

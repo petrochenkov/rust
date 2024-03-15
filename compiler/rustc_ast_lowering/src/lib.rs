@@ -54,7 +54,7 @@ use rustc_data_structures::sync::Lrc;
 use rustc_errors::{DiagArgFromDisplay, DiagCtxt, StashKey};
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind, LifetimeRes, Namespace, PartialRes, PerNS, Res};
-use rustc_hir::def_id::{LocalDefId, LocalDefIdMap, CRATE_DEF_ID, LOCAL_CRATE};
+use rustc_hir::def_id::{DefId, LocalDefId, LocalDefIdMap, CRATE_DEF_ID, LOCAL_CRATE};
 use rustc_hir::{
     ConstArg, GenericArg, ItemLocalMap, MissingLifetimeKind, ParamName, TraitCandidate,
 };
@@ -250,6 +250,10 @@ impl ResolverAstLowering {
     fn take_extra_lifetime_params(&mut self, id: NodeId) -> Vec<(Ident, NodeId, LifetimeRes)> {
         self.extra_lifetime_params_map.remove(&id).unwrap_or_default()
     }
+
+    fn get_trait_impl_item_res(&self, id: NodeId) -> Option<DefId> {
+        self.trait_impl_item_res_map.get(&id).copied()
+    }
 }
 
 /// Context of `impl Trait` in code, which determines whether it is allowed in an HIR subtree,
@@ -377,15 +381,42 @@ fn index_crate<'a>(
         }
 
         fn visit_item(&mut self, item: &'a ast::Item) {
-            let def_id = self.node_id_to_def_id[&item.id];
-            *self.index.ensure_contains_elem(def_id, || AstOwner::NonOwner) = AstOwner::Item(item);
+            let mut insert_owner = |id| {
+                let def_id = self.node_id_to_def_id[&id];
+                *self.index.ensure_contains_elem(def_id, || AstOwner::NonOwner) =
+                    AstOwner::Item(item)
+            };
+            if let ItemKind::Delegation(ref deleg) = item.kind {
+                match deleg.kind {
+                    DelegationKind::Simple(id) => insert_owner(id),
+                    DelegationKind::List(ref suffixes) => {
+                        for &(_, id) in suffixes {
+                            insert_owner(id)
+                        }
+                    }
+                }
+            }
+            insert_owner(item.id);
             visit::walk_item(self, item)
         }
 
         fn visit_assoc_item(&mut self, item: &'a ast::AssocItem, ctxt: visit::AssocCtxt) {
-            let def_id = self.node_id_to_def_id[&item.id];
-            *self.index.ensure_contains_elem(def_id, || AstOwner::NonOwner) =
-                AstOwner::AssocItem(item, ctxt);
+            let mut insert_owner = |id| {
+                let def_id = self.node_id_to_def_id[&id];
+                *self.index.ensure_contains_elem(def_id, || AstOwner::NonOwner) =
+                    AstOwner::AssocItem(item, ctxt)
+            };
+            if let AssocItemKind::Delegation(ref deleg) = item.kind {
+                match deleg.kind {
+                    DelegationKind::Simple(id) => insert_owner(id),
+                    DelegationKind::List(ref suffixes) => {
+                        for &(_, id) in suffixes {
+                            insert_owner(id)
+                        }
+                    }
+                }
+            }
+            insert_owner(item.id);
             visit::walk_assoc_item(self, item, ctxt);
         }
 

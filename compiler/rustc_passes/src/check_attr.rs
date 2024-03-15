@@ -49,7 +49,7 @@ pub(crate) fn target_from_impl_item<'tcx>(
 ) -> Target {
     match impl_item.kind {
         hir::ImplItemKind::Const(..) => Target::AssocConst,
-        hir::ImplItemKind::Fn(..) => {
+        hir::ImplItemKind::Fn(..) | hir::ImplItemKind::DelegationStem => {
             let parent_def_id = tcx.hir().get_parent_item(impl_item.hir_id()).def_id;
             let containing_item = tcx.hir().expect_item(parent_def_id);
             let containing_impl_is_for_trait = match &containing_item.kind {

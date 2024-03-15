@@ -11,6 +11,7 @@
 #![doc(rust_logo)]
 #![allow(internal_features)]
 #![feature(rustdoc_internals)]
+#![feature(assert_matches)]
 #![cfg_attr(bootstrap, feature(associated_type_bounds))]
 #![feature(associated_type_defaults)]
 #![feature(box_patterns)]

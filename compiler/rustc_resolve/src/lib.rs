@@ -1006,6 +1006,8 @@ pub struct Resolver<'a, 'tcx> {
     lifetimes_res_map: NodeMap<LifetimeRes>,
     /// Lifetime parameters that lowering will have to introduce.
     extra_lifetime_params_map: NodeMap<Vec<(Ident, NodeId, LifetimeRes)>>,
+    /// Associated items in traits corresponding to associated items in their trait impls.
+    trait_impl_item_res_map: NodeMap<DefId>,
 
     /// `CrateNum` resolutions of `extern crate` items.
     extern_crate_map: FxHashMap<LocalDefId, CrateNum>,
@@ -1399,6 +1401,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             label_res_map: Default::default(),
             lifetimes_res_map: Default::default(),
             extra_lifetime_params_map: Default::default(),
+            trait_impl_item_res_map: Default::default(),
             extern_crate_map: Default::default(),
             module_children: Default::default(),
             trait_map: NodeMap::default(),
@@ -1599,6 +1602,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             label_res_map: self.label_res_map,
             lifetimes_res_map: self.lifetimes_res_map,
             extra_lifetime_params_map: self.extra_lifetime_params_map,
+            trait_impl_item_res_map: self.trait_impl_item_res_map,
             next_node_id: self.next_node_id,
             node_id_to_def_id: self
                 .node_id_to_def_id
@@ -1980,6 +1984,14 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         debug!("(recording res) recording {:?} for {}", resolution, node_id);
         if let Some(prev_res) = self.partial_res_map.insert(node_id, resolution) {
             panic!("path resolved multiple times ({prev_res:?} before, {resolution:?} now)");
+        }
+    }
+
+    fn record_trait_impl_item_res(&mut self, node_id: NodeId, resolution: DefId) {
+        if let Some(prev_res) = self.trait_impl_item_res_map.insert(node_id, resolution) {
+            panic!(
+                "trait impl item resolved multiple times ({prev_res:?} before, {resolution:?} now)"
+            );
         }
     }
 

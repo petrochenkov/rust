@@ -2530,9 +2530,7 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
                 visit::walk_item(self, item);
             }
 
-            ItemKind::Delegation(ref delegation) => {
-                self.resolve_delegation(delegation);
-            }
+            ItemKind::Delegation(ref delegation) => self.resolve_delegation(delegation, item.id),
 
             ItemKind::ExternCrate(..) => {}
 
@@ -2819,7 +2817,7 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
                     walk_assoc_item(self, generics, LifetimeBinderKind::Function, item);
                 }
                 AssocItemKind::Delegation(delegation) => {
-                    self.resolve_delegation(delegation);
+                    self.resolve_delegation(delegation, item.id)
                 }
                 AssocItemKind::Type(box TyAlias { generics, .. }) => self
                     .with_lifetime_rib(LifetimeRibKind::AnonymousReportError, |this| {
@@ -3067,18 +3065,34 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
                     },
                 );
             }
-            AssocItemKind::Delegation(box delegation) => {
-                debug!("resolve_implementation AssocItemKind::Delegation");
-                self.check_trait_item(
-                    item.id,
-                    item.ident,
-                    &item.kind,
-                    ValueNS,
-                    item.span,
-                    seen_trait_items,
-                    |i, s, c| MethodNotMemberOfTrait(i, s, c),
-                );
-                self.resolve_delegation(delegation);
+            AssocItemKind::Delegation(deleg) => {
+                match deleg.kind {
+                    DelegationKind::Simple(id) => {
+                        self.check_trait_item(
+                            id,
+                            deleg.ident(),
+                            &item.kind,
+                            ValueNS,
+                            item.span,
+                            seen_trait_items,
+                            |i, s, c| MethodNotMemberOfTrait(i, s, c),
+                        );
+                    }
+                    DelegationKind::List(ref suffixes) => {
+                        for &(ident, id) in suffixes {
+                            self.check_trait_item(
+                                id,
+                                ident,
+                                &item.kind,
+                                ValueNS,
+                                ident.span,
+                                seen_trait_items,
+                                |i, s, c| MethodNotMemberOfTrait(i, s, c),
+                            );
+                        }
+                    }
+                }
+                self.resolve_delegation(deleg, item.id);
             }
             AssocItemKind::MacCall(_) => {
                 panic!("unexpanded macro in resolve!")
@@ -3169,7 +3183,7 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
             | (DefKind::AssocFn, AssocItemKind::Fn(..))
             | (DefKind::AssocConst, AssocItemKind::Const(..))
             | (DefKind::AssocFn, AssocItemKind::Delegation(..)) => {
-                self.r.record_partial_res(id, PartialRes::new(res));
+                self.r.record_trait_impl_item_res(id, id_in_trait);
                 return;
             }
             _ => {}
@@ -3205,25 +3219,37 @@ impl<'a: 'ast, 'b, 'ast, 'tcx> LateResolutionVisitor<'a, 'b, 'ast, 'tcx> {
         })
     }
 
-    fn resolve_delegation(&mut self, delegation: &'ast Delegation) {
-        self.smart_resolve_path(
-            delegation.id,
-            &delegation.qself,
-            &delegation.path,
-            PathSource::Delegation,
-        );
+    fn resolve_delegation(&mut self, delegation: &'ast Delegation, item_id: NodeId) {
+        match delegation.kind {
+            DelegationKind::Simple(id) => {
+                self.smart_resolve_path(
+                    id,
+                    &delegation.qself,
+                    &delegation.path,
+                    PathSource::Delegation,
+                );
+            }
+            DelegationKind::List(ref suffixes) => {
+                for &(ident, id) in suffixes {
+                    let mut path = delegation.path.clone();
+                    // FIXME: This id?
+                    path.segments.push(ast::PathSegment { ident, id, args: None });
+                    self.smart_resolve_path(id, &delegation.qself, &path, PathSource::Delegation);
+                }
+            }
+        }
         if let Some(qself) = &delegation.qself {
             self.visit_ty(&qself.ty);
         }
-        self.visit_path(&delegation.path, delegation.id);
+        self.visit_path(&delegation.path, item_id);
         if let Some(body) = &delegation.body {
             // `PatBoundCtx` is not necessary in this context
             let mut bindings = smallvec![(PatBoundCtx::Product, Default::default())];
 
-            let span = delegation.path.segments.last().unwrap().ident.span;
+            let span = delegation.ident().span;
             self.fresh_binding(
                 Ident::new(kw::SelfLower, span),
-                delegation.id,
+                item_id,
                 PatternSource::FnParam,
                 &mut bindings,
             );

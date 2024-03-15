@@ -374,6 +374,7 @@ pub(super) fn type_of(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::EarlyBinder<Ty
             TraitItemKind::Type(_, None) => {
                 span_bug!(item.span, "associated type missing default");
             }
+            TraitItemKind::DelegationStem => unreachable!(),
         },
 
         Node::ImplItem(item) => match item.kind {
@@ -402,6 +403,7 @@ pub(super) fn type_of(tcx: TyCtxt<'_>, def_id: LocalDefId) -> ty::EarlyBinder<Ty
 
                 icx.lower_ty(ty)
             }
+            ImplItemKind::DelegationStem => unreachable!(),
         },
 
         Node::Item(item) => match item.kind {

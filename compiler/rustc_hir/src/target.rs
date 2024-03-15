@@ -159,6 +159,7 @@ impl Target {
                 Target::Method(MethodKind::Trait { body: true })
             }
             TraitItemKind::Type(..) => Target::AssocTy,
+            TraitItemKind::DelegationStem => Target::Method(MethodKind::Trait { body: true }),
         }
     }
 

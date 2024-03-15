@@ -1039,6 +1039,7 @@ pub fn walk_trait_item<'v, V: Visitor<'v>>(
             walk_list!(visitor, visit_param_bound, bounds);
             visit_opt!(visitor, visit_ty, default);
         }
+        TraitItemKind::DelegationStem => {}
     }
     V::Result::output()
 }
@@ -1086,6 +1087,7 @@ pub fn walk_impl_item<'v, V: Visitor<'v>>(
             impl_item.owner_id.def_id,
         ),
         ImplItemKind::Type(ref ty) => visitor.visit_ty(ty),
+        ImplItemKind::DelegationStem => V::Result::output(),
     }
 }
 

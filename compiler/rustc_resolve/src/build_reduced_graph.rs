@@ -15,7 +15,7 @@ use crate::{NameBinding, NameBindingKind, ParentScope, PathResult, ResolutionErr
 use crate::{Resolver, ResolverArenas, Segment, ToNameBinding, Used, VisResolutionError};
 
 use rustc_ast::visit::{self, AssocCtxt, Visitor};
-use rustc_ast::{self as ast, AssocItem, AssocItemKind, MetaItemKind, StmtKind};
+use rustc_ast::{self as ast, AssocItem, AssocItemKind, DelegationKind, MetaItemKind, StmtKind};
 use rustc_ast::{Block, ForeignItem, ForeignItemKind, Impl, Item, ItemKind, NodeId};
 use rustc_attr as attr;
 use rustc_data_structures::sync::Lrc;
@@ -733,7 +733,7 @@ impl<'a, 'b, 'tcx> BuildReducedGraphVisitor<'a, 'b, 'tcx> {
             }
 
             // These items live in the value namespace.
-            ItemKind::Const(..) | ItemKind::Delegation(..) | ItemKind::Static(..) => {
+            ItemKind::Const(..) | ItemKind::Static(..) => {
                 self.r.define(parent, ident, ValueNS, (res, vis, sp, expansion));
             }
             ItemKind::Fn(..) => {
@@ -822,6 +822,28 @@ impl<'a, 'b, 'tcx> BuildReducedGraphVisitor<'a, 'b, 'tcx> {
                     vis,
                     sp,
                 );
+            }
+
+            ItemKind::Delegation(ref deleg) => {
+                let mut build_delegation = |id, ident, sp| {
+                    let feed = self.r.feed(id);
+                    let local_def_id = feed.key();
+                    let def_id = local_def_id.to_def_id();
+                    let def_kind = self.r.tcx.def_kind(def_id);
+                    let res = Res::Def(def_kind, def_id);
+                    self.r.feed_visibility(feed, vis);
+                    self.r.define(parent, ident, ValueNS, (res, vis, sp, expansion));
+                };
+                match deleg.kind {
+                    DelegationKind::Simple(id) => {
+                        build_delegation(id, deleg.ident(), item.span);
+                    }
+                    DelegationKind::List(ref suffixes) => {
+                        for &(ident, id) in suffixes {
+                            build_delegation(id, ident, ident.span);
+                        }
+                    }
+                }
             }
 
             // These items do not add names to modules.
@@ -1404,20 +1426,54 @@ impl<'a, 'b, 'tcx> Visitor<'b> for BuildReducedGraphVisitor<'a, 'b, 'tcx> {
             // explicitly. In that case we cannot determine it here in early resolve,
             // so we leave a hole in the visibility table to be filled later.
             self.r.feed_visibility(feed, vis);
+            if let AssocItemKind::Delegation(ref deleg) = item.kind {
+                let mut feed_delegation_vis = |id| self.r.feed_visibility(self.r.feed(id), vis);
+                match deleg.kind {
+                    DelegationKind::Simple(id) => feed_delegation_vis(id),
+                    DelegationKind::List(ref suffixes) => {
+                        for &(_, id) in suffixes {
+                            feed_delegation_vis(id)
+                        }
+                    }
+                }
+            }
         }
 
         if ctxt == AssocCtxt::Trait {
             let ns = match item.kind {
-                AssocItemKind::Const(..)
-                | AssocItemKind::Delegation(..)
-                | AssocItemKind::Fn(..) => ValueNS,
+                AssocItemKind::Const(..) | AssocItemKind::Fn(..) => ValueNS,
                 AssocItemKind::Type(..) => TypeNS,
+                AssocItemKind::Delegation(ref deleg) => {
+                    let mut build_delegation = |id, ident, span| {
+                        let feed = self.r.feed(id);
+                        let local_def_id = feed.key();
+                        let def_id = local_def_id.to_def_id();
+                        let parent = self.parent_scope.module;
+                        let expansion = self.parent_scope.expansion;
+                        let res = self.res(def_id);
+                        self.r.define(parent, ident, ValueNS, (res, vis, span, expansion));
+                    };
+                    match deleg.kind {
+                        DelegationKind::Simple(id) => {
+                            build_delegation(id, deleg.ident(), item.span)
+                        }
+                        DelegationKind::List(ref suffixes) => {
+                            for &(ident, id) in suffixes {
+                                build_delegation(id, ident, ident.span)
+                            }
+                        }
+                    }
+                    ValueNS
+                }
                 AssocItemKind::MacCall(_) => bug!(), // handled above
             };
 
-            let parent = self.parent_scope.module;
-            let expansion = self.parent_scope.expansion;
-            self.r.define(parent, item.ident, ns, (self.res(def_id), vis, item.span, expansion));
+            if !matches!(item.kind, AssocItemKind::Delegation(..)) {
+                let parent = self.parent_scope.module;
+                let expansion = self.parent_scope.expansion;
+                let res = self.res(def_id);
+                self.r.define(parent, item.ident, ns, (res, vis, item.span, expansion));
+            }
         }
 
         visit::walk_assoc_item(self, item, ctxt);

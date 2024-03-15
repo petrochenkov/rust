@@ -2229,6 +2229,7 @@ pub enum TraitItemKind<'hir> {
     /// An associated type with (possibly empty) bounds and optional concrete
     /// type.
     Type(GenericBounds<'hir>, Option<&'hir Ty<'hir>>),
+    DelegationStem,
 }
 
 // The bodies for items are stored "out of line", in a separate
@@ -2287,6 +2288,7 @@ pub enum ImplItemKind<'hir> {
     Fn(FnSig<'hir>, BodyId),
     /// An associated type.
     Type(&'hir Ty<'hir>),
+    DelegationStem,
 }
 
 /// Bind a type to an associated type (i.e., `A = Foo`).

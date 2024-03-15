@@ -1130,6 +1130,7 @@ fn hir_id_to_string(map: Map<'_>, id: HirId) -> String {
                 ImplItemKind::Const(..) => "assoc const",
                 ImplItemKind::Fn(..) => "method",
                 ImplItemKind::Type(_) => "assoc type",
+                ImplItemKind::DelegationStem => "delegation stem",
             };
             format!("{id} ({kind} `{}` in {})", ii.ident, path_str(ii.owner_id.def_id))
         }
@@ -1138,6 +1139,7 @@ fn hir_id_to_string(map: Map<'_>, id: HirId) -> String {
                 TraitItemKind::Const(..) => "assoc constant",
                 TraitItemKind::Fn(..) => "trait method",
                 TraitItemKind::Type(..) => "assoc type",
+                TraitItemKind::DelegationStem => "delegation stem",
             };
 
             format!("{id} ({kind} `{}` in {})", ti.ident, path_str(ti.owner_id.def_id))

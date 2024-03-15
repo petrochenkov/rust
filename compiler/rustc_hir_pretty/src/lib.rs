@@ -799,6 +799,7 @@ impl<'a> State<'a> {
             hir::TraitItemKind::Type(bounds, default) => {
                 self.print_associated_type(ti.ident, ti.generics, Some(bounds), default);
             }
+            hir::TraitItemKind::DelegationStem => {}
         }
         self.ann.post(self, AnnNode::SubItem(ti.hir_id()))
     }
@@ -824,6 +825,7 @@ impl<'a> State<'a> {
             hir::ImplItemKind::Type(ty) => {
                 self.print_associated_type(ii.ident, ii.generics, None, Some(ty));
             }
+            hir::ImplItemKind::DelegationStem => {}
         }
         self.ann.post(self, AnnNode::SubItem(ii.hir_id()))
     }

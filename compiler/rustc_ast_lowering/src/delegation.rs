@@ -44,10 +44,11 @@ use ast::visit::Visitor;
 use hir::def::{DefKind, PartialRes, Res};
 use hir::{BodyId, HirId};
 use rustc_ast as ast;
+use rustc_ast::ptr::P;
 use rustc_ast::*;
 use rustc_errors::ErrorGuaranteed;
 use rustc_hir as hir;
-use rustc_hir::def_id::DefId;
+use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_middle::span_bug;
 use rustc_middle::ty::ResolverAstLowering;
 use rustc_span::{symbol::Ident, Span};
@@ -61,8 +62,8 @@ pub(crate) struct DelegationResults<'hir> {
 }
 
 impl<'hir> LoweringContext<'_, 'hir> {
-    pub(crate) fn delegation_has_self(&self, item_id: NodeId, path_id: NodeId, span: Span) -> bool {
-        let sig_id = self.get_delegation_sig_id(item_id, path_id, span);
+    pub(crate) fn delegation_has_self(&self, path_id: NodeId, span: Span) -> bool {
+        let sig_id = self.get_delegation_sig_id(path_id, span);
         let Ok(sig_id) = sig_id else {
             return false;
         };
@@ -79,33 +80,57 @@ impl<'hir> LoweringContext<'_, 'hir> {
 
     pub(crate) fn lower_delegation(
         &mut self,
-        delegation: &Delegation,
+        deleg: &Delegation,
+        def_id: LocalDefId,
         item_id: NodeId,
     ) -> DelegationResults<'hir> {
-        let span = delegation.path.segments.last().unwrap().ident.span;
-        let sig_id = self.get_delegation_sig_id(item_id, delegation.id, span);
-        match sig_id {
-            Ok(sig_id) => {
-                let decl = self.lower_delegation_decl(sig_id, span);
-                let sig = self.lower_delegation_sig(span, decl);
-                let body_id = self.lower_delegation_body(sig.decl, delegation);
+        let lower_delegation_inner = |this: &mut Self, id, path, span| {
+            let sig_id = this.get_delegation_sig_id(id, span);
+            match sig_id {
+                Ok(sig_id) => {
+                    let decl = this.lower_delegation_decl(sig_id, span);
+                    let sig = this.lower_delegation_sig(span, decl);
+                    let body_id = this.lower_delegation_body(
+                        sig.decl,
+                        id,
+                        &deleg.qself,
+                        path,
+                        &deleg.body,
+                        item_id,
+                    );
 
-                let generics = self.lower_delegation_generics(span);
-                DelegationResults { body_id, sig, generics }
+                    let generics = this.lower_delegation_generics(span);
+                    DelegationResults { body_id, sig, generics }
+                }
+                Err(err) => this.generate_delegation_error(err, span),
             }
-            Err(err) => self.generate_delegation_error(err, span),
+        };
+
+        match deleg.kind {
+            DelegationKind::Simple(id) => {
+                if self.local_def_id(id) == def_id {
+                    return lower_delegation_inner(self, id, &deleg.path, deleg.ident().span);
+                }
+            }
+            DelegationKind::List(ref suffixes) => {
+                for &(ident, id) in suffixes {
+                    if self.local_def_id(id) == def_id {
+                        // FIXME: Build correct full path
+                        return lower_delegation_inner(self, id, &deleg.path, ident.span);
+                    }
+                }
+            }
         }
+
+        span_bug!(deleg.path.span, "unexpected delegation item id: {def_id:?}");
     }
 
-    fn get_delegation_sig_id(
-        &self,
-        item_id: NodeId,
-        path_id: NodeId,
-        span: Span,
-    ) -> Result<DefId, ErrorGuaranteed> {
-        let sig_id = if self.is_in_trait_impl { item_id } else { path_id };
-        let sig_id =
-            self.resolver.get_partial_res(sig_id).and_then(|r| r.expect_full_res().opt_def_id());
+    fn get_delegation_sig_id(&self, path_id: NodeId, span: Span) -> Result<DefId, ErrorGuaranteed> {
+        let sig_id = if self.is_in_trait_impl {
+            self.resolver.get_trait_impl_item_res(path_id)
+        } else {
+            self.resolver.get_partial_res(path_id).and_then(|r| r.expect_full_res().opt_def_id())
+        };
         sig_id.ok_or_else(|| {
             self.tcx
                 .dcx()
@@ -113,7 +138,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
         })
     }
 
-    fn lower_delegation_generics(&mut self, span: Span) -> &'hir hir::Generics<'hir> {
+    pub(super) fn lower_delegation_generics(&mut self, span: Span) -> &'hir hir::Generics<'hir> {
         self.arena.alloc(hir::Generics {
             params: &[],
             predicates: &[],
@@ -208,17 +233,21 @@ impl<'hir> LoweringContext<'_, 'hir> {
     fn lower_delegation_body(
         &mut self,
         decl: &'hir hir::FnDecl<'hir>,
-        delegation: &Delegation,
+        path_id: NodeId,
+        qself: &Option<ptr::P<QSelf>>,
+        path: &Path,
+        body: &Option<P<Block>>,
+        item_id: NodeId,
     ) -> BodyId {
         let path = self.lower_qpath(
-            delegation.id,
-            &delegation.qself,
-            &delegation.path,
+            path_id,
+            qself,
+            path,
             ParamMode::Optional,
             ImplTraitContext::Disallowed(ImplTraitPosition::Path),
             None,
         );
-        let block = delegation.body.as_deref();
+        let block = body.as_deref();
 
         self.lower_body(|this| {
             let mut parameters: Vec<hir::Param<'_>> = Vec::new();
@@ -233,7 +262,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 {
                     let mut self_resolver = SelfResolver {
                         resolver: this.resolver,
-                        path_id: delegation.id,
+                        item_id,
                         self_param_id: pat_node_id,
                     };
                     self_resolver.visit_block(block);
@@ -316,15 +345,15 @@ impl<'hir> LoweringContext<'_, 'hir> {
 
 struct SelfResolver<'a> {
     resolver: &'a mut ResolverAstLowering,
-    path_id: NodeId,
+    item_id: NodeId,
     self_param_id: NodeId,
 }
 
 impl<'a> SelfResolver<'a> {
     fn try_replace_id(&mut self, id: NodeId) {
         if let Some(res) = self.resolver.partial_res_map.get(&id)
-            && let Some(Res::Local(sig_id)) = res.full_res()
-            && sig_id == self.path_id
+            && let Some(Res::Local(id)) = res.full_res()
+            && id == self.item_id
         {
             let new_res = PartialRes::new(Res::Local(self.self_param_id));
             self.resolver.partial_res_map.insert(id, new_res);

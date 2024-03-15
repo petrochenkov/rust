@@ -712,6 +712,7 @@ fn lower_trait_item(tcx: TyCtxt<'_>, trait_item_id: hir::TraitItemId) {
 
             placeholder_type_error(tcx, None, visitor.0, false, None, "associated type");
         }
+        hir::TraitItemKind::DelegationStem => {}
     };
 
     tcx.ensure().predicates_of(def_id);
@@ -743,6 +744,7 @@ fn lower_impl_item(tcx: TyCtxt<'_>, impl_item_id: hir::ImplItemId) {
                 placeholder_type_error(tcx, None, visitor.0, false, None, "associated constant");
             }
         }
+        hir::ImplItemKind::DelegationStem => {}
     }
 }
 

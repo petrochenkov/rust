@@ -36,8 +36,8 @@ use rustc_macros::HashStable_Generic;
 use rustc_span::source_map::{respan, Spanned};
 use rustc_span::symbol::{kw, sym, Ident, Symbol};
 use rustc_span::{ErrorGuaranteed, Span, DUMMY_SP};
-use std::fmt;
-use std::mem;
+use std::assert_matches::assert_matches;
+use std::{fmt, mem};
 use thin_vec::{thin_vec, ThinVec};
 
 /// A "Label" is an identifier of some point in sources,
@@ -3087,12 +3087,25 @@ pub struct Fn {
 }
 
 #[derive(Clone, Encodable, Decodable, Debug)]
+pub enum DelegationKind {
+    Simple(NodeId),
+    List(ThinVec<(Ident, NodeId)>),
+}
+
+#[derive(Clone, Encodable, Decodable, Debug)]
 pub struct Delegation {
-    /// Path resolution id.
-    pub id: NodeId,
     pub qself: Option<P<QSelf>>,
+    /// Contains the full path for single delegation, and the prefix for delegation lists.
     pub path: Path,
+    pub kind: DelegationKind,
     pub body: Option<P<Block>>,
+}
+
+impl Delegation {
+    pub fn ident(&self) -> Ident {
+        assert_matches!(self.kind, DelegationKind::Simple(..));
+        self.path.segments.last().unwrap().ident
+    }
 }
 
 #[derive(Clone, Encodable, Decodable, Debug)]

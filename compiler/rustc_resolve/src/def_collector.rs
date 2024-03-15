@@ -129,7 +129,7 @@ impl<'a, 'b, 'tcx> visit::Visitor<'a> for DefCollector<'a, 'b, 'tcx> {
             ItemKind::TyAlias(..) => DefKind::TyAlias,
             ItemKind::Static(s) => DefKind::Static { mutability: s.mutability, nested: false },
             ItemKind::Const(..) => DefKind::Const,
-            ItemKind::Fn(..) | ItemKind::Delegation(..) => DefKind::Fn,
+            ItemKind::Fn(..) => DefKind::Fn,
             ItemKind::MacroDef(..) => {
                 let macro_data = self.resolver.compile_macro(i, self.resolver.tcx.sess.edition());
                 let macro_kind = macro_data.ext.macro_kind();
@@ -143,6 +143,19 @@ impl<'a, 'b, 'tcx> visit::Visitor<'a> for DefCollector<'a, 'b, 'tcx> {
             ItemKind::GlobalAsm(..) => DefKind::GlobalAsm,
             ItemKind::Use(..) => {
                 return visit::walk_item(self, i);
+            }
+            ItemKind::Delegation(deleg) => {
+                match deleg.kind {
+                    DelegationKind::Simple(id) => {
+                        self.create_def(id, deleg.ident().name, DefKind::Fn, i.span);
+                    }
+                    DelegationKind::List(ref suffixes) => {
+                        for &(ident, id) in suffixes {
+                            self.create_def(id, ident.name, DefKind::Fn, ident.span);
+                        }
+                    }
+                }
+                DefKind::Use
             }
         };
         let def_id = self.create_def(i.id, i.ident.name, def_kind, i.span);
@@ -279,9 +292,22 @@ impl<'a, 'b, 'tcx> visit::Visitor<'a> for DefCollector<'a, 'b, 'tcx> {
 
     fn visit_assoc_item(&mut self, i: &'a AssocItem, ctxt: visit::AssocCtxt) {
         let def_kind = match &i.kind {
-            AssocItemKind::Fn(..) | AssocItemKind::Delegation(..) => DefKind::AssocFn,
+            AssocItemKind::Fn(..) => DefKind::AssocFn,
             AssocItemKind::Const(..) => DefKind::AssocConst,
             AssocItemKind::Type(..) => DefKind::AssocTy,
+            AssocItemKind::Delegation(deleg) => {
+                match deleg.kind {
+                    DelegationKind::Simple(id) => {
+                        self.create_def(id, deleg.ident().name, DefKind::AssocFn, i.span);
+                    }
+                    DelegationKind::List(ref suffixes) => {
+                        for &(ident, id) in suffixes {
+                            self.create_def(id, ident.name, DefKind::AssocFn, ident.span);
+                        }
+                    }
+                }
+                DefKind::Use
+            }
             AssocItemKind::MacCall(..) => return self.visit_macro_invoc(i.id),
         };
 

@@ -72,8 +72,8 @@ impl<'a, 'hir> ItemLowerer<'a, 'hir> {
             match node {
                 AstOwner::NonOwner => {}
                 AstOwner::Crate(c) => self.lower_crate(c),
-                AstOwner::Item(item) => self.lower_item(item),
-                AstOwner::AssocItem(item, ctxt) => self.lower_assoc_item(item, ctxt),
+                AstOwner::Item(item) => self.lower_item(item, def_id),
+                AstOwner::AssocItem(item, ctxt) => self.lower_assoc_item(item, def_id, ctxt),
                 AstOwner::ForeignItem(item) => self.lower_foreign_item(item),
             }
         }
@@ -92,15 +92,18 @@ impl<'a, 'hir> ItemLowerer<'a, 'hir> {
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn lower_item(&mut self, item: &Item) {
-        self.with_lctx(item.id, |lctx| hir::OwnerNode::Item(lctx.lower_item(item)))
+    fn lower_item(&mut self, item: &Item, def_id: LocalDefId) {
+        let node_id = self.resolver.def_id_to_node_id[def_id];
+        self.with_lctx(node_id, |lctx| hir::OwnerNode::Item(lctx.lower_item(item, def_id, node_id)))
     }
 
-    fn lower_assoc_item(&mut self, item: &AssocItem, ctxt: AssocCtxt) {
-        let def_id = self.resolver.node_id_to_def_id[&item.id];
+    fn lower_assoc_item(&mut self, item: &AssocItem, def_id: LocalDefId, ctxt: AssocCtxt) {
         let parent_id = self.tcx.local_parent(def_id);
         let parent_hir = self.lower_node(parent_id).unwrap();
-        self.with_lctx(item.id, |lctx| lctx.lower_assoc_item(item, ctxt, parent_hir))
+        let node_id = self.resolver.def_id_to_node_id[def_id];
+        self.with_lctx(node_id, |lctx| {
+            lctx.lower_assoc_item(item, def_id, node_id, ctxt, parent_hir)
+        })
     }
 
     fn lower_foreign_item(&mut self, item: &ForeignItem) {
@@ -146,12 +149,18 @@ impl<'hir> LoweringContext<'_, 'hir> {
         }
     }
 
-    fn lower_item(&mut self, i: &Item) -> &'hir hir::Item<'hir> {
+    fn lower_item(
+        &mut self,
+        i: &Item,
+        def_id: LocalDefId,
+        node_id: NodeId,
+    ) -> &'hir hir::Item<'hir> {
         let mut ident = i.ident;
         let vis_span = self.lower_span(i.vis.span);
-        let hir_id = self.lower_node_id(i.id);
+        let hir_id = self.lower_node_id(node_id);
         let attrs = self.lower_attrs(hir_id, &i.attrs);
-        let kind = self.lower_item_kind(i.span, i.id, hir_id, &mut ident, attrs, vis_span, &i.kind);
+        let kind = self
+            .lower_item_kind(i.span, i.id, hir_id, &mut ident, attrs, vis_span, &i.kind, def_id);
         let item = hir::Item {
             owner_id: hir_id.expect_owner(),
             ident: self.lower_ident(ident),
@@ -171,6 +180,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
         attrs: Option<&'hir [Attribute]>,
         vis_span: Span,
         i: &ItemKind,
+        def_id: LocalDefId,
     ) -> hir::ItemKind<'hir> {
         match i {
             ItemKind::ExternCrate(orig_name) => hir::ItemKind::ExternCrate(*orig_name),
@@ -374,9 +384,9 @@ impl<'hir> LoweringContext<'_, 'hir> {
                     });
 
                 self.is_in_trait_impl = trait_ref.is_some();
-                let new_impl_items = self
-                    .arena
-                    .alloc_from_iter(impl_items.iter().map(|item| self.lower_impl_item_ref(item)));
+                let new_impl_items = self.arena.alloc_from_iter(
+                    impl_items.iter().flat_map(|item| self.lower_impl_item_ref(item)),
+                );
 
                 // `defaultness.has_value()` is never called for an `impl`, always `true` in order
                 // to not cause an assertion failure inside the `lower_defaultness` function.
@@ -415,7 +425,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                             ImplTraitContext::Disallowed(ImplTraitPosition::Bound),
                         );
                         let items = this.arena.alloc_from_iter(
-                            items.iter().map(|item| this.lower_trait_item_ref(item)),
+                            items.iter().flat_map(|item| this.lower_trait_item_ref(item)),
                         );
                         let unsafety = this.lower_unsafety(*unsafety);
                         (unsafety, items, bounds)
@@ -451,13 +461,19 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 let macro_def = self.arena.alloc(ast::MacroDef { body, macro_rules: *macro_rules });
                 hir::ItemKind::Macro(macro_def, macro_kind)
             }
-            ItemKind::Delegation(box delegation) => {
-                let delegation_results = self.lower_delegation(delegation, id);
-                hir::ItemKind::Fn(
-                    delegation_results.sig,
-                    delegation_results.generics,
-                    delegation_results.body_id,
-                )
+            ItemKind::Delegation(deleg) => {
+                if def_id != self.local_def_id(id) {
+                    let delegation_results = self.lower_delegation(deleg, def_id, id);
+                    hir::ItemKind::Fn(
+                        delegation_results.sig,
+                        delegation_results.generics,
+                        delegation_results.body_id,
+                    )
+                } else {
+                    let path =
+                        self.arena.alloc(hir::UsePath { res: smallvec![], segments: &[], span });
+                    hir::ItemKind::Use(path, hir::UseKind::ListStem)
+                }
             }
             ItemKind::MacCall(..) => {
                 panic!("`TyMac` should have been expanded by now")
@@ -600,6 +616,8 @@ impl<'hir> LoweringContext<'_, 'hir> {
     fn lower_assoc_item(
         &mut self,
         item: &AssocItem,
+        def_id: LocalDefId,
+        node_id: NodeId,
         ctxt: AssocCtxt,
         parent_hir: &'hir hir::OwnerInfo<'hir>,
     ) -> hir::OwnerNode<'hir> {
@@ -629,8 +647,12 @@ impl<'hir> LoweringContext<'_, 'hir> {
         }
 
         match ctxt {
-            AssocCtxt::Trait => hir::OwnerNode::TraitItem(self.lower_trait_item(item)),
-            AssocCtxt::Impl => hir::OwnerNode::ImplItem(self.lower_impl_item(item)),
+            AssocCtxt::Trait => {
+                hir::OwnerNode::TraitItem(self.lower_trait_item(item, def_id, node_id))
+            }
+            AssocCtxt::Impl => {
+                hir::OwnerNode::ImplItem(self.lower_impl_item(item, def_id, node_id))
+            }
         }
     }
 
@@ -760,8 +782,13 @@ impl<'hir> LoweringContext<'_, 'hir> {
         }
     }
 
-    fn lower_trait_item(&mut self, i: &AssocItem) -> &'hir hir::TraitItem<'hir> {
-        let hir_id = self.lower_node_id(i.id);
+    fn lower_trait_item(
+        &mut self,
+        i: &AssocItem,
+        def_id: LocalDefId,
+        node_id: NodeId,
+    ) -> &'hir hir::TraitItem<'hir> {
+        let hir_id = self.lower_node_id(node_id);
         self.lower_attrs(hir_id, &i.attrs);
         let trait_item_def_id = hir_id.expect_owner();
 
@@ -837,12 +864,20 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 (generics, kind, ty.is_some())
             }
             AssocItemKind::Delegation(box delegation) => {
-                let delegation_results = self.lower_delegation(delegation, i.id);
-                let item_kind = hir::TraitItemKind::Fn(
-                    delegation_results.sig,
-                    hir::TraitFn::Provided(delegation_results.body_id),
-                );
-                (delegation_results.generics, item_kind, true)
+                if def_id != self.local_def_id(i.id) {
+                    let delegation_results = self.lower_delegation(delegation, def_id, i.id);
+                    let item_kind = hir::TraitItemKind::Fn(
+                        delegation_results.sig,
+                        hir::TraitFn::Provided(delegation_results.body_id),
+                    );
+                    (delegation_results.generics, item_kind, true)
+                } else {
+                    (
+                        self.lower_delegation_generics(i.span),
+                        hir::TraitItemKind::DelegationStem,
+                        true,
+                    )
+                }
             }
             AssocItemKind::MacCall(..) => panic!("macro item shouldn't exist at this point"),
         };
@@ -858,25 +893,39 @@ impl<'hir> LoweringContext<'_, 'hir> {
         self.arena.alloc(item)
     }
 
-    fn lower_trait_item_ref(&mut self, i: &AssocItem) -> hir::TraitItemRef {
+    fn lower_trait_item_ref(&mut self, i: &AssocItem) -> SmallVec<[hir::TraitItemRef; 1]> {
+        let item_ref = |id, ident, span, kind| hir::TraitItemRef {
+            id: hir::TraitItemId { owner_id: hir::OwnerId { def_id: self.local_def_id(id) } },
+            ident: self.lower_ident(ident),
+            span: self.lower_span(span),
+            kind,
+        };
         let kind = match &i.kind {
             AssocItemKind::Const(..) => hir::AssocItemKind::Const,
             AssocItemKind::Type(..) => hir::AssocItemKind::Type,
             AssocItemKind::Fn(box Fn { sig, .. }) => {
                 hir::AssocItemKind::Fn { has_self: sig.decl.has_self() }
             }
-            AssocItemKind::Delegation(box delegation) => hir::AssocItemKind::Fn {
-                has_self: self.delegation_has_self(i.id, delegation.id, i.span),
+            AssocItemKind::Delegation(deleg) => match deleg.kind {
+                DelegationKind::Simple(id) => {
+                    let has_self = self.delegation_has_self(id, i.span);
+                    let kind = hir::AssocItemKind::Fn { has_self };
+                    return smallvec![item_ref(id, deleg.ident(), i.span, kind)];
+                }
+                DelegationKind::List(ref suffixes) => {
+                    return suffixes
+                        .iter()
+                        .map(|&(ident, id)| {
+                            let has_self = self.delegation_has_self(id, ident.span);
+                            let kind = hir::AssocItemKind::Fn { has_self };
+                            item_ref(id, ident, ident.span, kind)
+                        })
+                        .collect();
+                }
             },
             AssocItemKind::MacCall(..) => unimplemented!(),
         };
-        let id = hir::TraitItemId { owner_id: hir::OwnerId { def_id: self.local_def_id(i.id) } };
-        hir::TraitItemRef {
-            id,
-            ident: self.lower_ident(i.ident),
-            span: self.lower_span(i.span),
-            kind,
-        }
+        smallvec![item_ref(i.id, i.ident, i.span, kind)]
     }
 
     /// Construct `ExprKind::Err` for the given `span`.
@@ -884,11 +933,16 @@ impl<'hir> LoweringContext<'_, 'hir> {
         self.expr(span, hir::ExprKind::Err(guar))
     }
 
-    fn lower_impl_item(&mut self, i: &AssocItem) -> &'hir hir::ImplItem<'hir> {
+    fn lower_impl_item(
+        &mut self,
+        i: &AssocItem,
+        def_id: LocalDefId,
+        node_id: NodeId,
+    ) -> &'hir hir::ImplItem<'hir> {
         // Since `default impl` is not yet implemented, this is always true in impls.
         let has_value = true;
         let (defaultness, _) = self.lower_defaultness(i.kind.defaultness(), has_value);
-        let hir_id = self.lower_node_id(i.id);
+        let hir_id = self.lower_node_id(node_id);
         self.lower_attrs(hir_id, &i.attrs);
 
         let (generics, kind) = match &i.kind {
@@ -957,11 +1011,15 @@ impl<'hir> LoweringContext<'_, 'hir> {
                 )
             }
             AssocItemKind::Delegation(box delegation) => {
-                let delegation_results = self.lower_delegation(delegation, i.id);
-                (
-                    delegation_results.generics,
-                    hir::ImplItemKind::Fn(delegation_results.sig, delegation_results.body_id),
-                )
+                if def_id != self.local_def_id(i.id) {
+                    let delegation_results = self.lower_delegation(delegation, def_id, i.id);
+                    (
+                        delegation_results.generics,
+                        hir::ImplItemKind::Fn(delegation_results.sig, delegation_results.body_id),
+                    )
+                } else {
+                    (self.lower_delegation_generics(i.span), hir::ImplItemKind::DelegationStem)
+                }
             }
             AssocItemKind::MacCall(..) => panic!("`TyMac` should have been expanded by now"),
         };
@@ -978,28 +1036,42 @@ impl<'hir> LoweringContext<'_, 'hir> {
         self.arena.alloc(item)
     }
 
-    fn lower_impl_item_ref(&mut self, i: &AssocItem) -> hir::ImplItemRef {
-        hir::ImplItemRef {
-            id: hir::ImplItemId { owner_id: hir::OwnerId { def_id: self.local_def_id(i.id) } },
-            ident: self.lower_ident(i.ident),
-            span: self.lower_span(i.span),
-            kind: match &i.kind {
-                AssocItemKind::Const(..) => hir::AssocItemKind::Const,
-                AssocItemKind::Type(..) => hir::AssocItemKind::Type,
-                AssocItemKind::Fn(box Fn { sig, .. }) => {
-                    hir::AssocItemKind::Fn { has_self: sig.decl.has_self() }
+    fn lower_impl_item_ref(&mut self, i: &AssocItem) -> SmallVec<[hir::ImplItemRef; 1]> {
+        let item_ref = |id, ident, span, kind| hir::ImplItemRef {
+            id: hir::ImplItemId { owner_id: hir::OwnerId { def_id: self.local_def_id(id) } },
+            ident: self.lower_ident(ident),
+            span: self.lower_span(span),
+            kind,
+            trait_item_def_id: self.resolver.get_trait_impl_item_res(id),
+        };
+
+        let kind = match &i.kind {
+            AssocItemKind::Const(..) => hir::AssocItemKind::Const,
+            AssocItemKind::Type(..) => hir::AssocItemKind::Type,
+            AssocItemKind::Fn(box Fn { sig, .. }) => {
+                hir::AssocItemKind::Fn { has_self: sig.decl.has_self() }
+            }
+            AssocItemKind::Delegation(deleg) => match deleg.kind {
+                DelegationKind::Simple(id) => {
+                    let has_self = self.delegation_has_self(id, i.span);
+                    let kind = hir::AssocItemKind::Fn { has_self };
+                    return smallvec![item_ref(id, deleg.ident(), i.span, kind)];
                 }
-                AssocItemKind::Delegation(box delegation) => hir::AssocItemKind::Fn {
-                    has_self: self.delegation_has_self(i.id, delegation.id, i.span),
-                },
-                AssocItemKind::MacCall(..) => unimplemented!(),
+                DelegationKind::List(ref suffixes) => {
+                    return suffixes
+                        .iter()
+                        .map(|&(ident, id)| {
+                            let has_self = self.delegation_has_self(id, ident.span);
+                            let kind = hir::AssocItemKind::Fn { has_self };
+                            item_ref(id, ident, ident.span, kind)
+                        })
+                        .collect();
+                }
             },
-            trait_item_def_id: self
-                .resolver
-                .get_partial_res(i.id)
-                .map(|r| r.expect_full_res().opt_def_id())
-                .unwrap_or(None),
-        }
+            AssocItemKind::MacCall(..) => unimplemented!(),
+        };
+
+        smallvec![item_ref(i.id, i.ident, i.span, kind)]
     }
 
     fn lower_defaultness(

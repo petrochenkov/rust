@@ -287,12 +287,16 @@ impl<'tcx> DirtyCleanVisitor<'tcx> {
                 }
             }
             HirNode::TraitItem(item) => match item.kind {
-                TraitItemKind::Fn(..) => ("Node::TraitItem", LABELS_FN_IN_TRAIT),
+                TraitItemKind::Fn(..) | TraitItemKind::DelegationStem => {
+                    ("Node::TraitItem", LABELS_FN_IN_TRAIT)
+                }
                 TraitItemKind::Const(..) => ("NodeTraitConst", LABELS_CONST_IN_TRAIT),
                 TraitItemKind::Type(..) => ("NodeTraitType", LABELS_CONST_IN_TRAIT),
             },
             HirNode::ImplItem(item) => match item.kind {
-                ImplItemKind::Fn(..) => ("Node::ImplItem", LABELS_FN_IN_IMPL),
+                ImplItemKind::Fn(..) | ImplItemKind::DelegationStem => {
+                    ("Node::ImplItem", LABELS_FN_IN_IMPL)
+                }
                 ImplItemKind::Const(..) => ("NodeImplConst", LABELS_CONST_IN_IMPL),
                 ImplItemKind::Type(..) => ("NodeImplType", LABELS_CONST_IN_IMPL),
             },

@@ -686,6 +686,15 @@ impl<'a> Parser<'a> {
             (None, self.parse_path(PathStyle::Expr)?)
         };
 
+        let kind = if self.eat(&token::ModSep) {
+            let (suffixes, _) = self.parse_delim_comma_seq(Delimiter::Brace, |p| {
+                Ok((p.parse_path_segment_ident()?, DUMMY_NODE_ID))
+            })?;
+            DelegationKind::List(suffixes)
+        } else {
+            DelegationKind::Simple(DUMMY_NODE_ID)
+        };
+
         let body = if self.check(&token::OpenDelim(Delimiter::Brace)) {
             Some(self.parse_block()?)
         } else {
@@ -695,11 +704,8 @@ impl<'a> Parser<'a> {
         let span = span.to(self.prev_token.span);
         self.psess.gated_spans.gate(sym::fn_delegation, span);
 
-        let ident = path.segments.last().map(|seg| seg.ident).unwrap_or(Ident::empty());
-        Ok((
-            ident,
-            ItemKind::Delegation(Box::new(Delegation { id: DUMMY_NODE_ID, qself, path, body })),
-        ))
+        let deleg = Delegation { qself, path, kind, body };
+        Ok((Ident::empty(), ItemKind::Delegation(Box::new(deleg))))
     }
 
     fn parse_item_list<T>(
