@@ -567,14 +567,15 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                         Some(binding) => Ok((*binding, Flags::empty())),
                         None => Err(Determinacy::Determined),
                     },
-                    Scope::ExternPrelude => {
-                        match this.extern_prelude_get(ident, finalize.is_some()) {
-                            Some(binding) => Ok((binding, Flags::empty())),
-                            None => Err(Determinacy::determined(
-                                this.graph_root.unexpanded_invocations.borrow().is_empty(),
-                            )),
-                        }
-                    }
+                    Scope::ExternPrelude => match this.extern_prelude_get(
+                        ident,
+                        finalize.map(|finalize| Finalize { used: Used::Scope, ..finalize }),
+                    ) {
+                        Some(binding) => Ok((binding, Flags::empty())),
+                        None => Err(Determinacy::determined(
+                            this.graph_root.unexpanded_invocations.borrow().is_empty(),
+                        )),
+                    },
                     Scope::ToolPrelude => match this.registered_tool_bindings.get(&ident) {
                         Some(binding) => Ok((*binding, Flags::empty())),
                         None => Err(Determinacy::Determined),
@@ -854,7 +855,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 assert!(!restricted_shadowing);
                 return if ns != TypeNS {
                     Err((Determined, Weak::No))
-                } else if let Some(binding) = self.extern_prelude_get(ident, finalize.is_some()) {
+                } else if let Some(binding) = self.extern_prelude_get(ident, finalize) {
                     Ok(binding)
                 } else if !self.graph_root.unexpanded_invocations.borrow().is_empty() {
                     // Macro-expanded `extern crate` items can add names to extern prelude.

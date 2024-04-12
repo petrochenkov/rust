@@ -1,6 +1,7 @@
 // Extern crate items are marked as used if they are used
 // through extern prelude entries introduced by them.
 
+//@ check-pass
 //@ edition:2018
 
 #![deny(unused_extern_crates)]
@@ -15,7 +16,7 @@ extern crate core as iso3;
 extern crate core as iso4;
 
 // Doesn't introduce its extern prelude entry, so it's still considered unused.
-extern crate core; //~ ERROR unused extern crate
+extern crate core;
 
 mod m {
     use iso1::any as are_you_okay1;

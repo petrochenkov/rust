@@ -10,7 +10,7 @@ use crate::imports::{ImportData, ImportKind};
 use crate::macros::{MacroRulesBinding, MacroRulesScope, MacroRulesScopeRef};
 use crate::Namespace::{MacroNS, TypeNS, ValueNS};
 use crate::{errors, BindingKey, MacroData, NameBindingData};
-use crate::{Determinacy, ExternPreludeEntry, Finalize, Module, ModuleKind, ModuleOrUniformRoot};
+use crate::{Determinacy, Finalize, Module, ModuleKind, ModuleOrUniformRoot};
 use crate::{NameBinding, NameBindingKind, ParentScope, PathResult, ResolutionError};
 use crate::{Resolver, ResolverArenas, Segment, ToNameBinding, Used, VisResolutionError};
 
@@ -907,17 +907,10 @@ impl<'a, 'b, 'tcx> BuildReducedGraphVisitor<'a, 'b, 'tcx> {
                     return;
                 }
             }
-            let entry = self
-                .r
-                .extern_prelude
-                .entry(ident.normalize_to_macros_2_0())
-                .or_insert(ExternPreludeEntry { binding: None, introduced_by_item: true });
+            let entry = self.r.extern_prelude.entry(ident.normalize_to_macros_2_0()).or_default();
             // Binding from `extern crate` item in source code can replace
             // a binding from `--extern` on command line here.
             entry.binding = Some(imported_binding);
-            if orig_name.is_some() {
-                entry.introduced_by_item = true;
-            }
         }
         self.r.define(parent, ident, TypeNS, imported_binding);
     }

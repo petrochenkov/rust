@@ -190,7 +190,7 @@ impl<'a, 'b, 'tcx> UnusedImportCheckVisitor<'a, 'b, 'tcx> {
                 .r
                 .extern_prelude
                 .get(&extern_crate.ident)
-                .is_some_and(|entry| !entry.introduced_by_item)
+                .is_some_and(|entry| !entry.is_import())
             {
                 continue;
             }

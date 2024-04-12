@@ -943,7 +943,6 @@ impl<'a> NameBindingData<'a> {
 #[derive(Default, Clone)]
 struct ExternPreludeEntry<'a> {
     binding: Option<NameBinding<'a>>,
-    introduced_by_item: bool,
 }
 
 impl ExternPreludeEntry<'_> {
@@ -1871,15 +1870,6 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 let msg = format!("macro `{ident}` is private");
                 self.lint_buffer().buffer_lint(PRIVATE_MACRO_USE, import.root_id, ident.span, msg);
             }
-            // Avoid marking `extern crate` items that refer to a name from extern prelude,
-            // but not introduce it, as used if they are accessed from lexical scope.
-            if used == Used::Scope {
-                if let Some(entry) = self.extern_prelude.get(&ident.normalize_to_macros_2_0()) {
-                    if !entry.introduced_by_item && entry.binding == Some(used_binding) {
-                        return;
-                    }
-                }
-            }
             let old_used = import.used.get();
             let new_used = Some(used);
             if new_used > old_used {
@@ -2036,7 +2026,11 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         }
     }
 
-    fn extern_prelude_get(&mut self, ident: Ident, finalize: bool) -> Option<NameBinding<'a>> {
+    fn extern_prelude_get(
+        &mut self,
+        ident: Ident,
+        finalize: Option<Finalize>,
+    ) -> Option<NameBinding<'a>> {
         if ident.is_path_segment_keyword() {
             // Make sure `self`, `super` etc produce an error when passed to here.
             return None;
@@ -2045,16 +2039,16 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         let norm_ident = ident.normalize_to_macros_2_0();
         let binding = self.extern_prelude.get(&norm_ident).cloned().and_then(|entry| {
             Some(if let Some(binding) = entry.binding {
-                if finalize {
+                if let Some(finalize) = finalize {
                     if !entry.is_import() {
                         self.crate_loader(|c| c.process_path_extern(ident.name, ident.span));
-                    } else if entry.introduced_by_item {
-                        self.record_use(ident, binding, Used::Other);
+                    } else {
+                        self.record_use(ident, binding, finalize.used);
                     }
                 }
                 binding
             } else {
-                let crate_id = if finalize {
+                let crate_id = if finalize.is_some() {
                     let Some(crate_id) =
                         self.crate_loader(|c| c.process_path_extern(ident.name, ident.span))
                     else {

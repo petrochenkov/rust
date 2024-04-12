@@ -1,4 +1,3 @@
-//@ run-rustfix
 //@ edition:2018
 //@ check-pass
 //@ aux-build:remove-extern-crate.rs
@@ -32,7 +31,7 @@ fn main() {
 }
 
 mod another {
-    extern crate core; //~ WARNING `extern crate` is not idiomatic
+    extern crate core;
     use remove_extern_crate;
 
     pub fn foo() {
@@ -42,7 +41,7 @@ mod another {
 }
 
 mod with_visibility {
-    pub extern crate core; //~ WARNING `extern crate` is not idiomatic
+    pub extern crate core;
 
     pub fn foo() {
         core::mem::drop(4);

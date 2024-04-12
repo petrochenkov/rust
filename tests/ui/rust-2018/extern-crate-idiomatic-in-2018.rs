@@ -1,3 +1,4 @@
+//@ check-pass
 //@ aux-build:edition-lint-paths.rs
 //@ run-rustfix
 //@ compile-flags:--extern edition_lint_paths
@@ -10,7 +11,6 @@
 #![allow(dead_code)]
 
 extern crate edition_lint_paths;
-//~^ ERROR unused extern crate
 
 // Shouldn't suggest changing to `use`, as `bar`
 // would no longer be added to the prelude which could cause
