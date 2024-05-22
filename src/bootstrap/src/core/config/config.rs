@@ -116,8 +116,8 @@ impl Display for DebuginfoLevel {
 ///
 /// It is configured depending on the target:
 /// 1) Everything except MSVC
-/// - Self-contained: `-Clinker-flavor=gnu-lld-cc -Clink-self-contained=+linker`
-/// - External: `-Clinker-flavor=gnu-lld-cc`
+/// - Self-contained: `-Clinker-features=+lld -Clink-self-contained=+linker`
+/// - External: `-Clinker-features=+lld`
 /// 2) MSVC
 /// - Self-contained: `-Clinker=<path to rust-lld>`
 /// - External: `-Clinker=lld`
