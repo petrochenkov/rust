@@ -38,7 +38,7 @@ use crate::abi::call::Conv;
 use crate::abi::{Endian, Integer, Size, TargetDataLayout, TargetDataLayoutErrors};
 use crate::json::{Json, ToJson};
 use crate::spec::abi::Abi;
-use crate::spec::crt_objects::CrtObjects;
+use crate::spec::crt_objects::{CrtObjects, CrtObjectsData};
 use rustc_fs_util::try_canonicalize;
 use rustc_macros::{Decodable, Encodable, HashStable_Generic};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
@@ -2012,11 +2012,11 @@ pub struct TargetOptions {
     linker_is_gnu_json: bool,
 
     /// Objects to link before and after all other object code.
-    pub pre_link_objects: MaybeLazy<CrtObjects>,
-    pub post_link_objects: MaybeLazy<CrtObjects>,
+    pub pre_link_objects: CrtObjects,
+    pub post_link_objects: CrtObjects,
     /// Same as `(pre|post)_link_objects`, but when self-contained linking mode is enabled.
-    pub pre_link_objects_self_contained: MaybeLazy<CrtObjects>,
-    pub post_link_objects_self_contained: MaybeLazy<CrtObjects>,
+    pub pre_link_objects_self_contained: CrtObjects,
+    pub post_link_objects_self_contained: CrtObjects,
     /// Behavior for the self-contained linking mode: inferred for some targets, or explicitly
     /// enabled (in bulk, or with individual components).
     pub link_self_contained: LinkSelfContainedDefault,
@@ -3070,7 +3070,7 @@ impl Target {
                 if let Some(val) = obj.remove(name) {
                     let obj = val.as_object().ok_or_else(|| format!("{}: expected a \
                         JSON object with fields per CRT object kind.", name))?;
-                    let mut args = CrtObjects::new();
+                    let mut args = CrtObjectsData::new();
                     for (k, v) in obj {
                         let kind = LinkOutputKind::from_str(&k).ok_or_else(|| {
                             format!("{}: '{}' is not a valid value for CRT object kind. \
