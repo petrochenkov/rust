@@ -169,7 +169,12 @@ pub fn get_linker<'a>(
 pub trait Linker {
     fn cmd(&mut self) -> &mut Command;
     fn set_output_kind(&mut self, output_kind: LinkOutputKind, out_filename: &Path);
-    fn link_dylib_by_name(&mut self, name: &str, verbatim: bool, as_needed: bool);
+    fn link_dylib_by_name(&mut self, _name: &str, _verbatim: bool, _as_needed: bool) {
+        bug!("dylib linked with unsupported linker")
+    }
+    fn link_dylib_by_path(&mut self, _path: &Path, _as_needed: bool) {
+        bug!("dylib linked with unsupported linker")
+    }
     fn link_framework_by_name(&mut self, _name: &str, _verbatim: bool, _as_needed: bool) {
         bug!("framework linked with unsupported linker")
     }
@@ -320,25 +325,50 @@ impl<'a> GccLinker<'a> {
             }
         } else {
             self.cmd.arg("-shared");
-            if self.sess.target.is_like_windows {
-                // The output filename already contains `dll_suffix` so
-                // the resulting import library will have a name in the
-                // form of libfoo.dll.a
-                let implib_name =
-                    out_filename.file_name().and_then(|file| file.to_str()).map(|file| {
-                        format!(
-                            "{}{}{}",
-                            self.sess.target.staticlib_prefix,
-                            file,
-                            self.sess.target.staticlib_suffix
-                        )
-                    });
-                if let Some(implib_name) = implib_name {
-                    let implib = out_filename.parent().map(|dir| dir.join(&implib_name));
-                    if let Some(implib) = implib {
-                        self.linker_arg(&format!("--out-implib={}", (*implib).to_str().unwrap()));
-                    }
+            if let Some(name) = out_filename.file_name() {
+                if self.sess.target.is_like_windows {
+                    // The output filename already contains `dll_suffix` so
+                    // the resulting import library will have a name in the
+                    // form of libfoo.dll.a
+                    let mut implib_name = OsString::from(&*self.sess.target.staticlib_prefix);
+                    implib_name.push(name);
+                    implib_name.push(&*self.sess.target.staticlib_suffix);
+                    let mut out_implib = OsString::from("--out-implib=");
+                    out_implib.push(out_filename.with_file_name(implib_name));
+                    self.linker_arg(out_implib);
+                } else {
+                    // When dylibs are linked by a full path this value will get into `DT_NEEDED`
+                    // instead of the full path, so the library can be later found in some other
+                    // location than that specific path.
+                    let mut soname = OsString::from("-soname=");
+                    soname.push(name);
+                    self.linker_arg(soname);
                 }
+            }
+        }
+    }
+
+    fn with_as_needed(&mut self, as_needed: bool, f: impl FnOnce(&mut Self)) {
+        if !as_needed {
+            if self.sess.target.is_like_osx {
+                // FIXME(81490): ld64 doesn't support these flags but macOS 11
+                // has -needed-l{} / -needed_library {}
+                // but we have no way to detect that here.
+                self.sess.dcx().emit_warn(errors::Ld64UnimplementedModifier);
+            } else if self.is_gnu && !self.sess.target.is_like_windows {
+                self.linker_arg("--no-as-needed");
+            } else {
+                self.sess.dcx().emit_warn(errors::LinkerUnsupportedModifier);
+            }
+        }
+
+        f(self);
+
+        if !as_needed {
+            if self.sess.target.is_like_osx {
+                // See above FIXME comment
+            } else if self.is_gnu && !self.sess.target.is_like_windows {
+                self.linker_arg("--as-needed");
             }
         }
     }
@@ -443,27 +473,17 @@ impl<'a> Linker for GccLinker<'a> {
             // to the linker.
             return;
         }
-        if !as_needed {
-            if self.sess.target.is_like_osx {
-                // FIXME(81490): ld64 doesn't support these flags but macOS 11
-                // has -needed-l{} / -needed_library {}
-                // but we have no way to detect that here.
-                self.sess.dcx().emit_warn(errors::Ld64UnimplementedModifier);
-            } else if self.is_gnu && !self.sess.target.is_like_windows {
-                self.linker_arg("--no-as-needed");
-            } else {
-                self.sess.dcx().emit_warn(errors::LinkerUnsupportedModifier);
-            }
-        }
         self.hint_dynamic();
-        self.cmd.arg(format!("-l{}{name}", if verbatim && self.is_gnu { ":" } else { "" },));
-        if !as_needed {
-            if self.sess.target.is_like_osx {
-                // See above FIXME comment
-            } else if self.is_gnu && !self.sess.target.is_like_windows {
-                self.linker_arg("--as-needed");
-            }
-        }
+        self.with_as_needed(as_needed, |this| {
+            this.cmd.arg(format!("-l{}{name}", if verbatim && this.is_gnu { ":" } else { "" }));
+        });
+    }
+
+    fn link_dylib_by_path(&mut self, path: &Path, as_needed: bool) {
+        self.hint_dynamic();
+        self.with_as_needed(as_needed, |this| {
+            this.cmd.arg(path);
+        })
     }
 
     fn link_framework_by_name(&mut self, name: &str, _verbatim: bool, as_needed: bool) {
@@ -813,6 +833,15 @@ impl<'a> Linker for MsvcLinker<'a> {
         self.cmd.arg(format!("{}{}", name, if verbatim { "" } else { ".lib" }));
     }
 
+    fn link_dylib_by_path(&mut self, path: &Path, _as_needed: bool) {
+        // When producing a dll, MSVC linker may not emit an implib file if the dll doesn't export
+        // any symbols, so we skip linking if the implib file is not present.
+        let implib_path = path.with_extension("dll.lib");
+        if implib_path.exists() {
+            self.cmd().arg(implib_path);
+        }
+    }
+
     fn link_staticlib_by_name(&mut self, name: &str, verbatim: bool, whole_archive: bool) {
         let prefix = if whole_archive { "/WHOLEARCHIVE:" } else { "" };
         let suffix = if verbatim { "" } else { ".lib" };
@@ -1039,6 +1068,10 @@ impl<'a> Linker for EmLinker<'a> {
         self.cmd.arg("-l").arg(name);
     }
 
+    fn link_dylib_by_path(&mut self, path: &Path, _as_needed: bool) {
+        self.cmd().arg(path);
+    }
+
     fn link_staticlib_by_name(&mut self, name: &str, _verbatim: bool, _whole_archive: bool) {
         self.cmd.arg("-l").arg(name);
     }
@@ -1212,6 +1245,10 @@ impl<'a> Linker for WasmLd<'a> {
         self.cmd.arg("-l").arg(name);
     }
 
+    fn link_dylib_by_path(&mut self, path: &Path, _as_needed: bool) {
+        self.cmd().arg(path);
+    }
+
     fn link_staticlib_by_name(&mut self, name: &str, _verbatim: bool, whole_archive: bool) {
         if !whole_archive {
             self.cmd.arg("-l").arg(name);
@@ -1354,10 +1391,6 @@ impl<'a> Linker for L4Bender<'a> {
     }
 
     fn set_output_kind(&mut self, _output_kind: LinkOutputKind, _out_filename: &Path) {}
-
-    fn link_dylib_by_name(&mut self, _name: &str, _verbatim: bool, _as_needed: bool) {
-        bug!("dylibs are not supported on L4Re");
-    }
 
     fn link_staticlib_by_name(&mut self, name: &str, _verbatim: bool, whole_archive: bool) {
         self.hint_static();
@@ -1535,6 +1568,11 @@ impl<'a> Linker for AixLinker<'a> {
     fn link_dylib_by_name(&mut self, name: &str, _verbatim: bool, _as_needed: bool) {
         self.hint_dynamic();
         self.cmd.arg(format!("-l{name}"));
+    }
+
+    fn link_dylib_by_path(&mut self, path: &Path, _as_needed: bool) {
+        self.hint_dynamic();
+        self.cmd().arg(path);
     }
 
     fn link_staticlib_by_name(&mut self, name: &str, verbatim: bool, whole_archive: bool) {
@@ -1738,10 +1776,6 @@ impl<'a> Linker for PtxLinker<'a> {
 
     fn set_output_kind(&mut self, _output_kind: LinkOutputKind, _out_filename: &Path) {}
 
-    fn link_dylib_by_name(&mut self, _name: &str, _verbatim: bool, _as_needed: bool) {
-        panic!("external dylibs not supported")
-    }
-
     fn link_staticlib_by_name(&mut self, _name: &str, _verbatim: bool, _whole_archive: bool) {
         panic!("staticlibs not supported")
     }
@@ -1819,10 +1853,6 @@ impl<'a> Linker for LlbcLinker<'a> {
     }
 
     fn set_output_kind(&mut self, _output_kind: LinkOutputKind, _out_filename: &Path) {}
-
-    fn link_dylib_by_name(&mut self, _name: &str, _verbatim: bool, _as_needed: bool) {
-        panic!("external dylibs not supported")
-    }
 
     fn link_staticlib_by_name(&mut self, _name: &str, _verbatim: bool, _whole_archive: bool) {
         panic!("staticlibs not supported")
@@ -1910,10 +1940,6 @@ impl<'a> Linker for BpfLinker<'a> {
     }
 
     fn set_output_kind(&mut self, _output_kind: LinkOutputKind, _out_filename: &Path) {}
-
-    fn link_dylib_by_name(&mut self, _name: &str, _verbatim: bool, _as_needed: bool) {
-        panic!("external dylibs not supported")
-    }
 
     fn link_staticlib_by_name(&mut self, _name: &str, _verbatim: bool, _whole_archive: bool) {
         panic!("staticlibs not supported")
