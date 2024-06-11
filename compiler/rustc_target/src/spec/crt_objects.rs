@@ -44,89 +44,93 @@ use crate::spec::{LinkOutputKind, MaybeLazy};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
-pub type CrtObjectsData = BTreeMap<LinkOutputKind, Vec<Cow<'static, str>>>;
-pub type CrtObjects = MaybeLazy<CrtObjectsData>;
+type Tralala = &'static [(LinkOutputKind, &'static [&'static str])];
+pub struct Trulala(Tralala);
 
-pub(super) fn new(obj_table: &[(LinkOutputKind, &[&'static str])]) -> CrtObjectsData {
-    obj_table.iter().map(|(z, k)| (*z, k.iter().map(|b| (*b).into()).collect())).collect()
+impl FnOnce<()> for Trulala {
+    type Output = CrtObjectsData;
+    extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
+        self.0.iter().map(|(z, k)| (*z, k.iter().map(|b| (*b).into()).collect())).collect()
+    }
 }
 
-pub(super) fn all(obj: &'static str) -> CrtObjectsData {
-    new(&[
-        (LinkOutputKind::DynamicNoPicExe, &[obj]),
-        (LinkOutputKind::DynamicPicExe, &[obj]),
-        (LinkOutputKind::StaticNoPicExe, &[obj]),
-        (LinkOutputKind::StaticPicExe, &[obj]),
-        (LinkOutputKind::DynamicDylib, &[obj]),
-        (LinkOutputKind::StaticDylib, &[obj]),
-    ])
+pub type CrtObjectsData = BTreeMap<LinkOutputKind, Vec<Cow<'static, str>>>;
+pub type CrtObjects = MaybeLazy<CrtObjectsData, Trulala>;
+
+pub(super) fn new(obj_table: Tralala) -> CrtObjects {
+    MaybeLazy::lazy2(Trulala(obj_table))
+}
+
+macro_rules! all {
+    ($obj: literal) => {
+        new(&[
+            (LinkOutputKind::DynamicNoPicExe, &[$obj]),
+            (LinkOutputKind::DynamicPicExe, &[$obj]),
+            (LinkOutputKind::StaticNoPicExe, &[$obj]),
+            (LinkOutputKind::StaticPicExe, &[$obj]),
+            (LinkOutputKind::DynamicDylib, &[$obj]),
+            (LinkOutputKind::StaticDylib, &[$obj]),
+        ])
+    };
 }
 
 pub(super) fn pre_musl_self_contained() -> CrtObjects {
-    MaybeLazy::lazy(|| {
-        new(&[
-            (LinkOutputKind::DynamicNoPicExe, &["crt1.o", "crti.o", "crtbegin.o"]),
-            (LinkOutputKind::DynamicPicExe, &["Scrt1.o", "crti.o", "crtbeginS.o"]),
-            (LinkOutputKind::StaticNoPicExe, &["crt1.o", "crti.o", "crtbegin.o"]),
-            (LinkOutputKind::StaticPicExe, &["rcrt1.o", "crti.o", "crtbeginS.o"]),
-            (LinkOutputKind::DynamicDylib, &["crti.o", "crtbeginS.o"]),
-            (LinkOutputKind::StaticDylib, &["crti.o", "crtbeginS.o"]),
-        ])
-    })
+    new(&[
+        (LinkOutputKind::DynamicNoPicExe, &["crt1.o", "crti.o", "crtbegin.o"]),
+        (LinkOutputKind::DynamicPicExe, &["Scrt1.o", "crti.o", "crtbeginS.o"]),
+        (LinkOutputKind::StaticNoPicExe, &["crt1.o", "crti.o", "crtbegin.o"]),
+        (LinkOutputKind::StaticPicExe, &["rcrt1.o", "crti.o", "crtbeginS.o"]),
+        (LinkOutputKind::DynamicDylib, &["crti.o", "crtbeginS.o"]),
+        (LinkOutputKind::StaticDylib, &["crti.o", "crtbeginS.o"]),
+    ])
 }
 
 pub(super) fn post_musl_self_contained() -> CrtObjects {
-    MaybeLazy::lazy(|| {
-        new(&[
-            (LinkOutputKind::DynamicNoPicExe, &["crtend.o", "crtn.o"]),
-            (LinkOutputKind::DynamicPicExe, &["crtendS.o", "crtn.o"]),
-            (LinkOutputKind::StaticNoPicExe, &["crtend.o", "crtn.o"]),
-            (LinkOutputKind::StaticPicExe, &["crtendS.o", "crtn.o"]),
-            (LinkOutputKind::DynamicDylib, &["crtendS.o", "crtn.o"]),
-            (LinkOutputKind::StaticDylib, &["crtendS.o", "crtn.o"]),
-        ])
-    })
+    new(&[
+        (LinkOutputKind::DynamicNoPicExe, &["crtend.o", "crtn.o"]),
+        (LinkOutputKind::DynamicPicExe, &["crtendS.o", "crtn.o"]),
+        (LinkOutputKind::StaticNoPicExe, &["crtend.o", "crtn.o"]),
+        (LinkOutputKind::StaticPicExe, &["crtendS.o", "crtn.o"]),
+        (LinkOutputKind::DynamicDylib, &["crtendS.o", "crtn.o"]),
+        (LinkOutputKind::StaticDylib, &["crtendS.o", "crtn.o"]),
+    ])
 }
 
 pub(super) fn pre_mingw_self_contained() -> CrtObjects {
-    MaybeLazy::lazy(|| {
-        new(&[
-            (LinkOutputKind::DynamicNoPicExe, &["crt2.o", "rsbegin.o"]),
-            (LinkOutputKind::DynamicPicExe, &["crt2.o", "rsbegin.o"]),
-            (LinkOutputKind::StaticNoPicExe, &["crt2.o", "rsbegin.o"]),
-            (LinkOutputKind::StaticPicExe, &["crt2.o", "rsbegin.o"]),
-            (LinkOutputKind::DynamicDylib, &["dllcrt2.o", "rsbegin.o"]),
-            (LinkOutputKind::StaticDylib, &["dllcrt2.o", "rsbegin.o"]),
-        ])
-    })
+    new(&[
+        (LinkOutputKind::DynamicNoPicExe, &["crt2.o", "rsbegin.o"]),
+        (LinkOutputKind::DynamicPicExe, &["crt2.o", "rsbegin.o"]),
+        (LinkOutputKind::StaticNoPicExe, &["crt2.o", "rsbegin.o"]),
+        (LinkOutputKind::StaticPicExe, &["crt2.o", "rsbegin.o"]),
+        (LinkOutputKind::DynamicDylib, &["dllcrt2.o", "rsbegin.o"]),
+        (LinkOutputKind::StaticDylib, &["dllcrt2.o", "rsbegin.o"]),
+    ])
 }
 
 pub(super) fn post_mingw_self_contained() -> CrtObjects {
-    MaybeLazy::lazy(|| all("rsend.o"))
+    all!("rsend.o")
 }
 
 pub(super) fn pre_mingw() -> CrtObjects {
-    MaybeLazy::lazy(|| all("rsbegin.o"))
+    all!("rsbegin.o")
 }
 
 pub(super) fn post_mingw() -> CrtObjects {
-    MaybeLazy::lazy(|| all("rsend.o"))
+    all!("rsend.o")
 }
 
 pub(super) fn pre_wasi_self_contained() -> CrtObjects {
     // Use crt1-command.o instead of crt1.o to enable support for new-style
     // commands. See https://reviews.llvm.org/D81689 for more info.
-    MaybeLazy::lazy(|| {
-        new(&[
-            (LinkOutputKind::DynamicNoPicExe, &["crt1-command.o"]),
-            (LinkOutputKind::DynamicPicExe, &["crt1-command.o"]),
-            (LinkOutputKind::StaticNoPicExe, &["crt1-command.o"]),
-            (LinkOutputKind::StaticPicExe, &["crt1-command.o"]),
-            (LinkOutputKind::WasiReactorExe, &["crt1-reactor.o"]),
-        ])
-    })
+    new(&[
+        (LinkOutputKind::DynamicNoPicExe, &["crt1-command.o"]),
+        (LinkOutputKind::DynamicPicExe, &["crt1-command.o"]),
+        (LinkOutputKind::StaticNoPicExe, &["crt1-command.o"]),
+        (LinkOutputKind::StaticPicExe, &["crt1-command.o"]),
+        (LinkOutputKind::WasiReactorExe, &["crt1-reactor.o"]),
+    ])
 }
 
 pub(super) fn post_wasi_self_contained() -> CrtObjects {
-    MaybeLazy::lazy(|| new(&[]))
+    new(&[])
 }
