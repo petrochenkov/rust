@@ -1279,11 +1279,9 @@ fn link_sanitizer_runtime(
     name: &str,
 ) {
     fn find_sanitizer_runtime(sess: &Session, filename: &str) -> PathBuf {
-        let session_tlib =
-            filesearch::make_target_lib_path(&sess.sysroot, sess.opts.target_triple.triple());
-        let path = session_tlib.join(filename);
+        let path = sess.target_tlib_path.dir.join(filename);
         if path.exists() {
-            return session_tlib;
+            return sess.target_tlib_path.dir.clone();
         } else {
             let default_sysroot =
                 filesearch::get_or_default_sysroot().expect("Failed finding sysroot");
@@ -1574,19 +1572,18 @@ fn print_native_static_libs(
 }
 
 fn get_object_file_path(sess: &Session, name: &str, self_contained: bool) -> PathBuf {
-    let fs = sess.target_filesearch(PathKind::Native);
-    let file_path = fs.get_lib_path().join(name);
+    let file_path = sess.target_tlib_path.dir.join(name);
     if file_path.exists() {
         return file_path;
     }
     // Special directory with objects used only in self-contained linkage mode
     if self_contained {
-        let file_path = fs.get_self_contained_lib_path().join(name);
+        let file_path = sess.target_tlib_path.dir.join("self-contained").join(name);
         if file_path.exists() {
             return file_path;
         }
     }
-    for search_path in fs.search_paths() {
+    for search_path in sess.target_filesearch(PathKind::Native).search_paths() {
         let file_path = search_path.dir.join(name);
         if file_path.exists() {
             return file_path;
@@ -2068,12 +2065,11 @@ fn add_local_crate_metadata_objects(
 fn add_library_search_dirs(cmd: &mut dyn Linker, sess: &Session, self_contained: bool) {
     // The default library location, we need this to find the runtime.
     // The location of crates will be determined as needed.
-    let lib_path = sess.target_filesearch(PathKind::All).get_lib_path();
-    cmd.include_path(&fix_windows_verbatim_for_gcc(&lib_path));
+    cmd.include_path(&fix_windows_verbatim_for_gcc(&sess.target_tlib_path.dir));
 
     // Special directory with libraries used only in self-contained linkage mode
     if self_contained {
-        let lib_path = sess.target_filesearch(PathKind::All).get_self_contained_lib_path();
+        let lib_path = sess.target_tlib_path.dir.join("self-contained");
         cmd.include_path(&fix_windows_verbatim_for_gcc(&lib_path));
     }
 }
@@ -2803,15 +2799,14 @@ fn add_upstream_native_libraries(
 //
 // The returned path will always have `fix_windows_verbatim_for_gcc()` applied to it.
 fn rehome_sysroot_lib_dir(sess: &Session, lib_dir: &Path) -> PathBuf {
-    let sysroot_lib_path = sess.target_filesearch(PathKind::All).get_lib_path();
+    let sysroot_lib_path = &sess.target_tlib_path.dir;
     let canonical_sysroot_lib_path =
-        { try_canonicalize(&sysroot_lib_path).unwrap_or_else(|_| sysroot_lib_path.clone()) };
+        { try_canonicalize(sysroot_lib_path).unwrap_or_else(|_| sysroot_lib_path.clone()) };
 
     let canonical_lib_dir = try_canonicalize(lib_dir).unwrap_or_else(|_| lib_dir.to_path_buf());
     if canonical_lib_dir == canonical_sysroot_lib_path {
-        // This path, returned by `target_filesearch().get_lib_path()`, has
-        // already had `fix_windows_verbatim_for_gcc()` applied if needed.
-        sysroot_lib_path
+        // This path already had `fix_windows_verbatim_for_gcc()` applied if needed.
+        sysroot_lib_path.clone()
     } else {
         fix_windows_verbatim_for_gcc(lib_dir)
     }
