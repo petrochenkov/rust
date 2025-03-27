@@ -543,7 +543,7 @@ impl HygieneData {
     ) -> SyntaxContext {
         assert_ne!(expn_id, ExpnId::root());
         if transparency == Transparency::Opaque {
-            return self.apply_mark_internal(ctxt, expn_id, transparency);
+            return self.apply_mark_internal(ctxt, expn_id, transparency, None);
         }
 
         let call_site_ctxt = self.expn_data(expn_id).call_site.ctxt();
@@ -554,7 +554,7 @@ impl HygieneData {
         };
 
         if call_site_ctxt.is_root() {
-            return self.apply_mark_internal(ctxt, expn_id, transparency);
+            return self.apply_mark_internal(ctxt, expn_id, transparency, None);
         }
 
         // Otherwise, `expn_id` is a macros 1.0 definition and the call site is in a
@@ -567,9 +567,9 @@ impl HygieneData {
         //
         // See the example at `test/ui/hygiene/legacy_interaction.rs`.
         for (expn_id, transparency) in self.marks(ctxt) {
-            call_site_ctxt = self.apply_mark_internal(call_site_ctxt, expn_id, transparency);
+            call_site_ctxt = self.apply_mark_internal(call_site_ctxt, expn_id, transparency, None);
         }
-        self.apply_mark_internal(call_site_ctxt, expn_id, transparency)
+        self.apply_mark_internal(call_site_ctxt, expn_id, transparency, None)
     }
 
     fn apply_mark_internal(
@@ -577,6 +577,7 @@ impl HygieneData {
         ctxt: SyntaxContext,
         expn_id: ExpnId,
         transparency: Transparency,
+        reserved_ctxt: Option<SyntaxContext>,
     ) -> SyntaxContext {
         let syntax_context_data = &mut self.syntax_context_data;
         debug_assert!(!syntax_context_data[ctxt.0 as usize].is_decode_placeholder());
@@ -625,15 +626,21 @@ impl HygieneData {
 
         let parent = ctxt;
         *self.syntax_context_map.entry((parent, expn_id, transparency)).or_insert_with(|| {
-            syntax_context_data.push(SyntaxContextData {
+            let data = SyntaxContextData {
                 outer_expn: expn_id,
                 outer_transparency: transparency,
                 parent,
                 opaque,
                 opaque_and_semitransparent,
                 dollar_crate_name: kw::DollarCrate,
-            });
-            SyntaxContext::from_usize(syntax_context_data.len() - 1)
+            };
+            if let Some(reserved_ctxt) = reserved_ctxt {
+                syntax_context_data[reserved_ctxt.0 as usize] = data;
+                reserved_ctxt
+            } else {
+                syntax_context_data.push(data);
+                SyntaxContext::from_usize(syntax_context_data.len() - 1)
+            }
         })
     }
 }
