@@ -11,4 +11,6 @@ struct A;
 
 fn main() {
     let _: Vec<i32> = vec![];
+    //~^ WARN macro `vec` is private
+    //~| WARN this was previously accepted
 }

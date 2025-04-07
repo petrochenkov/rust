@@ -67,12 +67,12 @@ ast-stats-2 - BoundPredicate            72 (NN.N%)             1
 ast-stats-2 ForeignItem               80 (NN.N%)             1            80
 ast-stats-2 - Fn                        80 (NN.N%)             1
 ast-stats-2 Arm                       96 (NN.N%)             2            48
+ast-stats-2 Attribute                 96 (NN.N%)             3            32
+ast-stats-2 - DocComment                32 (NN.N%)             1
+ast-stats-2 - Normal                    64 (NN.N%)             2
 ast-stats-2 Local                     96 (NN.N%)             1            96
 ast-stats-2 FnDecl                   120 (NN.N%)             5            24
 ast-stats-2 InlineAsm                120 (NN.N%)             1           120
-ast-stats-2 Attribute                128 (NN.N%)             4            32
-ast-stats-2 - DocComment                32 (NN.N%)             1
-ast-stats-2 - Normal                    96 (NN.N%)             3
 ast-stats-2 Param                    160 (NN.N%)             4            40
 ast-stats-2 Stmt                     160 (NN.N%)             5            32
 ast-stats-2 - Let                       32 (NN.N%)             1
@@ -98,7 +98,7 @@ ast-stats-2 - Path                      72 (NN.N%)             1
 ast-stats-2 - Struct                    72 (NN.N%)             1
 ast-stats-2 - Lit                      144 (NN.N%)             2
 ast-stats-2 - Block                    216 (NN.N%)             3
-ast-stats-2 PathSegment              864 (NN.N%)            36            24
+ast-stats-2 PathSegment              840 (NN.N%)            35            24
 ast-stats-2 Ty                       896 (NN.N%)            14            64
 ast-stats-2 - Ptr                       64 (NN.N%)             1
 ast-stats-2 - Ref                       64 (NN.N%)             1
@@ -113,7 +113,7 @@ ast-stats-2 - Trait                    144 (NN.N%)             1
 ast-stats-2 - Fn                       288 (NN.N%)             2
 ast-stats-2 - Use                      576 (NN.N%)             4
 ast-stats-2 ----------------------------------------------------------------
-ast-stats-2 Total                  7_416                   127
+ast-stats-2 Total                  7_360                   125
 ast-stats-2
 hir-stats HIR STATS
 hir-stats Name                Accumulated Size         Count     Item Size
@@ -134,12 +134,12 @@ hir-stats Local                     72 (NN.N%)             1            72
 hir-stats WherePredicate            72 (NN.N%)             3            24
 hir-stats - BoundPredicate            72 (NN.N%)             3
 hir-stats Arm                       80 (NN.N%)             2            40
+hir-stats Attribute                 96 (NN.N%)             3            32
 hir-stats Stmt                      96 (NN.N%)             3            32
 hir-stats - Expr                      32 (NN.N%)             1
 hir-stats - Let                       32 (NN.N%)             1
 hir-stats - Semi                      32 (NN.N%)             1
 hir-stats FnDecl                   120 (NN.N%)             3            40
-hir-stats Attribute                128 (NN.N%)             4            32
 hir-stats FieldDef                 128 (NN.N%)             2            64
 hir-stats GenericArgs              144 (NN.N%)             3            48
 hir-stats Variant                  144 (NN.N%)             2            72
@@ -174,5 +174,5 @@ hir-stats - Use                      352 (NN.N%)             4
 hir-stats Path                   1_040 (NN.N%)            26            40
 hir-stats PathSegment            1_776 (NN.N%)            37            48
 hir-stats ----------------------------------------------------------------
-hir-stats Total                  8_644                   172
+hir-stats Total                  8_612                   171
 hir-stats
