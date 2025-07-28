@@ -863,13 +863,6 @@ pub(crate) struct UnnamedCrateRootImport {
 }
 
 #[derive(Diagnostic)]
-#[diag(resolve_macro_expanded_extern_crate_cannot_shadow_extern_arguments)]
-pub(crate) struct MacroExpandedExternCrateCannotShadowExternArguments {
-    #[primary_span]
-    pub(crate) span: Span,
-}
-
-#[derive(Diagnostic)]
 #[diag(resolve_elided_anonymous_lifetime_report_error, code = E0637)]
 pub(crate) struct ElidedAnonymousLifetimeReportError {
     #[primary_span]

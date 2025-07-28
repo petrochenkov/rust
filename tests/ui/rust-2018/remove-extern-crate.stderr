@@ -16,29 +16,16 @@ LL - extern crate core;
 LL +
    |
 
-warning: `extern crate` is not idiomatic in the new edition
-  --> $DIR/remove-extern-crate.rs:35:5
+warning: unused extern crate
+  --> $DIR/remove-extern-crate.rs:16:1
    |
-LL |     extern crate core;
-   |     ^^^^^^^^^^^^^^^^^^
+LL | extern crate core as another_name;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unused
    |
-help: convert it to a `use`
+help: remove the unused `extern crate`
    |
-LL -     extern crate core;
-LL +     use core;
-   |
-
-warning: `extern crate` is not idiomatic in the new edition
-  --> $DIR/remove-extern-crate.rs:45:5
-   |
-LL |     pub extern crate core;
-   |     ^^^^^^^^^^^^^^^^^^^^^^
-   |
-help: convert it to a `use`
-   |
-LL -     pub extern crate core;
-LL +     pub use core;
+LL - extern crate core as another_name;
    |
 
-warning: 3 warnings emitted
+warning: 2 warnings emitted
 

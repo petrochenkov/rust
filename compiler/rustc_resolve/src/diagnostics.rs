@@ -322,8 +322,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         // Check if the target of the use for both bindings is the same.
         let duplicate = new_binding.res().opt_def_id() == old_binding.res().opt_def_id();
         let has_dummy_span = new_binding.span.is_dummy() || old_binding.span.is_dummy();
-        let from_item =
-            self.extern_prelude.get(&ident).is_none_or(|entry| entry.introduced_by_item);
+        let from_item = self.extern_prelude_cmd.get(&ident).is_none()
+            || self.extern_prelude_item.get(&ident).is_some();
         // Only suggest removing an import if both bindings are to the same def, if both spans
         // aren't dummy spans. Further, if both bindings are imports, then the ident must have
         // been introduced by an item.
@@ -1097,8 +1097,14 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                         );
                     }
                 }
-                Scope::ExternPrelude => {
-                    suggestions.extend(this.extern_prelude.iter().filter_map(|(ident, _)| {
+                Scope::ExternPreludeItem => {
+                    suggestions.extend(this.extern_prelude_item.iter().filter_map(|(ident, _)| {
+                        let res = Res::Def(DefKind::Mod, CRATE_DEF_ID.to_def_id());
+                        filter_fn(res).then_some(TypoSuggestion::typo_from_ident(*ident, res))
+                    }));
+                }
+                Scope::ExternPreludeCmd => {
+                    suggestions.extend(this.extern_prelude_cmd.iter().filter_map(|(ident, _)| {
                         let res = Res::Def(DefKind::Mod, CRATE_DEF_ID.to_def_id());
                         filter_fn(res).then_some(TypoSuggestion::typo_from_ident(*ident, res))
                     }));
@@ -1411,7 +1417,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         );
 
         if lookup_ident.span.at_least_rust_2018() {
-            for ident in self.extern_prelude.clone().into_keys() {
+            for &ident in self.extern_prelude_item.keys().chain(self.extern_prelude_cmd.keys()) {
                 if ident.span.from_expansion() {
                     // Idents are adjusted to the root context before being
                     // resolved in the extern prelude, so reporting this to the
@@ -2150,9 +2156,10 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         current_module: Module<'ra>,
     ) -> Option<Symbol> {
         let mut candidates = self
-            .extern_prelude
+            .extern_prelude_item
             .keys()
             .map(|ident| ident.name)
+            .chain(self.extern_prelude_cmd.keys().map(|ident| ident.name))
             .chain(
                 self.local_module_map
                     .iter()
@@ -2611,8 +2618,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         // Sort extern crate names in *reverse* order to get
         // 1) some consistent ordering for emitted diagnostics, and
         // 2) `std` suggestions before `core` suggestions.
-        let mut extern_crate_names =
-            self.extern_prelude.keys().map(|ident| ident.name).collect::<Vec<_>>();
+        let mut extern_crate_names = self
+            .extern_prelude_item
+            .keys()
+            .chain(self.extern_prelude_cmd.keys())
+            .map(|ident| ident.name)
+            .collect::<Vec<_>>();
         extern_crate_names.sort_by(|a, b| b.as_str().cmp(a.as_str()));
 
         for name in extern_crate_names.into_iter() {

@@ -43,8 +43,6 @@
 // well as injecting some other code into the `fn main` that it
 // constructs).
 
-use std::process::Command;
-
 #[amputate_span::drop_first_token]
 /* what the
 hey */ async fn main() {
@@ -59,9 +57,7 @@ hey */ async fn main() {
 
 #[allow(dead_code)]
 mod inner {
-    use std::process::Command;
-
-#[amputate_span::drop_first_token]
+    #[amputate_span::drop_first_token]
         /* another interesting
     case */ async fn foo() {
         Command::new("git"); //~ ERROR [E0433]

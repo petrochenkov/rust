@@ -9,6 +9,7 @@
 #![deny(rust_2018_idioms)]
 #![allow(dead_code)]
 
+use edition_lint_paths;
 //~^ ERROR unused extern crate
 
 // Shouldn't suggest changing to `use`, as `bar`

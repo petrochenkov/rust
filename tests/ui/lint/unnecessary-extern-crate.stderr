@@ -26,6 +26,39 @@ LL - extern crate core as x;
    |
 
 error: unused extern crate
+  --> $DIR/unnecessary-extern-crate.rs:13:1
+   |
+LL | extern crate proc_macro;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^ unused
+   |
+help: remove the unused `extern crate`
+   |
+LL - extern crate proc_macro;
+   |
+
+error: unused extern crate
+  --> $DIR/unnecessary-extern-crate.rs:22:1
+   |
+LL | pub(crate) extern crate alloc as a;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unused
+   |
+help: remove the unused `extern crate`
+   |
+LL - pub(crate) extern crate alloc as a;
+   |
+
+error: unused extern crate
+  --> $DIR/unnecessary-extern-crate.rs:24:1
+   |
+LL | pub(crate) extern crate alloc as b;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unused
+   |
+help: remove the unused `extern crate`
+   |
+LL - pub(crate) extern crate alloc as b;
+   |
+
+error: unused extern crate
   --> $DIR/unnecessary-extern-crate.rs:31:5
    |
 LL |     extern crate core;
@@ -69,5 +102,5 @@ help: remove the unused `extern crate`
 LL -         extern crate core as x;
    |
 
-error: aborting due to 6 previous errors
+error: aborting due to 9 previous errors
 

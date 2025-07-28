@@ -4,17 +4,10 @@ error[E0422]: cannot find struct, variant or union type `Drain` in this scope
 LL |     let _d = Drain {};
    |              ^^^^^ not found in this scope
    |
-help: consider importing one of these structs
+help: consider importing this struct
    |
 LL + use crate::plumbing::Drain;
    |
-LL + use std::collections::binary_heap::Drain;
-   |
-LL + use std::collections::hash_map::Drain;
-   |
-LL + use std::collections::hash_set::Drain;
-   |
-   = and 3 other candidates
 
 error: aborting due to 1 previous error
 

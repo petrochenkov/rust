@@ -138,7 +138,9 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 Scope::Module(..) => true,
                 Scope::MacroUsePrelude => use_prelude || rust_2015,
                 Scope::BuiltinAttrs => true,
-                Scope::ExternPrelude => use_prelude || module_and_extern_prelude,
+                Scope::ExternPreludeCmd | Scope::ExternPreludeItem => {
+                    use_prelude || module_and_extern_prelude
+                }
                 Scope::ToolPrelude => use_prelude,
                 Scope::StdLibPrelude => use_prelude || ns == MacroNS,
                 Scope::BuiltinTypes => true,
@@ -177,7 +179,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 Scope::Module(..) if module_and_extern_prelude => match ns {
                     TypeNS => {
                         ctxt.adjust(ExpnId::root());
-                        Scope::ExternPrelude
+                        Scope::ExternPreludeItem
                     }
                     ValueNS | MacroNS => break,
                 },
@@ -194,7 +196,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                         None => {
                             ctxt.adjust(ExpnId::root());
                             match ns {
-                                TypeNS => Scope::ExternPrelude,
+                                TypeNS => Scope::ExternPreludeItem,
                                 ValueNS => Scope::StdLibPrelude,
                                 MacroNS => Scope::MacroUsePrelude,
                             }
@@ -203,8 +205,9 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 }
                 Scope::MacroUsePrelude => Scope::StdLibPrelude,
                 Scope::BuiltinAttrs => break, // nowhere else to search
-                Scope::ExternPrelude if module_and_extern_prelude => break,
-                Scope::ExternPrelude => Scope::ToolPrelude,
+                Scope::ExternPreludeItem => Scope::ExternPreludeCmd,
+                Scope::ExternPreludeCmd if module_and_extern_prelude => break,
+                Scope::ExternPreludeCmd => Scope::ToolPrelude,
                 Scope::ToolPrelude => Scope::StdLibPrelude,
                 Scope::StdLibPrelude => match ns {
                     TypeNS => Scope::BuiltinTypes,
@@ -555,12 +558,18 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                         Some(binding) => Ok((*binding, Flags::empty())),
                         None => Err(Determinacy::Determined),
                     },
-                    Scope::ExternPrelude => {
-                        match this.extern_prelude_get(ident, finalize.is_some()) {
+                    Scope::ExternPreludeItem => {
+                        match this.extern_prelude_get_item(ident, finalize.is_some()) {
                             Some(binding) => Ok((binding, Flags::empty())),
                             None => Err(Determinacy::determined(
                                 this.graph_root.unexpanded_invocations.borrow().is_empty(),
                             )),
+                        }
+                    }
+                    Scope::ExternPreludeCmd => {
+                        match this.extern_prelude_get_cmd(ident, finalize.is_some()) {
+                            Some(binding) => Ok((binding, Flags::empty())),
+                            None => Err(Determinacy::Determined),
                         }
                     }
                     Scope::ToolPrelude => match this.registered_tool_bindings.get(&ident) {
@@ -812,11 +821,16 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 assert_eq!(shadowing, Shadowing::Unrestricted);
                 return if ns != TypeNS {
                     Err((Determined, Weak::No))
-                } else if let Some(binding) = self.extern_prelude_get(ident, finalize.is_some()) {
+                } else if let Some(binding) =
+                    self.extern_prelude_get_item(ident, finalize.is_some())
+                {
                     Ok(binding)
                 } else if !self.graph_root.unexpanded_invocations.borrow().is_empty() {
                     // Macro-expanded `extern crate` items can add names to extern prelude.
                     Err((Undetermined, Weak::No))
+                } else if let Some(binding) = self.extern_prelude_get_cmd(ident, finalize.is_some())
+                {
+                    Ok(binding)
                 } else {
                     Err((Determined, Weak::No))
                 };

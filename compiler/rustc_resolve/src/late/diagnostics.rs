@@ -2477,20 +2477,17 @@ impl<'ast, 'ra, 'tcx> LateResolutionVisitor<'_, 'ast, 'ra, 'tcx> {
                     } else {
                         // Items from the prelude
                         if !module.no_implicit_prelude {
-                            let extern_prelude = self.r.extern_prelude.clone();
-                            names.extend(extern_prelude.iter().flat_map(|(ident, _)| {
+                            names.extend(
                                 self.r
-                                    .cstore_mut()
-                                    .maybe_process_path_extern(self.r.tcx, ident.name)
-                                    .and_then(|crate_id| {
-                                        let crate_mod =
-                                            Res::Def(DefKind::Mod, crate_id.as_def_id());
-
-                                        filter_fn(crate_mod).then(|| {
-                                            TypoSuggestion::typo_from_ident(*ident, crate_mod)
-                                        })
-                                    })
-                            }));
+                                    .extern_prelude_item
+                                    .keys()
+                                    .chain(self.r.extern_prelude_cmd.keys())
+                                    .flat_map(|ident| {
+                                        let res = Res::Def(DefKind::Mod, CRATE_DEF_ID.to_def_id());
+                                        filter_fn(res)
+                                            .then(|| TypoSuggestion::typo_from_ident(*ident, res))
+                                    }),
+                            );
 
                             if let Some(prelude) = self.r.prelude {
                                 self.r.add_module_candidates(prelude, &mut names, &filter_fn, None);

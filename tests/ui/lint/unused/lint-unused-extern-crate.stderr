@@ -16,6 +16,18 @@ LL +
    |
 
 error: unused extern crate
+  --> $DIR/lint-unused-extern-crate.rs:15:1
+   |
+LL | extern crate lint_unused_extern_crate3; // no error, it is used
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unused
+   |
+help: remove the unused `extern crate`
+   |
+LL - extern crate lint_unused_extern_crate3; // no error, it is used
+LL +  // no error, it is used
+   |
+
+error: unused extern crate
   --> $DIR/lint-unused-extern-crate.rs:29:5
    |
 LL |     extern crate lint_unused_extern_crate2;
@@ -27,5 +39,5 @@ LL -     extern crate lint_unused_extern_crate2;
 LL +
    |
 
-error: aborting due to 2 previous errors
+error: aborting due to 3 previous errors
 

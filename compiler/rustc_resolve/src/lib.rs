@@ -124,7 +124,8 @@ enum Scope<'ra> {
     Module(Module<'ra>, Option<NodeId>),
     MacroUsePrelude,
     BuiltinAttrs,
-    ExternPrelude,
+    ExternPreludeCmd,
+    ExternPreludeItem,
     ToolPrelude,
     StdLibPrelude,
     BuiltinTypes,
@@ -1007,18 +1008,6 @@ impl<'ra> NameBindingData<'ra> {
     }
 }
 
-#[derive(Default, Clone)]
-struct ExternPreludeEntry<'ra> {
-    binding: Option<NameBinding<'ra>>,
-    introduced_by_item: bool,
-}
-
-impl ExternPreludeEntry<'_> {
-    fn is_import(&self) -> bool {
-        self.binding.is_some_and(|binding| binding.is_import())
-    }
-}
-
 struct DeriveData {
     resolutions: Vec<DeriveResolution>,
     helper_attrs: Vec<(usize, Ident)>,
@@ -1049,7 +1038,8 @@ pub struct Resolver<'ra, 'tcx> {
     graph_root: Module<'ra>,
 
     prelude: Option<Module<'ra>>,
-    extern_prelude: FxIndexMap<Ident, ExternPreludeEntry<'ra>>,
+    extern_prelude_cmd: FxIndexMap<Ident, Option<NameBinding<'ra>>>,
+    extern_prelude_item: FxIndexMap<Ident, (NameBinding<'ra>, bool)>,
 
     /// N.B., this is used only for better diagnostics, not name resolution itself.
     field_names: LocalDefIdMap<Vec<Ident>>,
@@ -1482,19 +1472,19 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         let mut invocation_parents = FxHashMap::default();
         invocation_parents.insert(LocalExpnId::ROOT, InvocationParent::ROOT);
 
-        let mut extern_prelude: FxIndexMap<Ident, ExternPreludeEntry<'_>> = tcx
+        let mut extern_prelude_cmd: FxIndexMap<_, _> = tcx
             .sess
             .opts
             .externs
             .iter()
             .filter(|(_, entry)| entry.add_prelude)
-            .map(|(name, _)| (Ident::from_str(name), Default::default()))
+            .map(|(name, _)| (Ident::from_str(name), None))
             .collect();
 
         if !attr::contains_name(attrs, sym::no_core) {
-            extern_prelude.insert(Ident::with_dummy_span(sym::core), Default::default());
+            extern_prelude_cmd.insert(Ident::with_dummy_span(sym::core), None);
             if !attr::contains_name(attrs, sym::no_std) {
-                extern_prelude.insert(Ident::with_dummy_span(sym::std), Default::default());
+                extern_prelude_cmd.insert(Ident::with_dummy_span(sym::std), None);
             }
         }
 
@@ -1510,7 +1500,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             // AST.
             graph_root,
             prelude: None,
-            extern_prelude,
+            extern_prelude_cmd,
+            extern_prelude_item: Default::default(),
 
             field_names: Default::default(),
             field_visibility_spans: FxHashMap::default(),
@@ -1844,7 +1835,10 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                         this.traits_in_module(module, assoc_item, &mut found_traits);
                     }
                 }
-                Scope::ExternPrelude | Scope::ToolPrelude | Scope::BuiltinTypes => {}
+                Scope::ExternPreludeCmd
+                | Scope::ExternPreludeItem
+                | Scope::ToolPrelude
+                | Scope::BuiltinTypes => {}
                 _ => unreachable!(),
             }
             None::<()>
@@ -2004,12 +1998,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             }
             // Avoid marking `extern crate` items that refer to a name from extern prelude,
             // but not introduce it, as used if they are accessed from lexical scope.
-            if used == Used::Scope {
-                if let Some(entry) = self.extern_prelude.get(&ident.normalize_to_macros_2_0()) {
-                    if !entry.introduced_by_item && entry.binding == Some(used_binding) {
-                        return;
-                    }
-                }
+            if used == Used::Scope
+                && let Some((extprel_binding, _)) =
+                    self.extern_prelude_item.get(&ident.normalize_to_macros_2_0())
+                && *extprel_binding == used_binding
+            {
+                return;
             }
             let old_used = self.import_use_map.entry(import).or_insert(used);
             if *old_used < used {
@@ -2162,41 +2156,59 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
     }
 
-    fn extern_prelude_get(&mut self, ident: Ident, finalize: bool) -> Option<NameBinding<'ra>> {
+    fn extern_prelude_get_item(
+        &mut self,
+        ident: Ident,
+        finalize: bool,
+    ) -> Option<NameBinding<'ra>> {
+        let norm_ident = ident.normalize_to_macros_2_0();
+        self.extern_prelude_item.get(&norm_ident).copied().map(|(binding, _)| {
+            if finalize {
+                self.record_use(ident, binding, Used::Other);
+            }
+            binding
+        })
+    }
+
+    fn extern_prelude_get_cmd(&mut self, ident: Ident, finalize: bool) -> Option<NameBinding<'ra>> {
+        // TODO: remove
         if ident.is_path_segment_keyword() {
             // Make sure `self`, `super` etc produce an error when passed to here.
             return None;
         }
 
         let norm_ident = ident.normalize_to_macros_2_0();
-        let binding = self.extern_prelude.get(&norm_ident).cloned().and_then(|entry| {
-            Some(if let Some(binding) = entry.binding {
-                if finalize {
-                    if !entry.is_import() {
+        let mut update_binding = None;
+        let binding = self.extern_prelude_cmd.get(&norm_ident).copied().and_then(|opt_binding| {
+            match opt_binding {
+                Some(_) => {
+                    if finalize {
                         self.cstore_mut().process_path_extern(self.tcx, ident.name, ident.span);
-                    } else if entry.introduced_by_item {
-                        self.record_use(ident, binding, Used::Other);
                     }
+                    opt_binding
                 }
-                binding
-            } else {
-                let crate_id = if finalize {
-                    let Some(crate_id) =
-                        self.cstore_mut().process_path_extern(self.tcx, ident.name, ident.span)
-                    else {
-                        return Some(self.dummy_binding);
+                None => {
+                    let crate_id = if finalize {
+                        let Some(crate_id) =
+                            self.cstore_mut().process_path_extern(self.tcx, ident.name, ident.span)
+                        else {
+                            update_binding = Some(self.dummy_binding);
+                            return update_binding;
+                        };
+                        crate_id
+                    } else {
+                        self.cstore_mut().maybe_process_path_extern(self.tcx, ident.name)?
                     };
-                    crate_id
-                } else {
-                    self.cstore_mut().maybe_process_path_extern(self.tcx, ident.name)?
-                };
-                let res = Res::Def(DefKind::Mod, crate_id.as_def_id());
-                self.arenas.new_pub_res_binding(res, DUMMY_SP, LocalExpnId::ROOT)
-            })
+                    let res = Res::Def(DefKind::Mod, crate_id.as_def_id());
+                    let binding = self.arenas.new_pub_res_binding(res, DUMMY_SP, LocalExpnId::ROOT);
+                    update_binding = Some(binding);
+                    update_binding
+                }
+            }
         });
 
-        if let Some(entry) = self.extern_prelude.get_mut(&norm_ident) {
-            entry.binding = binding;
+        if update_binding.is_some() {
+            *self.extern_prelude_cmd.get_mut(&norm_ident).unwrap() = update_binding;
         }
 
         binding

@@ -198,13 +198,8 @@ impl<'a, 'ra, 'tcx> UnusedImportCheckVisitor<'a, 'ra, 'tcx> {
                 continue;
             }
 
-            // If the extern crate isn't in the extern prelude,
-            // there is no way it can be written as a `use`.
-            if self
-                .r
-                .extern_prelude
-                .get(&extern_crate.ident)
-                .is_none_or(|entry| entry.introduced_by_item)
+            if self.r.extern_prelude_cmd.get(&extern_crate.ident).is_none()
+                || self.r.extern_prelude_item.get(&extern_crate.ident).is_some()
             {
                 continue;
             }

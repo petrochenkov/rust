@@ -251,9 +251,6 @@ resolve_macro_cannot_use_as_derive =
 resolve_macro_defined_later =
     a macro with the same name exists, but it appears later
 
-resolve_macro_expanded_extern_crate_cannot_shadow_extern_arguments =
-    macro-expanded `extern crate` items cannot shadow names passed with `--extern`
-
 resolve_macro_expected_found =
     expected {$expected}, found {$found} `{$macro_path}`
     .label = not {$article} {$expected}
