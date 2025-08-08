@@ -39,7 +39,7 @@ struct S {
             struct Owo;
 
             use empty_helper as renamed;
-            #[renamed] //~ ERROR cannot use a derive helper attribute through an import
+            #[renamed]
             struct Wow;
         }
 

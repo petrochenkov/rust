@@ -5,10 +5,18 @@ LL |         use foo::foo1;
    |             ^^^^^^^^^
    |
 note: the lint level is defined here
-  --> $DIR/use-redundant-issue-78894.rs:4:9
+  --> $DIR/use-redundant-issue-78894.rs:3:9
    |
 LL | #![warn(unused_imports)]
    |         ^^^^^^^^^^^^^^
 
-warning: 1 warning emitted
+error: cannot determine resolution for the macro `bar`
+  --> $DIR/use-redundant-issue-78894.rs:15:5
+   |
+LL |     bar!();
+   |     ^^^
+   |
+   = note: import resolution is stuck, try simplifying macro imports
+
+error: aborting due to 1 previous error; 1 warning emitted
 

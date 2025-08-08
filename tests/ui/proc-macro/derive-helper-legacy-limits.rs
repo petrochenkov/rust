@@ -10,7 +10,7 @@ extern crate test_macros;
 use derive as my_derive;
 
 #[my_derive(Empty)]
-#[empty_helper] // OK
+#[empty_helper] //~ ERROR cannot find attribute `empty_helper` in this scope
 struct S1;
 
 // Legacy helper detection doesn't see through `derive` renaming.

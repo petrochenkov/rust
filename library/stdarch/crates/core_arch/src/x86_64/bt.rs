@@ -8,13 +8,13 @@ use stdarch_test::assert_instr;
 #[cfg(target_pointer_width = "32")]
 macro_rules! bt {
     ($inst:expr) => {
-        concat!($inst, " {b}, ({p:e})")
+        crate::concat!($inst, " {b}, ({p:e})")
     };
 }
 #[cfg(target_pointer_width = "64")]
 macro_rules! bt {
     ($inst:expr) => {
-        concat!($inst, " {b}, ({p})")
+        crate::concat!($inst, " {b}, ({p})")
     };
 }
 

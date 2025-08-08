@@ -1,0 +1,28 @@
+error[E0277]: `S` doesn't implement `Debug`
+  --> $DIR/derive-renamed.rs:9:22
+   |
+LL |     println!("{:?}", S);
+   |               ----   ^ `S` cannot be formatted using `{:?}` because it doesn't implement `Debug`
+   |               |
+   |               required by this formatting parameter
+   |
+   = help: the trait `Debug` is not implemented for `S`
+   = note: add `#[derive(Debug)]` to `S` or manually `impl Debug for S`
+   = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `S` with `#[derive(Debug)]`
+   |
+LL + #[derive(Debug)]
+LL | struct S;
+   |
+
+error: cannot determine resolution for the attribute macro `my_derive`
+  --> $DIR/derive-renamed.rs:5:3
+   |
+LL | #[my_derive(Debug)]
+   |   ^^^^^^^^^
+   |
+   = note: import resolution is stuck, try simplifying macro imports
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0277`.

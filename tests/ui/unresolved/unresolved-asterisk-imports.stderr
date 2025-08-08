@@ -1,3 +1,17 @@
+error: cannot determine resolution for the import
+  --> $DIR/unresolved-asterisk-imports.rs:2:5
+   |
+LL | use std as foo;
+   |     ^^^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/unresolved-asterisk-imports.rs:2:5
+   |
+LL | use std as foo;
+   |     ^^^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
 error[E0432]: unresolved import `not_existing_crate`
   --> $DIR/unresolved-asterisk-imports.rs:1:5
    |
@@ -9,6 +23,6 @@ help: you might be missing a crate named `not_existing_crate`, add it to your pr
 LL + extern crate not_existing_crate;
    |
 
-error: aborting due to 1 previous error
+error: aborting due to 3 previous errors
 
 For more information about this error, try `rustc --explain E0432`.

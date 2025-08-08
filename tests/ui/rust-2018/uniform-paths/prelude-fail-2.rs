@@ -12,10 +12,8 @@ mod tool_mod {
     pub use rustfmt as imported_rustfmt;
 }
 
-#[imported_inline] //~ ERROR cannot use a built-in attribute through an import
-#[builtin::imported_inline] //~ ERROR cannot use a built-in attribute through an import
+#[imported_inline]
+#[builtin::imported_inline] //~ ERROR cannot determine resolution for the attribute macro
 #[imported_rustfmt::skip] //~ ERROR cannot use a tool module through an import
-                          //~| ERROR cannot use a tool module through an import
 #[tool_mod::imported_rustfmt::skip] //~ ERROR cannot use a tool module through an import
-                                    //~| ERROR cannot use a tool module through an import
 fn main() {}

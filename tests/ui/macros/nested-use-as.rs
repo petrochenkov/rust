@@ -1,4 +1,3 @@
-//@ check-pass
 //@ edition:2018
 // issue: https://github.com/rust-lang/rust/issues/97534
 
@@ -54,11 +53,11 @@ macro_rules! n1 {
 
 use n1 as c1;
 c1!{}
-use c2 as a2;
+use c2 as a2; //~ ERROR unresolved import `c2`
 a2!{}
-use c3 as a3;
+use c3 as a3; //~ ERROR unresolved import `c3`
 a3!{}
-use c4 as a4;
+use c4 as a4; //~ ERROR unresolved import `c4`
 a4!{}
 
 // https://github.com/rust-lang/rust/pull/108729#issuecomment-1474750675

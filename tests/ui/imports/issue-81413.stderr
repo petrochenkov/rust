@@ -1,3 +1,117 @@
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:10:17
+   |
+LL |     use crate::{item, Item, ITEM};
+   |                 ^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:10:17
+   |
+LL |     use crate::{item, Item, ITEM};
+   |                 ^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:10:23
+   |
+LL |     use crate::{item, Item, ITEM};
+   |                       ^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:10:23
+   |
+LL |     use crate::{item, Item, ITEM};
+   |                       ^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:10:23
+   |
+LL |     use crate::{item, Item, ITEM};
+   |                       ^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:10:29
+   |
+LL |     use crate::{item, Item, ITEM};
+   |                             ^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:10:29
+   |
+LL |     use crate::{item, Item, ITEM};
+   |                             ^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:21:9
+   |
+LL |     use crate::item;
+   |         ^^^^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:21:9
+   |
+LL |     use crate::item;
+   |         ^^^^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:24:9
+   |
+LL |     use crate::Item;
+   |         ^^^^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:24:9
+   |
+LL |     use crate::Item;
+   |         ^^^^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:24:9
+   |
+LL |     use crate::Item;
+   |         ^^^^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:28:9
+   |
+LL |     use crate::ITEM;
+   |         ^^^^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:28:9
+   |
+LL |     use crate::ITEM;
+   |         ^^^^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:34:9
+   |
+LL |     use crate::item;
+   |         ^^^^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-81413.rs:34:9
+   |
+LL |     use crate::item;
+   |         ^^^^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
 error[E0432]: unresolved import `doesnt_exist`
   --> $DIR/issue-81413.rs:7:9
    |
@@ -9,6 +123,6 @@ help: you might be missing a crate named `doesnt_exist`, add it to your project 
 LL + extern crate doesnt_exist;
    |
 
-error: aborting due to 1 previous error
+error: aborting due to 17 previous errors
 
 For more information about this error, try `rustc --explain E0432`.

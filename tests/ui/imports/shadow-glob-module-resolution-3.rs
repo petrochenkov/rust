@@ -13,6 +13,8 @@ use b::c;
 //~| ERROR: cannot determine resolution for the import
 //~| ERROR: cannot determine resolution for the import
 use c as b;
+//~^ ERROR cannot determine resolution for the import
+//~| ERROR cannot determine resolution for the import
 
 fn c() {}
 

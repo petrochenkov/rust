@@ -3,7 +3,7 @@
 //@ edition:2018
 
 use crate; //~ ERROR crate root imports need to be explicitly named: `use crate as name;`
-use *; //~ ERROR cannot glob-import all possible crates
+use *;
 
 fn main() {
     let s = ::xcrate; //~ ERROR expected value, found crate `xcrate`

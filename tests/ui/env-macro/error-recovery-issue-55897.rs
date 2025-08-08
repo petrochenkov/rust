@@ -2,6 +2,7 @@ use prelude::*; //~ ERROR unresolved import `prelude`
 
 mod unresolved_env {
     use env; //~ ERROR unresolved import `env`
+    //~^ ERROR cannot determine resolution for the import
 
     include!(concat!(env!("NON_EXISTENT"), "/data.rs"));
 }

@@ -12,6 +12,7 @@ use a::*;
 
 use e as b;
 //~^ ERROR: unresolved import `e`
+//~| ERROR cannot determine resolution for the import
 use b::c::D as e;
 //~^ ERROR: cannot determine resolution for the import
 //~| ERROR: cannot determine resolution for the import

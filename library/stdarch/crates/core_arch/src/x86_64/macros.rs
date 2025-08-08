@@ -24,12 +24,12 @@ macro_rules! static_assert_sae {
 #[cfg(target_pointer_width = "32")]
 macro_rules! vps {
     ($inst1:expr, $inst2:expr) => {
-        concat!($inst1, " [{p:e}]", $inst2)
+        crate::concat!($inst1, " [{p:e}]", $inst2)
     };
 }
 #[cfg(target_pointer_width = "64")]
 macro_rules! vps {
     ($inst1:expr, $inst2:expr) => {
-        concat!($inst1, " [{p}]", $inst2)
+        crate::concat!($inst1, " [{p}]", $inst2)
     };
 }

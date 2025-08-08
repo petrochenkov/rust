@@ -1,0 +1,40 @@
+error: cannot determine resolution for the import
+  --> $DIR/cycle-import-in-diff-module-0.rs:4:20
+   |
+LL |     pub(crate) use crate::S;
+   |                    ^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/cycle-import-in-diff-module-0.rs:4:20
+   |
+LL |     pub(crate) use crate::S;
+   |                    ^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/cycle-import-in-diff-module-0.rs:4:20
+   |
+LL |     pub(crate) use crate::S;
+   |                    ^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/cycle-import-in-diff-module-0.rs:13:5
+   |
+LL | use self::a::S;
+   |     ^^^^^^^^^^
+
+error[E0432]: unresolved imports `crate::S`, `self::a::S`
+  --> $DIR/cycle-import-in-diff-module-0.rs:4:20
+   |
+LL |     pub(crate) use crate::S;
+   |                    ^^^^^^^^
+...
+LL | use self::a::S;
+   |     ^^^^^^^^^^
+
+error: aborting due to 5 previous errors
+
+For more information about this error, try `rustc --explain E0432`.

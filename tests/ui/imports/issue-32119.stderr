@@ -1,0 +1,66 @@
+error: cannot determine resolution for the import
+  --> $DIR/issue-32119.rs:2:19
+   |
+LL | mod foo { pub use super::T; }
+   |                   ^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-32119.rs:2:19
+   |
+LL | mod foo { pub use super::T; }
+   |                   ^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-32119.rs:6:19
+   |
+LL | mod bar { pub use super::T; }
+   |                   ^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-32119.rs:6:19
+   |
+LL | mod bar { pub use super::T; }
+   |                   ^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-32119.rs:15:23
+   |
+LL |     mod foo { pub use super::T as S; }
+   |                       ^^^^^^^^^^^^^
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-32119.rs:15:23
+   |
+LL |     mod foo { pub use super::T as S; }
+   |                       ^^^^^^^^^^^^^
+   |
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: cannot determine resolution for the import
+  --> $DIR/issue-32119.rs:18:23
+   |
+LL |     mod bar { pub use super::foo::S as T; }
+   |                       ^^^^^^^^^^^^^^^^^^
+
+error[E0432]: unresolved imports `super::T`, `super::T`, `super::T`, `super::foo::S`
+  --> $DIR/issue-32119.rs:2:19
+   |
+LL | mod foo { pub use super::T; }
+   |                   ^^^^^^^^
+...
+LL | mod bar { pub use super::T; }
+   |                   ^^^^^^^^
+...
+LL |     mod foo { pub use super::T as S; }
+   |                       ^^^^^^^^^^^^^
+...
+LL |     mod bar { pub use super::foo::S as T; }
+   |                       ^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 8 previous errors
+
+For more information about this error, try `rustc --explain E0432`.

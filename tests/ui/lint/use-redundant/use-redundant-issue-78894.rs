@@ -1,4 +1,3 @@
-//@ check-pass
 //@ edition:2018
 
 #![warn(unused_imports)]
@@ -14,6 +13,7 @@ mod foo {
 fn main ()
 {
     bar!();
+    //~^ ERROR cannot determine resolution for the macro
 
     macro_rules! bar {
         () => ();

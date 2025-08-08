@@ -74,25 +74,25 @@ macro_rules! assert_approx_eq {
 #[cfg(target_pointer_width = "32")]
 macro_rules! vpl {
     ($inst:expr) => {
-        concat!($inst, ", [{p:e}]")
+        crate::concat!($inst, ", [{p:e}]")
     };
 }
 #[cfg(target_pointer_width = "64")]
 macro_rules! vpl {
     ($inst:expr) => {
-        concat!($inst, ", [{p}]")
+        crate::concat!($inst, ", [{p}]")
     };
 }
 
 #[cfg(target_pointer_width = "32")]
 macro_rules! vps {
     ($inst1:expr, $inst2:expr) => {
-        concat!($inst1, " [{p:e}]", $inst2)
+        crate::concat!($inst1, " [{p:e}]", $inst2)
     };
 }
 #[cfg(target_pointer_width = "64")]
 macro_rules! vps {
     ($inst1:expr, $inst2:expr) => {
-        concat!($inst1, " [{p}]", $inst2)
+        crate::concat!($inst1, " [{p}]", $inst2)
     };
 }

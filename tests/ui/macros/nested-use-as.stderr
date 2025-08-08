@@ -1,0 +1,21 @@
+error[E0432]: unresolved import `c2`
+  --> $DIR/nested-use-as.rs:56:5
+   |
+LL | use c2 as a2;
+   |     ^^^^^^^^ no external crate `c2`
+
+error[E0432]: unresolved import `c3`
+  --> $DIR/nested-use-as.rs:58:5
+   |
+LL | use c3 as a3;
+   |     ^^^^^^^^ no external crate `c3`
+
+error[E0432]: unresolved import `c4`
+  --> $DIR/nested-use-as.rs:60:5
+   |
+LL | use c4 as a4;
+   |     ^^^^^^^^ no external crate `c4`
+
+error: aborting due to 3 previous errors
+
+For more information about this error, try `rustc --explain E0432`.
