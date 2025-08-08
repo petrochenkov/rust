@@ -551,22 +551,26 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     /// Resolves all imports for the crate. This method performs the fixed-
     /// point iteration.
     pub(crate) fn resolve_imports(&mut self) {
-        self.assert_speculative = true;
         let mut prev_indeterminate_count = usize::MAX;
         let mut indeterminate_count = self.indeterminate_imports.len() * 3;
         while indeterminate_count < prev_indeterminate_count {
             prev_indeterminate_count = indeterminate_count;
             indeterminate_count = 0;
+            let mut indeterminate_imports = Vec::new();
+            let mut determined_imports = Vec::new();
+            self.assert_speculative = true;
             for import in mem::take(&mut self.indeterminate_imports) {
                 let import_indeterminate_count = self.cm().resolve_import(import);
                 indeterminate_count += import_indeterminate_count;
                 match import_indeterminate_count {
-                    0 => self.determined_imports.push(import),
-                    _ => self.indeterminate_imports.push(import),
+                    0 => determined_imports.push(import),
+                    _ => indeterminate_imports.push(import),
                 }
             }
+            self.assert_speculative = false;
+            self.indeterminate_imports = indeterminate_imports;
+            self.write_resolved_imports(determined_imports);
         }
-        self.assert_speculative = false;
     }
 
     pub(crate) fn finalize_imports(&mut self) {
@@ -942,6 +946,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         });
 
         indeterminate_count
+    }
+
+    fn write_resolved_imports(&mut self, imports: Vec<Import<'ra>>) {
+        for import in imports {
+            self.determined_imports.push(import);
+        }
     }
 
     /// Performs final import resolution, consistency checks and error reporting.
