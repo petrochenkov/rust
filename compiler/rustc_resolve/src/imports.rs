@@ -963,6 +963,9 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                             unreachable!()
                         };
 
+                        // Add to module's glob_importers
+                        module.glob_importers.borrow_mut().push(import);
+
                         for (key, imported_binding, warn_ambiguity) in imported_bindings {
                             let _ = self.try_define_local(
                                 import.parent_scope.module,
@@ -1541,9 +1544,6 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         if module == import.parent_scope.module {
             return None;
         }
-
-        // Add to module's glob_importers
-        module.glob_importers.borrow_mut().push(import);
 
         // Ensure that `resolutions` isn't borrowed during `try_define`,
         // since it might get updated via a glob cycle.
