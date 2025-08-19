@@ -41,8 +41,8 @@ use crate::{
 
 type Res = def::Res<NodeId>;
 
-enum SideEffect {
-    Glob,
+enum SideEffect<'ra> {
+    Glob { imported_bindings: Vec<(BindingKey, NameBinding<'ra>, bool /* warn_ambiguity */)> },
 }
 
 /// A [`NameBinding`] in the process of being resolved.
@@ -850,7 +850,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     fn resolve_import<'r>(
         mut self: CmResolver<'r, 'ra, 'tcx>,
         import: Import<'ra>,
-    ) -> (Option<SideEffect>, usize) {
+    ) -> (Option<SideEffect<'ra>>, usize) {
         debug!(
             "(resolving import for module) resolving import `{}::...` in `{}`",
             Segment::names_to_string(&import.module_path),
@@ -950,18 +950,28 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         (None, indeterminate_count)
     }
 
-    fn write_resolved_imports(&mut self, imports: Vec<(Import<'ra>, Option<SideEffect>)>) {
+    fn write_resolved_imports(&mut self, imports: Vec<(Import<'ra>, Option<SideEffect<'ra>>)>) {
         for (import, side_effect) in imports {
             self.determined_imports.push(import);
 
             if let Some(side_effect) = side_effect {
                 match (&import.kind, side_effect) {
-                    (&ImportKind::Glob { id, .. }, SideEffect::Glob) => {
+                    (&ImportKind::Glob { id, .. }, SideEffect::Glob { imported_bindings }) => {
                         let ModuleOrUniformRoot::Module(module) =
                             import.imported_module.get().unwrap()
                         else {
                             unreachable!()
                         };
+
+                        for (key, imported_binding, warn_ambiguity) in imported_bindings {
+                            let _ = self.try_define_local(
+                                import.parent_scope.module,
+                                key.ident.0,
+                                key.ns,
+                                imported_binding,
+                                warn_ambiguity,
+                            );
+                        }
 
                         // Record the destination of this import
                         self.record_partial_res(id, PartialRes::new(module.res().unwrap()));
@@ -1512,10 +1522,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         false
     }
 
-    fn resolve_glob_import<'r>(
-        mut self: CmResolver<'r, 'ra, 'tcx>,
-        import: Import<'ra>,
-    ) -> Option<SideEffect> {
+    fn resolve_glob_import(&self, import: Import<'ra>) -> Option<SideEffect<'ra>> {
         let ModuleOrUniformRoot::Module(module) = import.imported_module.get().unwrap() else {
             self.dcx().emit_err(CannotGlobImportAllCrates { span: import.span });
             return None;
@@ -1548,6 +1555,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 resolution.borrow().binding().map(|binding| (*key, binding))
             })
             .collect::<Vec<_>>();
+        let mut imported_bindings = Vec::new();
         for (mut key, binding) in bindings {
             let scope = match key.ident.0.span.reverse_glob_adjust(module.expansion, import.span) {
                 Some(Some(def)) => self.expn_def_scope(def),
@@ -1560,17 +1568,11 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     .resolution(import.parent_scope.module, key)
                     .and_then(|r| r.binding())
                     .is_some_and(|binding| binding.warn_ambiguity_recursive());
-                let _ = self.get_mut_unchecked().try_define_local(
-                    import.parent_scope.module,
-                    key.ident.0,
-                    key.ns,
-                    imported_binding,
-                    warn_ambiguity,
-                );
+                imported_bindings.push((key, imported_binding, warn_ambiguity));
             }
         }
 
-        Some(SideEffect::Glob)
+        Some(SideEffect::Glob { imported_bindings })
     }
 
     // Miscellaneous post-processing, including recording re-exports,
