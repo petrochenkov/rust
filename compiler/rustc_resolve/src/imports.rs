@@ -41,6 +41,10 @@ use crate::{
 
 type Res = def::Res<NodeId>;
 
+enum SideEffect {
+    Glob,
+}
+
 /// A [`NameBinding`] in the process of being resolved.
 #[derive(Clone, Copy, Default, PartialEq)]
 pub(crate) enum PendingBinding<'ra> {
@@ -560,10 +564,10 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             let mut determined_imports = Vec::new();
             self.assert_speculative = true;
             for import in mem::take(&mut self.indeterminate_imports) {
-                let import_indeterminate_count = self.cm().resolve_import(import);
+                let (side_effect, import_indeterminate_count) = self.cm().resolve_import(import);
                 indeterminate_count += import_indeterminate_count;
                 match import_indeterminate_count {
-                    0 => determined_imports.push(import),
+                    0 => determined_imports.push((import, side_effect)),
                     _ => indeterminate_imports.push(import),
                 }
             }
@@ -843,7 +847,10 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     ///
     /// Meanwhile, if resolve successful, the resolved bindings are written
     /// into the module.
-    fn resolve_import<'r>(mut self: CmResolver<'r, 'ra, 'tcx>, import: Import<'ra>) -> usize {
+    fn resolve_import<'r>(
+        mut self: CmResolver<'r, 'ra, 'tcx>,
+        import: Import<'ra>,
+    ) -> (Option<SideEffect>, usize) {
         debug!(
             "(resolving import for module) resolving import `{}::...` in `{}`",
             Segment::names_to_string(&import.module_path),
@@ -861,8 +868,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
 
             match path_res {
                 PathResult::Module(module) => module,
-                PathResult::Indeterminate => return 3,
-                PathResult::NonModule(..) | PathResult::Failed { .. } => return 0,
+                PathResult::Indeterminate => return (None, 3),
+                PathResult::NonModule(..) | PathResult::Failed { .. } => return (None, 0),
             }
         };
 
@@ -871,12 +878,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             ImportKind::Single { source, target, ref bindings, type_ns_only, .. } => {
                 (source, target, bindings, type_ns_only)
             }
-            ImportKind::Glob { .. } => {
-                // FIXME: Use mutable resolver directly as a hack, this should be an output of
-                // speculative resolution.
-                self.get_mut_unchecked().resolve_glob_import(import);
-                return 0;
-            }
+            ImportKind::Glob { .. } => return (self.reborrow().resolve_glob_import(import), 0),
             _ => unreachable!(),
         };
 
@@ -945,12 +947,28 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             }
         });
 
-        indeterminate_count
+        (None, indeterminate_count)
     }
 
-    fn write_resolved_imports(&mut self, imports: Vec<Import<'ra>>) {
-        for import in imports {
+    fn write_resolved_imports(&mut self, imports: Vec<(Import<'ra>, Option<SideEffect>)>) {
+        for (import, side_effect) in imports {
             self.determined_imports.push(import);
+
+            if let Some(side_effect) = side_effect {
+                match (&import.kind, side_effect) {
+                    (&ImportKind::Glob { id, .. }, SideEffect::Glob) => {
+                        let ModuleOrUniformRoot::Module(module) =
+                            import.imported_module.get().unwrap()
+                        else {
+                            unreachable!()
+                        };
+
+                        // Record the destination of this import
+                        self.record_partial_res(id, PartialRes::new(module.res().unwrap()));
+                    }
+                    _ => unreachable!(),
+                }
+            }
         }
     }
 
@@ -1494,13 +1512,13 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         false
     }
 
-    fn resolve_glob_import(&mut self, import: Import<'ra>) {
-        // This function is only called for glob imports.
-        let ImportKind::Glob { id, .. } = import.kind else { unreachable!() };
-
+    fn resolve_glob_import<'r>(
+        mut self: CmResolver<'r, 'ra, 'tcx>,
+        import: Import<'ra>,
+    ) -> Option<SideEffect> {
         let ModuleOrUniformRoot::Module(module) = import.imported_module.get().unwrap() else {
             self.dcx().emit_err(CannotGlobImportAllCrates { span: import.span });
-            return;
+            return None;
         };
 
         if module.is_trait() && !self.tcx.features().import_trait_associated_functions() {
@@ -1514,7 +1532,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
 
         if module == import.parent_scope.module {
-            return;
+            return None;
         }
 
         // Add to module's glob_importers
@@ -1542,7 +1560,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     .resolution(import.parent_scope.module, key)
                     .and_then(|r| r.binding())
                     .is_some_and(|binding| binding.warn_ambiguity_recursive());
-                let _ = self.try_define_local(
+                let _ = self.get_mut_unchecked().try_define_local(
                     import.parent_scope.module,
                     key.ident.0,
                     key.ns,
@@ -1552,8 +1570,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             }
         }
 
-        // Record the destination of this import
-        self.record_partial_res(id, PartialRes::new(module.res().unwrap()));
+        Some(SideEffect::Glob)
     }
 
     // Miscellaneous post-processing, including recording re-exports,
