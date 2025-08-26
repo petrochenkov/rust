@@ -60,7 +60,7 @@ pub fn repeat_n<T: Clone>(element: T, count: usize) -> RepeatN<T> {
     RepeatN { inner: RepeatNInner::new(element, count) }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, crate::marker::Copy)]
 struct RepeatNInner<T> {
     count: NonZero<usize>,
     element: T,

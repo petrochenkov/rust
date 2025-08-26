@@ -932,7 +932,7 @@ impl const AsMut<str> for str {
 /// the two `impl`s will start to overlap
 /// and therefore will be disallowed by the language’s trait coherence rules.
 #[stable(feature = "convert_infallible", since = "1.34.0")]
-#[derive(Copy)]
+#[derive(crate::marker::Copy)]
 pub enum Infallible {}
 
 #[stable(feature = "convert_infallible", since = "1.34.0")]

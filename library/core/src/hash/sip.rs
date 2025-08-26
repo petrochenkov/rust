@@ -57,7 +57,7 @@ struct Hasher<S: Sip> {
     _marker: PhantomData<S>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, crate::marker::Copy)]
 #[repr(C)]
 struct State {
     // v0, v2 and v1, v3 show up in pairs in the algorithm,

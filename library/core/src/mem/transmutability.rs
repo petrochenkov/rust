@@ -146,7 +146,7 @@ where
 /// `true`, the onus of the safety proof belongs to the programmer.
 #[unstable(feature = "transmutability", issue = "99571")]
 #[lang = "transmute_opts"]
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, crate::marker::Copy, Debug)]
 pub struct Assume {
     /// When `false`, [`TransmuteFrom`] is not implemented for transmutations
     /// that might violate the alignment requirements of references; e.g.:

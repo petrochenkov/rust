@@ -1090,7 +1090,7 @@ pub use self::unsafe_pinned::UnsafePinned;
 #[fundamental]
 #[repr(transparent)]
 #[rustc_pub_transparent]
-#[derive(Copy, Clone)]
+#[derive(crate::marker::Copy, Clone)]
 pub struct Pin<Ptr> {
     pointer: Ptr,
 }

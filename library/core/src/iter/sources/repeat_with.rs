@@ -71,7 +71,7 @@ pub fn repeat_with<A, F: FnMut() -> A>(repeater: F) -> RepeatWith<F> {
 ///
 /// This `struct` is created by the [`repeat_with()`] function.
 /// See its documentation for more.
-#[derive(Copy, Clone)]
+#[derive(crate::marker::Copy, Clone)]
 #[stable(feature = "iterator_repeat_with", since = "1.28.0")]
 pub struct RepeatWith<F> {
     repeater: F,

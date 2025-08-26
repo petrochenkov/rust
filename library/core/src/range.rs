@@ -51,7 +51,7 @@ pub use crate::ops::{
 /// assert_eq!(3 + 4 + 5, Range::from(3..6).into_iter().sum());
 /// ```
 #[lang = "RangeCopy"]
-#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, crate::marker::Copy, Default, PartialEq, Eq, Hash)]
 #[unstable(feature = "new_range_api", issue = "125687")]
 pub struct Range<Idx> {
     /// The lower bound of the range (inclusive).
@@ -226,7 +226,7 @@ impl<T> const From<legacy::Range<T>> for Range<T> {
 /// assert_eq!(3 + 4 + 5, RangeInclusive::from(3..=5).into_iter().sum());
 /// ```
 #[lang = "RangeInclusiveCopy"]
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, crate::marker::Copy, PartialEq, Eq, Hash)]
 #[unstable(feature = "new_range_api", issue = "125687")]
 pub struct RangeInclusive<Idx> {
     /// The lower bound of the range (inclusive).
@@ -425,7 +425,7 @@ impl<T> From<legacy::RangeInclusive<T>> for RangeInclusive<T> {
 /// assert_eq!(2 + 3 + 4, RangeFrom::from(2..).into_iter().take(3).sum());
 /// ```
 #[lang = "RangeFromCopy"]
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, crate::marker::Copy, PartialEq, Eq, Hash)]
 #[unstable(feature = "new_range_api", issue = "125687")]
 pub struct RangeFrom<Idx> {
     /// The lower bound of the range (inclusive).

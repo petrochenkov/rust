@@ -76,7 +76,7 @@ const DAYS_PER_WEEK: u64 = 7;
 /// compatibility, you may wish to format `Duration` objects yourself or use a
 /// crate to do so.
 #[stable(feature = "duration", since = "1.3.0")]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Clone, crate::marker::Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[rustc_diagnostic_item = "Duration"]
 pub struct Duration {
     secs: u64,

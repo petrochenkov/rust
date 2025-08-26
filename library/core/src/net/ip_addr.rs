@@ -26,7 +26,7 @@ use crate::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
 /// ```
 #[rustc_diagnostic_item = "IpAddr"]
 #[stable(feature = "ip_addr", since = "1.7.0")]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(crate::marker::Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum IpAddr {
     /// An IPv4 address.
     #[stable(feature = "ip_addr", since = "1.7.0")]
@@ -68,7 +68,7 @@ pub enum IpAddr {
 /// assert!("0xcb.0x0.0x71.0x00".parse::<Ipv4Addr>().is_err()); // all octets are in hex
 /// ```
 #[rustc_diagnostic_item = "Ipv4Addr"]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(crate::marker::Copy, Clone, PartialEq, Eq)]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Ipv4Addr {
     octets: [u8; 4],
@@ -161,7 +161,7 @@ impl Hash for Ipv4Addr {
 /// assert_eq!(localhost.is_loopback(), true);
 /// ```
 #[rustc_diagnostic_item = "Ipv6Addr"]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(crate::marker::Copy, Clone, PartialEq, Eq)]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Ipv6Addr {
     octets: [u8; 16],
@@ -212,7 +212,7 @@ impl Hash for Ipv6Addr {
 ///
 /// [IPv6 multicast address]: Ipv6Addr
 /// [IETF RFC 7346 section 2]: https://tools.ietf.org/html/rfc7346#section-2
-#[derive(Copy, PartialEq, Eq, Clone, Hash, Debug)]
+#[derive(crate::marker::Copy, PartialEq, Eq, Clone, Hash, Debug)]
 #[unstable(feature = "ip", issue = "27709")]
 #[non_exhaustive]
 pub enum Ipv6MulticastScope {
@@ -2084,7 +2084,7 @@ impl fmt::Display for Ipv6Addr {
             if let Some(ipv4) = self.to_ipv4_mapped() {
                 write!(f, "::ffff:{}", ipv4)
             } else {
-                #[derive(Copy, Clone, Default)]
+                #[derive(crate::marker::Copy, Clone, Default)]
                 struct Span {
                     start: usize,
                     len: usize,

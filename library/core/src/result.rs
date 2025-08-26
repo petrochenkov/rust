@@ -542,7 +542,7 @@ use crate::{convert, fmt, hint};
 ///
 /// See the [module documentation](self) for details.
 #[doc(search_unbox)]
-#[derive(Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
+#[derive(crate::marker::Copy, PartialEq, PartialOrd, Eq, Ord, Debug, Hash)]
 #[must_use = "this `Result` may be an `Err` variant, which should be handled"]
 #[rustc_diagnostic_item = "Result"]
 #[stable(feature = "rust1", since = "1.0.0")]

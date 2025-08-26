@@ -34,7 +34,7 @@ use crate::ptr::NonNull;
 /// Files are compared as strings, not `Path`, which could be unexpected.
 /// See [`Location::file`]'s documentation for more discussion.
 #[lang = "panic_location"]
-#[derive(Copy, Clone)]
+#[derive(crate::marker::Copy, Clone)]
 #[stable(feature = "panic_hooks", since = "1.10.0")]
 pub struct Location<'a> {
     // A raw pointer is used rather than a reference because the pointer is valid for one more byte

@@ -100,7 +100,7 @@ macro_rules! phantom_lifetime {
         pub struct $name:ident <$lt:lifetime> ($($inner:tt)*);
     )*) => {$(
         $(#[$attr])*
-        #[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Default, Clone, crate::marker::Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name<$lt>($($inner)*);
 
         impl $name<'_> {

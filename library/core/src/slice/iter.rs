@@ -2199,7 +2199,7 @@ unsafe impl<T> Sync for ChunksExactMut<'_, T> where T: Sync {}
 ///
 /// [`array_windows`]: slice::array_windows
 /// [slices]: slice
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, crate::marker::Copy)]
 #[unstable(feature = "array_windows", issue = "75027")]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct ArrayWindows<'a, T: 'a, const N: usize> {

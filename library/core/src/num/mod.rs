@@ -1310,7 +1310,7 @@ impl usize {
 /// assert_eq!(sub.classify(), FpCategory::Subnormal);
 /// assert_eq!(nan.classify(), FpCategory::Nan);
 /// ```
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(crate::marker::Copy, Clone, PartialEq, Eq, Debug)]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub enum FpCategory {
     /// NaN (not a number): this value results from calculations like `(-1.0).sqrt()`.

@@ -65,7 +65,7 @@ pub(crate) fn is_8digits(v: u64) -> bool {
 
 /// A custom 64-bit floating point type, representing `m * 2^p`.
 /// p is biased, so it be directly shifted into the exponent bits.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, crate::marker::Copy, Clone, PartialEq, Eq, Default)]
 pub struct BiasedFp {
     /// The significant digits.
     pub m: u64,

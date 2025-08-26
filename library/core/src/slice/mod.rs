@@ -12,7 +12,6 @@ use crate::mem::{self, MaybeUninit, SizedTypeProperties};
 use crate::num::NonZero;
 use crate::ops::{OneSidedRange, OneSidedRangeBound, Range, RangeBounds, RangeInclusive};
 use crate::panic::const_panic;
-use crate::simd::{self, Simd};
 use crate::ub_checks::assert_unsafe_precondition;
 use crate::{fmt, hint, ptr, range, slice};
 
@@ -4159,106 +4158,6 @@ impl<T> [T] {
                 )
             }
         }
-    }
-
-    /// Splits a slice into a prefix, a middle of aligned SIMD types, and a suffix.
-    ///
-    /// This is a safe wrapper around [`slice::align_to`], so inherits the same
-    /// guarantees as that method.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the size of the SIMD type is different from
-    /// `LANES` times that of the scalar.
-    ///
-    /// At the time of writing, the trait restrictions on `Simd<T, LANES>` keeps
-    /// that from ever happening, as only power-of-two numbers of lanes are
-    /// supported.  It's possible that, in the future, those restrictions might
-    /// be lifted in a way that would make it possible to see panics from this
-    /// method for something like `LANES == 3`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(portable_simd)]
-    /// use core::simd::prelude::*;
-    ///
-    /// let short = &[1, 2, 3];
-    /// let (prefix, middle, suffix) = short.as_simd::<4>();
-    /// assert_eq!(middle, []); // Not enough elements for anything in the middle
-    ///
-    /// // They might be split in any possible way between prefix and suffix
-    /// let it = prefix.iter().chain(suffix).copied();
-    /// assert_eq!(it.collect::<Vec<_>>(), vec![1, 2, 3]);
-    ///
-    /// fn basic_simd_sum(x: &[f32]) -> f32 {
-    ///     use std::ops::Add;
-    ///     let (prefix, middle, suffix) = x.as_simd();
-    ///     let sums = f32x4::from_array([
-    ///         prefix.iter().copied().sum(),
-    ///         0.0,
-    ///         0.0,
-    ///         suffix.iter().copied().sum(),
-    ///     ]);
-    ///     let sums = middle.iter().copied().fold(sums, f32x4::add);
-    ///     sums.reduce_sum()
-    /// }
-    ///
-    /// let numbers: Vec<f32> = (1..101).map(|x| x as _).collect();
-    /// assert_eq!(basic_simd_sum(&numbers[1..99]), 4949.0);
-    /// ```
-    #[unstable(feature = "portable_simd", issue = "86656")]
-    #[must_use]
-    pub fn as_simd<const LANES: usize>(&self) -> (&[T], &[Simd<T, LANES>], &[T])
-    where
-        Simd<T, LANES>: AsRef<[T; LANES]>,
-        T: simd::SimdElement,
-        simd::LaneCount<LANES>: simd::SupportedLaneCount,
-    {
-        // These are expected to always match, as vector types are laid out like
-        // arrays per <https://llvm.org/docs/LangRef.html#vector-type>, but we
-        // might as well double-check since it'll optimize away anyhow.
-        assert_eq!(size_of::<Simd<T, LANES>>(), size_of::<[T; LANES]>());
-
-        // SAFETY: The simd types have the same layout as arrays, just with
-        // potentially-higher alignment, so the de-facto transmutes are sound.
-        unsafe { self.align_to() }
-    }
-
-    /// Splits a mutable slice into a mutable prefix, a middle of aligned SIMD types,
-    /// and a mutable suffix.
-    ///
-    /// This is a safe wrapper around [`slice::align_to_mut`], so inherits the same
-    /// guarantees as that method.
-    ///
-    /// This is the mutable version of [`slice::as_simd`]; see that for examples.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the size of the SIMD type is different from
-    /// `LANES` times that of the scalar.
-    ///
-    /// At the time of writing, the trait restrictions on `Simd<T, LANES>` keeps
-    /// that from ever happening, as only power-of-two numbers of lanes are
-    /// supported.  It's possible that, in the future, those restrictions might
-    /// be lifted in a way that would make it possible to see panics from this
-    /// method for something like `LANES == 3`.
-    #[unstable(feature = "portable_simd", issue = "86656")]
-    #[must_use]
-    pub fn as_simd_mut<const LANES: usize>(&mut self) -> (&mut [T], &mut [Simd<T, LANES>], &mut [T])
-    where
-        Simd<T, LANES>: AsMut<[T; LANES]>,
-        T: simd::SimdElement,
-        simd::LaneCount<LANES>: simd::SupportedLaneCount,
-    {
-        // These are expected to always match, as vector types are laid out like
-        // arrays per <https://llvm.org/docs/LangRef.html#vector-type>, but we
-        // might as well double-check since it'll optimize away anyhow.
-        assert_eq!(size_of::<Simd<T, LANES>>(), size_of::<[T; LANES]>());
-
-        // SAFETY: The simd types have the same layout as arrays, just with
-        // potentially-higher alignment, so the de-facto transmutes are sound.
-        unsafe { self.align_to_mut() }
     }
 
     /// Checks if the elements of this slice are sorted.

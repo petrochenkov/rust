@@ -276,7 +276,7 @@ pub fn spin_loop() {
     #[cfg(target_arch = "x86_64")]
     {
         // SAFETY: the `cfg` attr ensures that we only execute this on x86_64 targets.
-        unsafe { crate::arch::x86_64::_mm_pause() };
+        ()
     }
 
     #[cfg(target_arch = "riscv32")]

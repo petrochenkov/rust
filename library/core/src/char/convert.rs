@@ -186,7 +186,7 @@ pub struct ParseCharError {
     kind: CharErrorKind,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(crate::marker::Copy, Clone, Debug, PartialEq, Eq)]
 enum CharErrorKind {
     EmptyString,
     TooManyChars,
@@ -266,7 +266,7 @@ impl const TryFrom<u32> for char {
 /// This `struct` is created by the [`char::try_from<u32>`](char#impl-TryFrom<u32>-for-char) method.
 /// See its documentation for more.
 #[stable(feature = "try_from", since = "1.34.0")]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(crate::marker::Copy, Clone, Debug, PartialEq, Eq)]
 pub struct CharTryFromError(());
 
 #[stable(feature = "try_from", since = "1.34.0")]

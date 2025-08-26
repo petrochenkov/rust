@@ -292,7 +292,7 @@ fn digits_to_exp_str<'a>(
 }
 
 /// Sign formatting options.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(crate::marker::Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Sign {
     /// Prints `-` for any negative value.
     Minus, // -inf -1 -0  0  1  inf nan

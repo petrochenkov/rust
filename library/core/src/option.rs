@@ -585,7 +585,7 @@ use crate::{cmp, convert, hint, mem, slice};
 
 /// The `Option` type. See [the module level documentation](self) for more.
 #[doc(search_unbox)]
-#[derive(Copy, Eq, Debug, Hash)]
+#[derive(crate::marker::Copy, Eq, Debug, Hash)]
 #[rustc_diagnostic_item = "Option"]
 #[lang = "Option"]
 #[stable(feature = "rust1", since = "1.0.0")]

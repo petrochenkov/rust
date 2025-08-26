@@ -272,7 +272,7 @@ fn stable_quicksort<T, F: FnMut(&T, &T) -> bool>(
 
 /// Compactly stores the length of a run, and whether or not it is sorted. This
 /// can always fit in a `usize` because the maximum slice length is [`isize::MAX`].
-#[derive(Copy, Clone)]
+#[derive(crate::marker::Copy, Clone)]
 struct DriftsortRun(usize);
 
 impl DriftsortRun {

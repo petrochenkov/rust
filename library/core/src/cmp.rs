@@ -381,7 +381,7 @@ pub struct AssertParamIsEq<T: Eq + PointeeSized> {
 ///
 /// assert_eq!(2.cmp(&1), Ordering::Greater);
 /// ```
-#[derive(Clone, Copy, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Clone, crate::marker::Copy, Eq, PartialOrd, Ord, Debug, Hash)]
 #[derive_const(PartialEq)]
 #[stable(feature = "rust1", since = "1.0.0")]
 // This is a lang item only so that `BinOp::Cmp` in MIR can return it.
@@ -660,7 +660,7 @@ impl Ordering {
 /// v.sort_by_key(|&num| (num > 3, Reverse(num)));
 /// assert_eq!(v, vec![3, 2, 1, 6, 5, 4]);
 /// ```
-#[derive(PartialEq, Eq, Debug, Copy, Default, Hash)]
+#[derive(PartialEq, Eq, Debug, crate::marker::Copy, Default, Hash)]
 #[stable(feature = "reverse_cmp_key", since = "1.19.0")]
 #[repr(transparent)]
 pub struct Reverse<T>(#[stable(feature = "reverse_cmp_key", since = "1.19.0")] pub T);

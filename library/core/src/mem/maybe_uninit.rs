@@ -255,7 +255,7 @@ use crate::{fmt, intrinsics, ptr, slice};
 #[stable(feature = "maybe_uninit", since = "1.36.0")]
 // Lang item so we can wrap other types in it. This is useful for coroutines.
 #[lang = "maybe_uninit"]
-#[derive(Copy)]
+#[derive(crate::marker::Copy)]
 #[repr(transparent)]
 #[rustc_pub_transparent]
 pub union MaybeUninit<T> {

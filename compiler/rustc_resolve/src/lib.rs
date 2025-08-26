@@ -1846,6 +1846,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     }
 
     /// Entry point to crate resolution.
+    #[allow(unused)]
     pub fn resolve_crate(&mut self, krate: &Crate) {
         self.tcx.sess.time("resolve_crate", || {
             self.tcx.sess.time("finalize_imports", || self.finalize_imports());
@@ -1856,6 +1857,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             self.tcx
                 .sess
                 .time("finalize_macro_resolutions", || self.finalize_macro_resolutions(krate));
+            self.dcx().fatal("stop it");
             self.tcx.sess.time("late_resolve_crate", || self.late_resolve_crate(krate));
             self.tcx.sess.time("resolve_main", || self.resolve_main());
             self.tcx.sess.time("resolve_check_unused", || self.check_unused(krate));

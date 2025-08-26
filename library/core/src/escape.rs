@@ -158,7 +158,7 @@ const fn escape_unicode<const N: usize>(c: char) -> ([ascii::Char; N], Range<u8>
     (output, (start as u8)..(N as u8))
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, crate::marker::Copy)]
 union MaybeEscapedCharacter<const N: usize> {
     pub escape_seq: [ascii::Char; N],
     pub literal: char,
@@ -166,13 +166,13 @@ union MaybeEscapedCharacter<const N: usize> {
 
 /// Marker type to indicate that the character is always escaped,
 /// used to optimize the iterator implementation.
-#[derive(Clone, Copy)]
+#[derive(Clone, crate::marker::Copy)]
 #[non_exhaustive]
 pub(crate) struct AlwaysEscaped;
 
 /// Marker type to indicate that the character may be escaped,
 /// used to optimize the iterator implementation.
-#[derive(Clone, Copy)]
+#[derive(Clone, crate::marker::Copy)]
 #[non_exhaustive]
 pub(crate) struct MaybeEscaped;
 

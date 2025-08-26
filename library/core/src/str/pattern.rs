@@ -170,7 +170,7 @@ pub trait Pattern: Sized {
 /// Result of calling [`Pattern::as_utf8_pattern()`].
 /// Can be used for inspecting the contents of a [`Pattern`] in cases
 /// where the underlying representation can be represented as UTF-8.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(crate::marker::Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Utf8Pattern<'a> {
     /// Type returned by String and str types.
     StringPattern(&'a [u8]),
@@ -181,7 +181,7 @@ pub enum Utf8Pattern<'a> {
 // Searcher
 
 /// Result of calling [`Searcher::next()`] or [`ReverseSearcher::next_back()`].
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(crate::marker::Copy, Clone, Eq, PartialEq, Debug)]
 pub enum SearchStep {
     /// Expresses that a match of the pattern has been found at
     /// `haystack[a..b]`.
@@ -1786,126 +1786,9 @@ impl TwoWayStrategy for RejectAndMatch {
     all(target_arch = "loongarch64", target_feature = "lsx")
 ))]
 #[inline]
+#[allow(unused)]
 fn simd_contains(needle: &str, haystack: &str) -> Option<bool> {
-    let needle = needle.as_bytes();
-    let haystack = haystack.as_bytes();
-
-    debug_assert!(needle.len() > 1);
-
-    use crate::ops::BitAnd;
-    use crate::simd::cmp::SimdPartialEq;
-    use crate::simd::{mask8x16 as Mask, u8x16 as Block};
-
-    let first_probe = needle[0];
-    let last_byte_offset = needle.len() - 1;
-
-    // the offset used for the 2nd vector
-    let second_probe_offset = if needle.len() == 2 {
-        // never bail out on len=2 needles because the probes will fully cover them and have
-        // no degenerate cases.
-        1
-    } else {
-        // try a few bytes in case first and last byte of the needle are the same
-        let Some(second_probe_offset) =
-            (needle.len().saturating_sub(4)..needle.len()).rfind(|&idx| needle[idx] != first_probe)
-        else {
-            // fall back to other search methods if we can't find any different bytes
-            // since we could otherwise hit some degenerate cases
-            return None;
-        };
-        second_probe_offset
-    };
-
-    // do a naive search if the haystack is too small to fit
-    if haystack.len() < Block::LEN + last_byte_offset {
-        return Some(haystack.windows(needle.len()).any(|c| c == needle));
-    }
-
-    let first_probe: Block = Block::splat(first_probe);
-    let second_probe: Block = Block::splat(needle[second_probe_offset]);
-    // first byte are already checked by the outer loop. to verify a match only the
-    // remainder has to be compared.
-    let trimmed_needle = &needle[1..];
-
-    // this #[cold] is load-bearing, benchmark before removing it...
-    let check_mask = #[cold]
-    |idx, mask: u16, skip: bool| -> bool {
-        if skip {
-            return false;
-        }
-
-        // and so is this. optimizations are weird.
-        let mut mask = mask;
-
-        while mask != 0 {
-            let trailing = mask.trailing_zeros();
-            let offset = idx + trailing as usize + 1;
-            // SAFETY: mask is between 0 and 15 trailing zeroes, we skip one additional byte that was already compared
-            // and then take trimmed_needle.len() bytes. This is within the bounds defined by the outer loop
-            unsafe {
-                let sub = haystack.get_unchecked(offset..).get_unchecked(..trimmed_needle.len());
-                if small_slice_eq(sub, trimmed_needle) {
-                    return true;
-                }
-            }
-            mask &= !(1 << trailing);
-        }
-        false
-    };
-
-    let test_chunk = |idx| -> u16 {
-        // SAFETY: this requires at least LANES bytes being readable at idx
-        // that is ensured by the loop ranges (see comments below)
-        let a: Block = unsafe { haystack.as_ptr().add(idx).cast::<Block>().read_unaligned() };
-        // SAFETY: this requires LANES + block_offset bytes being readable at idx
-        let b: Block = unsafe {
-            haystack.as_ptr().add(idx).add(second_probe_offset).cast::<Block>().read_unaligned()
-        };
-        let eq_first: Mask = a.simd_eq(first_probe);
-        let eq_last: Mask = b.simd_eq(second_probe);
-        let both = eq_first.bitand(eq_last);
-        let mask = both.to_bitmask() as u16;
-
-        mask
-    };
-
-    let mut i = 0;
-    let mut result = false;
-    // The loop condition must ensure that there's enough headroom to read LANE bytes,
-    // and not only at the current index but also at the index shifted by block_offset
-    const UNROLL: usize = 4;
-    while i + last_byte_offset + UNROLL * Block::LEN < haystack.len() && !result {
-        let mut masks = [0u16; UNROLL];
-        for j in 0..UNROLL {
-            masks[j] = test_chunk(i + j * Block::LEN);
-        }
-        for j in 0..UNROLL {
-            let mask = masks[j];
-            if mask != 0 {
-                result |= check_mask(i + j * Block::LEN, mask, result);
-            }
-        }
-        i += UNROLL * Block::LEN;
-    }
-    while i + last_byte_offset + Block::LEN < haystack.len() && !result {
-        let mask = test_chunk(i);
-        if mask != 0 {
-            result |= check_mask(i, mask, result);
-        }
-        i += Block::LEN;
-    }
-
-    // Process the tail that didn't fit into LANES-sized steps.
-    // This simply repeats the same procedure but as right-aligned chunk instead
-    // of a left-aligned one. The last byte must be exactly flush with the string end so
-    // we don't miss a single byte or read out of bounds.
-    let i = haystack.len() - last_byte_offset - Block::LEN;
-    let mask = test_chunk(i);
-    if mask != 0 {
-        result |= check_mask(i, mask, result);
-    }
-
-    Some(result)
+    None
 }
 
 /// Compares short slices for equality.

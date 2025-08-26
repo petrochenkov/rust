@@ -7,7 +7,7 @@
 )]
 
 /// Formatted parts.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(crate::marker::Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Part<'a> {
     /// Given number of zero digits.
     Zero(usize),

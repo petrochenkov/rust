@@ -47,7 +47,7 @@ pub use self::join::join;
 #[lang = "ResumeTy"]
 #[doc(hidden)]
 #[unstable(feature = "gen_future", issue = "none")]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, crate::marker::Copy, Clone)]
 pub struct ResumeTy(NonNull<Context<'static>>);
 
 #[unstable(feature = "gen_future", issue = "none")]

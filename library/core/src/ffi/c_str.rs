@@ -122,7 +122,7 @@ pub struct CStr {
 ///
 /// let _: FromBytesWithNulError = CStr::from_bytes_with_nul(b"f\0oo").unwrap_err();
 /// ```
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, crate::marker::Copy, PartialEq, Eq, Debug)]
 #[stable(feature = "core_c_str", since = "1.64.0")]
 pub enum FromBytesWithNulError {
     /// Data provided contains an interior nul byte at byte `position`.
