@@ -639,6 +639,22 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
 
                 match result {
                     Ok((binding, flags)) => {
+                        if !matches!(scope, Scope::MacroUsePrelude) {
+                            let adjusted_module = if let Scope::Module(module, _) = scope
+                                && !matches!(scope_set, ScopeSet::ModuleAndExternPrelude(..))
+                            {
+                                module
+                            } else {
+                                parent_scope.module
+                            };
+                            if !this.is_accessible_from(binding.vis, adjusted_module) {
+                                this.dcx()
+                                    .struct_span_note(binding.span, "binding")
+                                    .with_span_label(adjusted_module.span, "module")
+                                    .emit();
+                            }
+                        }
+
                         if !sub_namespace_match(binding.macro_kinds(), macro_kind) {
                             return None;
                         }
