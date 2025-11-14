@@ -49,7 +49,10 @@ mod traits {
         fn f<T: PrivTr>(arg: T) {}
         //~^ ERROR trait `traits::PrivTr` is more private than the item `traits::Tr3::f`
         fn g() -> impl PrivTr;
+        //~^ ERROR private trait `traits::PrivTr` in public interface
         fn h() -> impl PrivTr {}
+        //~^ ERROR private trait `traits::PrivTr` in public interface
+        //~| ERROR private trait `traits::PrivTr` in public interface
     }
     impl<T: PrivTr> Pub<T> {} //~ ERROR trait `traits::PrivTr` is more private than the item `traits::Pub<T>`
     impl<T: PrivTr> PubTr for Pub<T> {} // OK, trait impl predicates
@@ -89,7 +92,14 @@ mod generics {
 
     pub trait Tr5 {
         fn required() -> impl PrivTr<Priv<()>>;
+        //~^ ERROR private trait `generics::PrivTr<generics::Priv<()>>` in public interface
+        //~| ERROR private type `generics::Priv<()>` in public interface
+
         fn provided() -> impl PrivTr<Priv<()>> {}
+        //~^ ERROR private trait `generics::PrivTr<generics::Priv<()>>` in public interface
+        //~| ERROR private type `generics::Priv<()>` in public interface
+        //~| ERROR private trait `generics::PrivTr<generics::Priv<()>>` in public interface
+        //~| ERROR private type `generics::Priv<()>` in public interface
     }
 }
 
