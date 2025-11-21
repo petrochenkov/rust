@@ -1065,9 +1065,20 @@ impl<'a, 'ra, 'tcx> BuildReducedGraphVisitor<'a, 'ra, 'tcx> {
         span: Span,
         allow_shadowing: bool,
     ) {
-        if self.r.macro_use_prelude.insert(name, binding).is_some() && !allow_shadowing {
-            self.r.dcx().emit_err(errors::MacroUseNameAlreadyInUse { span, name });
-        }
+        use indexmap::map::Entry;
+        match self.r.macro_use_prelude.entry(name) {
+            Entry::Occupied(mut occupied) => {
+                if allow_shadowing {
+                    // FIXME(#148025): do not overwrite the binding.
+                    occupied.insert(binding);
+                } else {
+                    self.r.dcx().emit_err(errors::MacroUseNameAlreadyInUse { span, name });
+                }
+            }
+            Entry::Vacant(vacant) => {
+                vacant.insert(binding);
+            }
+        };
     }
 
     /// Returns `true` if we should consider the underlying `extern crate` to be used.
@@ -1124,7 +1135,7 @@ impl<'a, 'ra, 'tcx> BuildReducedGraphVisitor<'a, 'ra, 'tcx> {
             self.r.potentially_unused_imports.push(import);
             module.for_each_child_mut(self, |this, ident, ns, binding| {
                 if ns == MacroNS {
-                    let import = if this.r.is_accessible_from(binding.vis, this.parent_scope.module)
+                    let import = if this.r.is_accessible_from(binding.vis.get(), this.parent_scope.module)
                     {
                         import
                     } else {

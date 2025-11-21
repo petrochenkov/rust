@@ -793,16 +793,16 @@ impl<'ra> fmt::Debug for Module<'ra> {
 }
 
 /// Records a possibly-private value, type, or module definition.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 struct NameBindingData<'ra> {
     kind: NameBindingKind<'ra>,
-    ambiguity: Option<(NameBinding<'ra>, AmbiguityKind)>,
+    ambiguity: CmCell<Option<(NameBinding<'ra>, AmbiguityKind)>>,
     /// Produce a warning instead of an error when reporting ambiguities inside this binding.
     /// May apply to indirect ambiguities under imports, so `ambiguity.is_some()` is not required.
-    warn_ambiguity: bool,
+    warn_ambiguity: CmCell<bool>,
     expansion: LocalExpnId,
     span: Span,
-    vis: Visibility<DefId>,
+    vis: CmCell<Visibility<DefId>>,
 }
 
 /// All name bindings are unique and allocated on a same arena,
@@ -933,7 +933,7 @@ impl<'ra> NameBindingData<'ra> {
     }
 
     fn is_ambiguity_recursive(&self) -> bool {
-        self.ambiguity.is_some()
+        self.ambiguity.get().is_some()
             || match self.kind {
                 NameBindingKind::Import { binding, .. } => binding.is_ambiguity_recursive(),
                 _ => false,
@@ -941,7 +941,7 @@ impl<'ra> NameBindingData<'ra> {
     }
 
     fn warn_ambiguity_recursive(&self) -> bool {
-        self.warn_ambiguity
+        self.warn_ambiguity.get()
             || match self.kind {
                 NameBindingKind::Import { binding, .. } => binding.warn_ambiguity_recursive(),
                 _ => false,
@@ -1320,9 +1320,9 @@ impl<'ra> ResolverArenas<'ra> {
     ) -> NameBinding<'ra> {
         self.alloc_name_binding(NameBindingData {
             kind: NameBindingKind::Res(res),
-            ambiguity: None,
-            warn_ambiguity: false,
-            vis,
+            ambiguity: CmCell::new(None),
+            warn_ambiguity: CmCell::new(false),
+            vis: CmCell::new(vis),
             span,
             expansion,
         })
@@ -2024,7 +2024,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     }
 
     fn record_use(&mut self, ident: Ident, used_binding: NameBinding<'ra>, used: Used) {
-        self.record_use_inner(ident, used_binding, used, used_binding.warn_ambiguity);
+        self.record_use_inner(ident, used_binding, used, used_binding.warn_ambiguity.get());
     }
 
     fn record_use_inner(
@@ -2034,7 +2034,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         used: Used,
         warn_ambiguity: bool,
     ) {
-        if let Some((b2, kind)) = used_binding.ambiguity {
+        if let Some((b2, kind)) = used_binding.ambiguity.get() {
             let ambiguity_error = AmbiguityError {
                 kind,
                 ident,
@@ -2095,7 +2095,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 ident,
                 binding,
                 Used::Other,
-                warn_ambiguity || binding.warn_ambiguity,
+                warn_ambiguity || binding.warn_ambiguity.get(),
             );
         }
     }

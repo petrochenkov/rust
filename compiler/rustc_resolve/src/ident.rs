@@ -916,7 +916,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
 
         let check_usable = |this: CmResolver<'r, 'ra, 'tcx>, binding: NameBinding<'ra>| {
-            let usable = this.is_accessible_from(binding.vis, parent_scope.module);
+            let usable = this.is_accessible_from(binding.vis.get(), parent_scope.module);
             if usable { Ok(binding) } else { Err((Determined, Weak::No)) }
         };
 
@@ -1016,7 +1016,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             match result {
                 Err((Determined, _)) => continue,
                 Ok(binding)
-                    if !self.is_accessible_from(binding.vis, glob_import.parent_scope.module) =>
+                    if !self.is_accessible_from(binding.vis.get(), glob_import.parent_scope.module) =>
                 {
                     continue;
                 }
@@ -1044,7 +1044,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             return Err((Determined, Weak::No));
         };
 
-        if !self.is_accessible_from(binding.vis, parent_scope.module) {
+        if !self.is_accessible_from(binding.vis.get(), parent_scope.module) {
             if report_private {
                 self.privacy_errors.push(PrivacyError {
                     ident,
@@ -1171,7 +1171,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             ) {
                 Err((Determined, _)) => continue,
                 Ok(binding)
-                    if !self.is_accessible_from(binding.vis, single_import.parent_scope.module) =>
+                    if !self.is_accessible_from(binding.vis.get(), single_import.parent_scope.module) =>
                 {
                     continue;
                 }
