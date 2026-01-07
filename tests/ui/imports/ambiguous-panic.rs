@@ -8,7 +8,5 @@ use std::prelude::v1::*;
 fn xx() {
     panic!();
     //~^ ERROR `panic` is ambiguous
-    //~| ERROR `panic` is ambiguous
-    //~| WARNING this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
     //~| WARNING this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
 }

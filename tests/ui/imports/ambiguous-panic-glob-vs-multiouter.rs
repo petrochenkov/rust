@@ -13,5 +13,4 @@ fn foo() {
     use m1::*;
 
     panic!(); //~ ERROR: `panic` is ambiguous [E0659]
-    //~^ ERROR: `panic` is ambiguous [E0659]
 }

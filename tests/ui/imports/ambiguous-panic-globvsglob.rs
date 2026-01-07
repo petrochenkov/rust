@@ -20,6 +20,4 @@ fn foo() {
     //~| WARN: this was previously accepted by the compiler
     //~| ERROR: `panic` is ambiguous [ambiguous_glob_imports]
     //~| WARN: this was previously accepted by the compiler
-    //~| WARN: `panic` is ambiguous [ambiguous_panic_imports]
-    //~| WARN: this was previously accepted by the compiler
 }

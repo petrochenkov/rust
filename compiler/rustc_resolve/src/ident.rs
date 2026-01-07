@@ -462,23 +462,11 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 };
                 match res {
                     Ok(decl) if sub_namespace_match(decl.macro_kinds(), macro_kind) => {
-                        // preemptively look for ambiguities for panic macros to ensure we don't
-                        // speculatively resolve to a non-prelude item when an ambiguity that we'd
-                        // downgrade is present
-                        let is_issue_147319_hack = || {
-                            ctxt.edition() <= Edition::Edition2024
-                                && matches!(orig_ident.name, sym::panic)
-                                && (this.is_specific_builtin_macro(decl.res(), sym::std_panic)
-                                    || this.is_specific_builtin_macro(decl.res(), sym::core_panic))
-                        };
-
                         // Below we report various ambiguity errors.
                         // We do not need to report them if we are either in speculative resolution,
                         // or in late resolution when everything is already imported and expanded
                         // and no ambiguities exist.
-                        if matches!(finalize, None | Some(Finalize { stage: Stage::Late, .. }))
-                            && !is_issue_147319_hack()
-                        {
+                        if matches!(finalize, None | Some(Finalize { stage: Stage::Late, .. })) {
                             return ControlFlow::Break(Ok(decl));
                         }
 
