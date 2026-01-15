@@ -11,24 +11,29 @@ LL |     struct Priv;
    |     ^^^^^^^^^^^
    = note: `#[warn(private_interfaces)]` on by default
 
-error[E0446]: private type `m2::Priv` in public interface
+warning: type `m2::Priv` is more private than the item `m2::<impl Deref for SemiPriv>::Target`
   --> $DIR/issue-30079.rs:17:9
    |
-LL |     struct Priv;
-   |     ----------- `m2::Priv` declared as private
-LL |     impl std::ops::Deref for crate::SemiPriv {
 LL |         type Target = Priv;
-   |         ^^^^^^^^^^^ can't leak private type
-
-error[E0446]: private type `m3::Priv` in public interface
-  --> $DIR/issue-30079.rs:34:9
+   |         ^^^^^^^^^^^ associated type `m2::<impl Deref for SemiPriv>::Target` is reachable at visibility `pub(crate)`
+   |
+note: but type `m2::Priv` is only usable at visibility `pub(self)`
+  --> $DIR/issue-30079.rs:15:5
    |
 LL |     struct Priv;
-   |     ----------- `m3::Priv` declared as private
-LL |     impl crate::SemiPrivTrait for () {
+   |     ^^^^^^^^^^^
+
+warning: type `m3::Priv` is more private than the item `m3::<impl SemiPrivTrait for ()>::Assoc`
+  --> $DIR/issue-30079.rs:34:9
+   |
 LL |         type Assoc = Priv;
-   |         ^^^^^^^^^^ can't leak private type
+   |         ^^^^^^^^^^ associated type `m3::<impl SemiPrivTrait for ()>::Assoc` is reachable at visibility `pub(crate)`
+   |
+note: but type `m3::Priv` is only usable at visibility `pub(self)`
+  --> $DIR/issue-30079.rs:32:5
+   |
+LL |     struct Priv;
+   |     ^^^^^^^^^^^
 
-error: aborting due to 2 previous errors; 1 warning emitted
+warning: 3 warnings emitted
 
-For more information about this error, try `rustc --explain E0446`.

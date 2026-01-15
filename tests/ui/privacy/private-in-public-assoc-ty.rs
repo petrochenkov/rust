@@ -1,6 +1,6 @@
 // Private types and traits are not allowed in interfaces of associated types.
 // This test also ensures that the checks are performed even inside private modules.
-
+//@ check-pass
 #![feature(associated_type_defaults)]
 #![feature(impl_trait_in_assoc_type)]
 
@@ -15,7 +15,7 @@ mod m {
     impl<T> PubTrAux1<T> for u8 {}
     impl PubTrAux2 for u8 {
         type A = Priv;
-        //~^ ERROR private type `Priv` in public interface
+        //~^ WARN type `Priv` is more private than the item `<u8 as PubTrAux2>::A`
     }
 
     // "Private-in-public in associated types is hard error" in RFC 2145
@@ -29,17 +29,17 @@ mod m {
         //~^ WARN type `Priv` is more private than the item `PubTr::Alias3`
 
         type Alias4 = Priv;
-        //~^ ERROR private type `Priv` in public interface
+        //~^ WARN type `Priv` is more private than the item `PubTr::Alias4`
 
         type Exist;
         fn infer_exist() -> Self::Exist;
     }
     impl PubTr for u8 {
         type Alias1 = Priv;
-        //~^ ERROR private type `Priv` in public interface
+        //~^ WARN type `Priv` is more private than the item `<u8 as PubTr>::Alias1`
 
         type Exist = impl PrivTr;
-        //~^ ERROR private trait `PrivTr` in public interface
+        //~^ WARN trait `PrivTr` is more private than the item `<u8 as PubTr>::Exist`
         fn infer_exist() -> Self::Exist {
             Priv
         }

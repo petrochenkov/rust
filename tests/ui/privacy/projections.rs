@@ -22,8 +22,8 @@ trait Trait2 {
 
 impl Trait2 for u8 {
     type A<T> = m::Leak;
-    //~^ ERROR: `Priv` is private
-    //~| ERROR: private type `Priv` in public interface
+    //~^ WARN: type `Priv` is more private than the item `<u8 as Trait2>::A`
+    //~| ERROR type `Priv` is private
 }
 
 fn check2() -> <u8 as Trait2>::A<u32> {
@@ -37,8 +37,8 @@ trait Trait3 {
 
 impl Trait3 for u8 {
     type A<T: Trait> = T::A<m::Leak>;
-    //~^ ERROR: `Priv` is private
-    //~| ERROR: private type `Priv` in public interface
+    //~^ WARN: type `Priv` is more private than the item `<u8 as Trait3>::A`
+    //~| ERROR type `Priv` is private
 }
 
 fn check3() -> <u8 as Trait3>::A<u8> {

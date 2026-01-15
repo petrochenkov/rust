@@ -19,10 +19,6 @@ privacy_field_is_private_label = private field
 privacy_from_private_dep_in_public_interface =
     {$kind} `{$descr}` from private dependency '{$krate}' in public interface
 
-privacy_in_public_interface = {$vis_descr} {$kind} `{$descr}` in public interface
-    .label = can't leak {$vis_descr} {$kind}
-    .visibility_label = `{$descr}` declared as {$vis_descr}
-
 privacy_item_is_private = {$kind} `{$descr}` is private
     .label = private {$kind}
 

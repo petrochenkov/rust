@@ -1,5 +1,5 @@
 struct SemiPriv;
-
+//@ check-pass
 mod m1 {
     struct Priv;
     impl crate::SemiPriv {
@@ -14,7 +14,7 @@ mod m1 {
 mod m2 {
     struct Priv;
     impl std::ops::Deref for crate::SemiPriv {
-        type Target = Priv; //~ ERROR private type `m2::Priv` in public interface
+        type Target = Priv; //~ WARN type `m2::Priv` is more private than the item `m2::<impl Deref for SemiPriv>::Target`
         fn deref(&self) -> &Self::Target { unimplemented!() }
     }
 
@@ -31,7 +31,7 @@ trait SemiPrivTrait {
 mod m3 {
     struct Priv;
     impl crate::SemiPrivTrait for () {
-        type Assoc = Priv; //~ ERROR private type `m3::Priv` in public interface
+        type Assoc = Priv; //~ WARN type `m3::Priv` is more private than the item `m3::<impl SemiPrivTrait for ()>::Assoc`
     }
 }
 

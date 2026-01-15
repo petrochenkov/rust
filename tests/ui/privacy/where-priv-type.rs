@@ -1,6 +1,6 @@
 // priv-in-pub lint tests where the private type appears in the
 // `where` clause of a public item
-
+//@ check-pass
 #![crate_type = "lib"]
 #![feature(generic_const_exprs)]
 #![allow(incomplete_features)]
@@ -64,8 +64,8 @@ where
     Const<{ my_const_fn(U) }>:,
 {
     type AssocTy = Const<{ my_const_fn(U) }>;
-    //~^ ERROR private type
-    //~| ERROR private type
+    //~^ WARN type `fn(u8) -> u8 {my_const_fn}` is more private than the item `<Const<U> as Trait>::AssocTy`
+    //~| WARN type `fn(u8) -> u8 {my_const_fn}` is more private than the item `<Const<U> as Trait>::AssocTy`
     fn assoc_fn() -> Self::AssocTy {
         Const
     }

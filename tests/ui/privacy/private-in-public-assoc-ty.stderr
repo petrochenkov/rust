@@ -1,11 +1,15 @@
-error[E0446]: private type `Priv` in public interface
+warning: type `Priv` is more private than the item `<u8 as PubTrAux2>::A`
   --> $DIR/private-in-public-assoc-ty.rs:17:9
    |
-LL |     struct Priv;
-   |     ----------- `Priv` declared as private
-...
 LL |         type A = Priv;
-   |         ^^^^^^ can't leak private type
+   |         ^^^^^^ associated type `<u8 as PubTrAux2>::A` is reachable at visibility `pub(crate)`
+   |
+note: but type `Priv` is only usable at visibility `pub(self)`
+  --> $DIR/private-in-public-assoc-ty.rs:8:5
+   |
+LL |     struct Priv;
+   |     ^^^^^^^^^^^
+   = note: `#[warn(private_interfaces)]` on by default
 
 warning: trait `PrivTr` is more private than the item `PubTr::Alias1`
   --> $DIR/private-in-public-assoc-ty.rs:24:9
@@ -44,33 +48,41 @@ note: but type `Priv` is only usable at visibility `pub(self)`
 LL |     struct Priv;
    |     ^^^^^^^^^^^
 
-error[E0446]: private type `Priv` in public interface
+warning: type `Priv` is more private than the item `PubTr::Alias4`
   --> $DIR/private-in-public-assoc-ty.rs:31:9
    |
-LL |     struct Priv;
-   |     ----------- `Priv` declared as private
-...
 LL |         type Alias4 = Priv;
-   |         ^^^^^^^^^^^ can't leak private type
+   |         ^^^^^^^^^^^ associated type `PubTr::Alias4` is reachable at visibility `pub(crate)`
+   |
+note: but type `Priv` is only usable at visibility `pub(self)`
+  --> $DIR/private-in-public-assoc-ty.rs:8:5
+   |
+LL |     struct Priv;
+   |     ^^^^^^^^^^^
 
-error[E0446]: private type `Priv` in public interface
+warning: type `Priv` is more private than the item `<u8 as PubTr>::Alias1`
   --> $DIR/private-in-public-assoc-ty.rs:38:9
    |
-LL |     struct Priv;
-   |     ----------- `Priv` declared as private
-...
 LL |         type Alias1 = Priv;
-   |         ^^^^^^^^^^^ can't leak private type
+   |         ^^^^^^^^^^^ associated type `<u8 as PubTr>::Alias1` is reachable at visibility `pub(crate)`
+   |
+note: but type `Priv` is only usable at visibility `pub(self)`
+  --> $DIR/private-in-public-assoc-ty.rs:8:5
+   |
+LL |     struct Priv;
+   |     ^^^^^^^^^^^
 
-error[E0446]: private trait `PrivTr` in public interface
+warning: trait `PrivTr` is more private than the item `<u8 as PubTr>::Exist`
   --> $DIR/private-in-public-assoc-ty.rs:41:9
    |
-LL |     trait PrivTr {}
-   |     ------------ `PrivTr` declared as private
-...
 LL |         type Exist = impl PrivTr;
-   |         ^^^^^^^^^^ can't leak private trait
+   |         ^^^^^^^^^^ associated type `<u8 as PubTr>::Exist` is reachable at visibility `pub(crate)`
+   |
+note: but trait `PrivTr` is only usable at visibility `pub(self)`
+  --> $DIR/private-in-public-assoc-ty.rs:9:5
+   |
+LL |     trait PrivTr {}
+   |     ^^^^^^^^^^^^
 
-error: aborting due to 4 previous errors; 3 warnings emitted
+warning: 7 warnings emitted
 
-For more information about this error, try `rustc --explain E0446`.

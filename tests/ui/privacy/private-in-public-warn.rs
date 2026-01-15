@@ -19,7 +19,7 @@ mod types {
     }
     pub trait Tr {
         const C: Priv = Priv; //~ ERROR type `types::Priv` is more private than the item `Tr::C`
-        type Alias = Priv; //~ ERROR private type `types::Priv` in public interface
+        type Alias = Priv; //~ ERROR type `types::Priv` is more private than the item `Tr::Alias`
         fn f1(arg: Priv) {} //~ ERROR type `types::Priv` is more private than the item `Tr::f1`
         fn f2() -> Priv { panic!() } //~ ERROR type `types::Priv` is more private than the item `Tr::f2`
     }
@@ -29,7 +29,7 @@ mod types {
         pub fn ef2() -> Priv; //~ ERROR type `types::Priv` is more private than the item `types::ef2`
     }
     impl PubTr for Pub {
-        type Alias = Priv; //~ ERROR private type `types::Priv` in public interface
+        type Alias = Priv; //~ ERROR type `types::Priv` is more private than the item `<types::Pub as types::PubTr>::Alias`
     }
 }
 
@@ -48,9 +48,9 @@ mod traits {
         //~^ ERROR trait `traits::PrivTr` is more private than the item `traits::Tr3::Alias`
         fn f<T: PrivTr>(arg: T) {}
         //~^ ERROR trait `traits::PrivTr` is more private than the item `traits::Tr3::f`
-        fn g() -> impl PrivTr;
-        fn h() -> impl PrivTr {}
-    }
+        fn g() -> impl PrivTr; //~ ERROR trait `traits::PrivTr` is more private than the item `traits::Tr3::g::{anon_assoc#0}`
+        fn h() -> impl PrivTr {} //~ ERROR trait `traits::PrivTr` is more private than the item `traits::Tr3::h::{anon_assoc#0}`
+    }                            //~| ERROR trait `traits::PrivTr` is more private than the item `traits::Tr3::h::{anon_assoc#0}`
     impl<T: PrivTr> Pub<T> {} //~ ERROR trait `traits::PrivTr` is more private than the item `traits::Pub<T>`
     impl<T: PrivTr> PubTr for Pub<T> {} // OK, trait impl predicates
 }
@@ -89,7 +89,13 @@ mod generics {
 
     pub trait Tr5 {
         fn required() -> impl PrivTr<Priv<()>>;
+        //~^ ERROR trait `generics::PrivTr<generics::Priv<()>>` is more private than the item `Tr5::required::{anon_assoc#0}`
+        //~| ERROR type `generics::Priv<()>` is more private than the item `Tr5::required::{anon_assoc#0}`
         fn provided() -> impl PrivTr<Priv<()>> {}
+        //~^ ERROR: trait `generics::PrivTr<generics::Priv<()>>` is more private than the item `Tr5::provided::{anon_assoc#0}`
+        //~| ERROR: type `generics::Priv<()>` is more private than the item `Tr5::provided::{anon_assoc#0}` [private_interfaces]
+        //~| ERROR: trait `generics::PrivTr<generics::Priv<()>>` is more private than the item `Tr5::provided::{anon_assoc#0}` [private_bounds]
+        //~| ERROR: type `generics::Priv<()>` is more private than the item `Tr5::provided::{anon_assoc#0}`
     }
 }
 
@@ -116,7 +122,7 @@ mod impls {
         type Alias = Priv; // OK
     }
     impl PubTr for Pub {
-        type Alias = Priv; //~ ERROR private type `impls::Priv` in public interface
+        type Alias = Priv; //~ ERROR type `impls::Priv` is more private than the item `<impls::Pub as impls::PubTr>::Alias`
     }
 }
 
@@ -190,16 +196,16 @@ mod aliases_pub {
         pub fn f(arg: Priv) {} //~ ERROR type `aliases_pub::Priv` is more private than the item `aliases_pub::<impl Pub2>::f`
     }
     impl PrivUseAliasTr for PrivUseAlias {
-        type Check = Priv; //~ ERROR private type `aliases_pub::Priv` in public interface
+        type Check = Priv; //~ ERROR type `aliases_pub::Priv` is more private than the item `aliases_pub::<impl m::PubTr for Pub1>::Check`
     }
     impl PrivUseAliasTr for PrivAlias {
-        type Check = Priv; //~ ERROR private type `aliases_pub::Priv` in public interface
+        type Check = Priv; //~ ERROR type `aliases_pub::Priv` is more private than the item `aliases_pub::<impl m::PubTr for Pub2>::Check`
     }
     impl PrivUseAliasTr for <Priv as PrivTr>::AssocAlias {
-        type Check = Priv; //~ ERROR private type `aliases_pub::Priv` in public interface
+        type Check = Priv; //~ ERROR type `aliases_pub::Priv` is more private than the item `aliases_pub::<impl m::PubTr for <aliases_pub::Priv as aliases_pub::PrivTr>::AssocAlias>::Check`
     }
     impl PrivUseAliasTr for Option<<Priv as PrivTr>::AssocAlias> {
-        type Check = Priv; //~ ERROR private type `aliases_pub::Priv` in public interface
+        type Check = Priv; //~ ERROR type `aliases_pub::Priv` is more private than the item `aliases_pub::<impl m::PubTr for Option<<aliases_pub::Priv as aliases_pub::PrivTr>::AssocAlias>>::Check
     }
     impl PrivUseAliasTr for (<Priv as PrivTr>::AssocAlias, Priv) {
         type Check = Priv; // OK
