@@ -312,6 +312,17 @@ where
     }
 }
 
+fn assoc_ty_has_type_of(tcx: TyCtxt<'_>, item: &ty::AssocItem) -> bool {
+    if let hir::Node::TraitItem(item) =
+        tcx.hir_node(tcx.local_def_id_to_hir_id(item.def_id.expect_local()))
+        && let hir::TraitItemKind::Type(_, None) = item.kind
+    {
+        false
+    } else {
+        true
+    }
+}
+
 fn min(vis1: ty::Visibility, vis2: ty::Visibility, tcx: TyCtxt<'_>) -> ty::Visibility {
     if vis1.is_at_least(vis2, tcx) { vis2 } else { vis1 }
 }
@@ -681,7 +692,7 @@ impl<'tcx> EmbargoVisitor<'tcx> {
                         let mut reach = self.reach(def_id, item_ev);
                         reach.generics().predicates();
 
-                        if assoc_item.is_type() && !assoc_item.defaultness(tcx).has_value() {
+                        if assoc_item.is_type() && !assoc_ty_has_type_of(tcx, assoc_item) {
                             // No type to visit.
                         } else {
                             reach.ty();
@@ -1588,7 +1599,7 @@ impl<'tcx> PrivateItemsInPublicInterfacesChecker<'_, 'tcx> {
 
         let (check_ty, is_assoc_ty) = match item.kind {
             ty::AssocKind::Const { .. } | ty::AssocKind::Fn { .. } => (true, false),
-            ty::AssocKind::Type { .. } => (item.defaultness(self.tcx).has_value(), true),
+            ty::AssocKind::Type { .. } => (assoc_ty_has_type_of(self.tcx, item), true),
         };
 
         check.in_assoc_ty = is_assoc_ty;
