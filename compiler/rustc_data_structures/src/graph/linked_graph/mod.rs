@@ -23,6 +23,7 @@
 use std::fmt::Debug;
 
 use rustc_index::bit_set::DenseBitSet;
+use rustc_index::{Idx, IndexVec};
 use tracing::debug;
 
 #[cfg(test)]
@@ -45,8 +46,9 @@ mod tests;
 /// and does not implement those traits, so it has its own implementations of a
 /// few basic graph algorithms.
 pub struct LinkedGraph<N, E> {
-    nodes: Vec<Node<N>>,
+    nodes: IndexVec<NodeIndex, Option<Node<N>>>,
     edges: Vec<Edge<E>>,
+    linked_edges: usize,
 }
 
 pub struct Node<N> {
@@ -62,7 +64,7 @@ pub struct Edge<E> {
     pub data: E,
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct NodeIndex(pub usize);
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -87,20 +89,34 @@ impl NodeIndex {
     }
 }
 
+impl Idx for NodeIndex {
+    fn new(idx: usize) -> NodeIndex {
+        NodeIndex(idx)
+    }
+
+    fn index(self) -> usize {
+        self.0
+    }
+}
+
 impl<N: Debug, E: Debug> LinkedGraph<N, E> {
     pub fn new() -> Self {
-        Self { nodes: Vec::new(), edges: Vec::new() }
+        Self { nodes: IndexVec::new(), edges: Vec::new(), linked_edges: 0 }
     }
 
     pub fn with_capacity(nodes: usize, edges: usize) -> Self {
-        Self { nodes: Vec::with_capacity(nodes), edges: Vec::with_capacity(edges) }
+        Self {
+            nodes: IndexVec::with_capacity(nodes),
+            edges: Vec::with_capacity(edges),
+            linked_edges: 0,
+        }
     }
 
     // # Simple accessors
 
     #[inline]
-    pub fn all_nodes(&self) -> &[Node<N>] {
-        &self.nodes
+    pub fn all_nodes(&self) -> impl Iterator<Item = &Node<N>> {
+        self.nodes.iter().filter_map(Option::as_ref)
     }
 
     #[inline]
@@ -126,20 +142,28 @@ impl<N: Debug, E: Debug> LinkedGraph<N, E> {
 
     pub fn add_node(&mut self, data: N) -> NodeIndex {
         let idx = self.next_node_index();
-        self.nodes.push(Node { first_edge: [INVALID_EDGE_INDEX, INVALID_EDGE_INDEX], data });
+        self.add_node_with_idx(idx, data);
         idx
     }
 
+    pub fn add_node_with_idx(&mut self, idx: NodeIndex, data: N) {
+        let old = self
+            .nodes
+            .insert(idx, Node { first_edge: [INVALID_EDGE_INDEX, INVALID_EDGE_INDEX], data });
+        self.link_edges();
+        debug_assert!(old.is_none());
+    }
+
     pub fn mut_node_data(&mut self, idx: NodeIndex) -> &mut N {
-        &mut self.nodes[idx.0].data
+        &mut self.nodes[idx].as_mut().unwrap().data
     }
 
     pub fn node_data(&self, idx: NodeIndex) -> &N {
-        &self.nodes[idx.0].data
+        &self.nodes[idx].as_ref().unwrap().data
     }
 
     pub fn node(&self, idx: NodeIndex) -> &Node<N> {
-        &self.nodes[idx.0]
+        self.nodes[idx].as_ref().unwrap()
     }
 
     // # Edge construction and queries
@@ -152,20 +176,36 @@ impl<N: Debug, E: Debug> LinkedGraph<N, E> {
         debug!("graph: add_edge({:?}, {:?}, {:?})", source, target, data);
 
         let idx = self.next_edge_index();
-
-        // read current first of the list of edges from each node
-        let source_first = self.nodes[source.0].first_edge[OUTGOING.repr];
-        let target_first = self.nodes[target.0].first_edge[INCOMING.repr];
-
-        // create the new edge, with the previous firsts from each node
-        // as the next pointers
-        self.edges.push(Edge { next_edge: [source_first, target_first], source, target, data });
-
-        // adjust the firsts for each node target be the next object.
-        self.nodes[source.0].first_edge[OUTGOING.repr] = idx;
-        self.nodes[target.0].first_edge[INCOMING.repr] = idx;
-
+        self.edges.push(Edge {
+            next_edge: [INVALID_EDGE_INDEX, INVALID_EDGE_INDEX],
+            source,
+            target,
+            data,
+        });
+        self.link_edges();
         idx
+    }
+
+    fn link_edges(&mut self) {
+        for (idx, edge) in self.edges.iter_mut().enumerate().skip(self.linked_edges) {
+            // read current first of the list of edges from each node
+            let (Some(Some(source_node)), Some(Some(target_node))) =
+                (self.nodes.get(edge.source), self.nodes.get(edge.target))
+            else {
+                return;
+            };
+            let source_first = source_node.first_edge[OUTGOING.repr];
+            let target_first = target_node.first_edge[INCOMING.repr];
+            self.linked_edges += 1;
+
+            // create the new edge, with the previous firsts from each node
+            // as the next pointers
+            edge.next_edge = [source_first, target_first];
+
+            // adjust the firsts for each node target be the next object.
+            self.nodes[edge.source].as_mut().unwrap().first_edge[OUTGOING.repr] = EdgeIndex(idx);
+            self.nodes[edge.target].as_mut().unwrap().first_edge[INCOMING.repr] = EdgeIndex(idx);
+        }
     }
 
     pub fn edge(&self, idx: EdgeIndex) -> &Edge<E> {
@@ -175,7 +215,7 @@ impl<N: Debug, E: Debug> LinkedGraph<N, E> {
     // # Iterating over nodes, edges
 
     pub fn enumerated_nodes(&self) -> impl Iterator<Item = (NodeIndex, &Node<N>)> {
-        self.nodes.iter().enumerate().map(|(idx, n)| (NodeIndex(idx), n))
+        self.nodes.iter().enumerate().filter_map(|(idx, n)| n.as_ref().map(|n| (NodeIndex(idx), n)))
     }
 
     pub fn enumerated_edges(&self) -> impl Iterator<Item = (EdgeIndex, &Edge<E>)> {
@@ -205,6 +245,7 @@ impl<N: Debug, E: Debug> LinkedGraph<N, E> {
         source: NodeIndex,
         direction: Direction,
     ) -> AdjacentEdges<'_, N, E> {
+        assert_eq!(self.linked_edges, self.edges.len(), "linked graph is incomplete");
         let first_edge = self.node(source).first_edge[direction.repr];
         AdjacentEdges { graph: self, direction, next: first_edge }
     }
