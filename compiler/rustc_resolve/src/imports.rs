@@ -402,7 +402,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 // Need a fresh decl so other glob imports importing it could re-fetch it
                 // and set their own `warn_ambiguity` to true.
                 // FIXME: remove this when `warn_ambiguity` is removed (#149195).
-                self.arenas.alloc_decl((*old_glob_decl).clone())
+                // self.arenas.alloc_decl((*old_glob_decl).clone())
+                old_glob_decl
             }
         } else if !old_glob_decl.vis().is_at_least(glob_decl.vis(), self.tcx) {
             // We are glob-importing the same item but with greater visibility.
@@ -506,11 +507,15 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 .resolution_or_default(module, key, orig_ident_span)
                 .borrow_mut_unchecked();
             let old_decl = resolution.binding();
+            let old_vis = old_decl.map(|d| d.vis());
+            let old_is_ambiguity_recursive = old_decl.map(|d| d.is_ambiguity_recursive());
 
             let t = f(self, resolution);
 
             if let Some(binding) = resolution.binding()
-                && old_decl != Some(binding)
+                && (old_decl != Some(binding)
+                    || old_vis != Some(binding.vis())
+                    || old_is_ambiguity_recursive != Some(binding.is_ambiguity_recursive()))
             {
                 (binding, t, warn_ambiguity || old_decl.is_some())
             } else {
