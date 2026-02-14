@@ -1,13 +1,11 @@
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::graph::linked_graph::{Direction, INCOMING, LinkedGraph, NodeIndex};
-use rustc_index::IndexVec;
 
 use super::{DepNode, DepNodeIndex};
 
 pub struct DepGraphQuery {
     pub graph: LinkedGraph<DepNode, ()>,
     pub indices: FxHashMap<DepNode, NodeIndex>,
-    pub dep_index_to_index: IndexVec<DepNodeIndex, Option<NodeIndex>>,
 }
 
 impl DepGraphQuery {
@@ -17,27 +15,22 @@ impl DepGraphQuery {
 
         let graph = LinkedGraph::with_capacity(node_count, edge_count);
         let indices = FxHashMap::default();
-        let dep_index_to_index = IndexVec::new();
 
-        DepGraphQuery { graph, indices, dep_index_to_index }
+        DepGraphQuery { graph, indices }
     }
 
     pub fn push(&mut self, index: DepNodeIndex, node: DepNode, edges: &[DepNodeIndex]) {
-        let source = self.graph.add_node(node);
-        self.dep_index_to_index.insert(index, source);
+        let source = NodeIndex(index.as_usize());
+        self.graph.add_node_with_idx(source, node);
         self.indices.insert(node, source);
 
         for &target in edges.iter() {
-            // We may miss the edges that are pushed while the `DepGraphQuery` is being accessed.
-            // Skip them to issues.
-            if let Some(&Some(target)) = self.dep_index_to_index.get(target) {
-                self.graph.add_edge(source, target, ());
-            }
+            self.graph.add_edge(source, NodeIndex(target.as_usize()), ());
         }
     }
 
     pub fn nodes(&self) -> Vec<&DepNode> {
-        self.graph.all_nodes().iter().map(|n| &n.data).collect()
+        self.graph.all_nodes().iter().map(|n| n.data.as_ref().unwrap()).collect()
     }
 
     pub fn edges(&self) -> Vec<(&DepNode, &DepNode)> {
