@@ -851,6 +851,8 @@ impl<'ra> fmt::Debug for Module<'ra> {
 struct DeclData<'ra> {
     kind: DeclKind<'ra>,
     ambiguity: CmCell<Option<Decl<'ra>>>,
+    ambiguity_vis_max: CmCell<Option<Decl<'ra>>>,
+    ambiguity_vis_min: CmCell<Option<Decl<'ra>>>,
     /// Produce a warning instead of an error when reporting ambiguities inside this binding.
     /// May apply to indirect ambiguities under imports, so `ambiguity.is_some()` is not required.
     warn_ambiguity: CmCell<bool>,
@@ -976,7 +978,8 @@ struct AmbiguityError<'ra> {
 
 impl<'ra> DeclData<'ra> {
     fn vis(&self) -> Visibility<DefId> {
-        self.vis.get()
+        // Select the maximum visibility if there are multiple ambiguous glob imports.
+        self.ambiguity_vis_max.get().map(|d| d.vis()).unwrap_or_else(|| self.vis.get())
     }
 
     fn res(&self) -> Res {
@@ -1408,6 +1411,8 @@ impl<'ra> ResolverArenas<'ra> {
         self.alloc_decl(DeclData {
             kind: DeclKind::Def(res),
             ambiguity: CmCell::new(None),
+            ambiguity_vis_max: CmCell::new(None),
+            ambiguity_vis_min: CmCell::new(None),
             warn_ambiguity: CmCell::new(false),
             vis: CmCell::new(vis),
             span,

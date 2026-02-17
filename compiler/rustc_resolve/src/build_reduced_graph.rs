@@ -93,6 +93,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         let decl = self.arenas.alloc_decl(DeclData {
             kind: DeclKind::Def(res),
             ambiguity: CmCell::new(ambiguity),
+            ambiguity_vis_max: CmCell::new(None),
+            ambiguity_vis_min: CmCell::new(None),
             // External ambiguities always report the `AMBIGUOUS_GLOB_IMPORTS` lint at the moment.
             warn_ambiguity: CmCell::new(true),
             vis: CmCell::new(vis),

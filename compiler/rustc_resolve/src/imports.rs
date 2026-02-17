@@ -344,6 +344,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         self.arenas.alloc_decl(DeclData {
             kind: DeclKind::Import { source_decl: decl, import },
             ambiguity: CmCell::new(None),
+            ambiguity_vis_max: CmCell::new(None),
+            ambiguity_vis_min: CmCell::new(None),
             warn_ambiguity: CmCell::new(false),
             span: import.span,
             vis: CmCell::new(vis),
@@ -404,11 +406,24 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 // FIXME: remove this when `warn_ambiguity` is removed (#149195).
                 self.arenas.alloc_decl((*old_glob_decl).clone())
             }
-        } else if !old_glob_decl.vis().is_at_least(glob_decl.vis(), self.tcx) {
-            // We are glob-importing the same item but with greater visibility.
-            // FIXME: Update visibility in place, but without regressions
-            // (#152004, #151124, #152347).
-            glob_decl
+        } else if let old_vis = old_glob_decl.vis()
+            && let vis = glob_decl.vis()
+            && old_vis != vis
+        {
+            // We are glob-importing the same item but with a different visibility.
+            if !old_vis.is_at_least(vis, self.tcx) {
+                old_glob_decl.ambiguity_vis_max.set_unchecked(Some(glob_decl));
+            } else {
+                let old_min_vis = old_glob_decl
+                    .ambiguity_vis_min
+                    .get()
+                    .map(|d| d.vis())
+                    .unwrap_or_else(|| old_glob_decl.vis.get());
+                if !old_vis.is_at_least(vis, self.tcx) {
+                    old_glob_decl.ambiguity_vis_min.set_unchecked(Some(glob_decl));
+                }
+            }
+            old_glob_decl
         } else if glob_decl.is_ambiguity_recursive() && !old_glob_decl.is_ambiguity_recursive() {
             // Overwriting a non-ambiguous glob import with an ambiguous glob import.
             old_glob_decl.ambiguity.set_unchecked(Some(glob_decl));
