@@ -326,7 +326,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     /// create the corresponding import declaration.
     pub(crate) fn new_import_decl(&self, decl: Decl<'ra>, import: Import<'ra>) -> Decl<'ra> {
         let import_vis = import.vis.to_def_id();
-        let vis = if decl.vis().is_at_least(import_vis, self.tcx)
+        let vis = if decl.vis().greater_than(import_vis, self.tcx)
             || pub_use_of_private_extern_crate_hack(import, decl).is_some()
         {
             import_vis
@@ -335,8 +335,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         };
 
         if let ImportKind::Glob { ref max_vis, .. } = import.kind
-            && (vis == import_vis
-                || max_vis.get().is_none_or(|max_vis| vis.is_at_least(max_vis, self.tcx)))
+            && max_vis.get().is_none_or(|max_vis| vis.greater_than(max_vis, self.tcx))
         {
             max_vis.set_unchecked(Some(vis.expect_local()))
         }
@@ -407,7 +406,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 // FIXME: remove this when `warn_ambiguity` is removed (#149195).
                 self.arenas.alloc_decl((*old_glob_decl).clone())
             }
-        } else if !old_glob_decl.vis().is_at_least(glob_decl.vis(), self.tcx) {
+        } else if glob_decl.vis().greater_than(old_glob_decl.vis(), self.tcx) {
             // We are glob-importing the same item but with greater visibility.
             // FIXME: Update visibility in place, but without regressions
             // (#152004, #151124, #152347).
@@ -1147,7 +1146,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     });
                 }
                 if let Some(max_vis) = max_vis.get()
-                    && !max_vis.is_at_least(import.vis, self.tcx)
+                    && import.vis.greater_than(max_vis, self.tcx)
                 {
                     let def_id = self.local_def_id(id);
                     self.lint_buffer.buffer_lint(
@@ -1378,7 +1377,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 return;
             };
 
-            if !binding.vis().is_at_least(import.vis, this.tcx) {
+            if import.vis.greater_than(binding.vis(), this.tcx) {
                 reexport_error = Some((ns, binding));
                 if let Visibility::Restricted(binding_def_id) = binding.vis()
                     && binding_def_id.is_top_level_module()

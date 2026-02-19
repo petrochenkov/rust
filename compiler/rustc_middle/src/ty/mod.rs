@@ -400,18 +400,25 @@ impl<Id: Into<DefId>> Visibility<Id> {
         }
     }
 
-    /// Returns `true` if this visibility is at least as accessible as the given visibility
-    pub fn is_at_least(self, vis: Visibility<impl Into<DefId>>, tcx: TyCtxt<'_>) -> bool {
-        match vis {
-            Visibility::Public => self.is_public(),
-            Visibility::Restricted(id) => self.is_accessible_from(id, tcx),
+    /// Returns `true` if this visibility is strictly more accessible than the given visibility.
+    pub fn greater_than(self, rhs: Visibility<impl Into<DefId>>, tcx: TyCtxt<'_>) -> bool {
+        match rhs {
+            Visibility::Public => false,
+            Visibility::Restricted(rhs_id) => match self {
+                Visibility::Public => true,
+                Visibility::Restricted(lhs_id) => {
+                    let lhs_id = lhs_id.into();
+                    let rhs_id = rhs_id.into();
+                    lhs_id != rhs_id && tcx.is_descendant_of(rhs_id, lhs_id)
+                }
+            },
         }
     }
 }
 
 impl<Id: Into<DefId> + Copy> Visibility<Id> {
     pub fn min(self, vis: Visibility<Id>, tcx: TyCtxt<'_>) -> Visibility<Id> {
-        if self.is_at_least(vis, tcx) { vis } else { self }
+        if self.greater_than(vis, tcx) { vis } else { self }
     }
 }
 
