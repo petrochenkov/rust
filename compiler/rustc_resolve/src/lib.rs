@@ -661,32 +661,22 @@ struct CommonModuleData<'ra> {
     parent: Option<Module<'ra>>,
     /// What kind of module this is, because this may not be a `mod`.
     kind: ModuleKind,
-
     /// Mapping between names and their (possibly in-progress) resolutions in this module.
     /// Resolutions in modules from other crates are not populated until accessed.
     lazy_resolutions: Resolutions<'ra>,
     /// True if this is a module from other crate that needs to be populated on access.
     populate_on_access: CacheCell<bool>,
-
-    /// Macro invocations that can expand into items in this module.
-    unexpanded_invocations: CmRefCell<FxHashSet<LocalExpnId>>,
-
     /// Whether `#[no_implicit_prelude]` is active.
     no_implicit_prelude: bool,
-
     glob_importers: CmRefCell<Vec<Import<'ra>>>,
     globs: CmRefCell<Vec<Import<'ra>>>,
-
     /// Used to memoize the traits in this module for faster searches through all traits in scope.
     traits: CmRefCell<
         Option<Box<[(Symbol, Decl<'ra>, Option<Module<'ra>>, bool /* lint ambiguous */)]>>,
     >,
-
     /// Span of the module itself. Used for error reporting.
     span: Span,
-
     expansion: ExpnId,
-
     /// Declaration for implicitly declared names that come with a module,
     /// like `self` (not yet used), or `crate`/`$crate` (for root modules).
     self_decl: Option<Decl<'ra>>,
@@ -696,6 +686,8 @@ struct LocalModuleData<'ra> {
     common: CommonModuleData<'ra>,
     /// Used to disambiguate underscore items (`const _: T = ...`) in the module.
     underscore_disambiguator: CmCell<u32>,
+    /// Macro invocations that can expand into items in this module.
+    unexpanded_invocations: CmRefCell<FxHashSet<LocalExpnId>>,
 }
 
 struct ExternModuleData<'ra> {
@@ -744,7 +736,6 @@ impl<'ra> CommonModuleData<'ra> {
             kind,
             lazy_resolutions: Default::default(),
             populate_on_access: CacheCell::new(is_foreign),
-            unexpanded_invocations: Default::default(),
             no_implicit_prelude,
             glob_importers: CmRefCell::new(Vec::new()),
             globs: CmRefCell::new(Vec::new()),
@@ -867,6 +858,13 @@ impl<'ra> Module<'ra> {
         true
     }
 
+    fn as_local(self) -> Option<LocalModule<'ra>> {
+        match self {
+            Module::Local(m) => Some(m),
+            Module::Extern(_) => None,
+        }
+    }
+
     #[track_caller]
     fn expect_local(self) -> LocalModule<'ra> {
         match self {
@@ -880,6 +878,13 @@ impl<'ra> Module<'ra> {
         match self {
             Module::Extern(m) => m,
             Module::Local(m) => span_bug!(m.span, "unexpected local module: {m:?}"),
+        }
+    }
+
+    fn has_unexpanded_invocations(self) -> bool {
+        match self {
+            Module::Local(m) => m.has_unexpanded_invocations(),
+            Module::Extern(_) => false,
         }
     }
 }
@@ -897,12 +902,20 @@ impl<'ra> LocalModule<'ra> {
         assert!(kind.is_local());
         let common =
             CommonModuleData::new(parent, kind, vis, expn_id, span, no_implicit_prelude, arenas);
-        let data = LocalModuleData { common, underscore_disambiguator: CmCell::new(0) };
+        let data = LocalModuleData {
+            common,
+            underscore_disambiguator: CmCell::new(0),
+            unexpanded_invocations: Default::default(),
+        };
         LocalModule(Interned::new_unchecked(arenas.local_modules.alloc(data)))
     }
 
     fn to_module(self) -> Module<'ra> {
         Module::Local(self)
+    }
+
+    fn has_unexpanded_invocations(self) -> bool {
+        !self.unexpanded_invocations.borrow().is_empty()
     }
 }
 
@@ -1287,8 +1300,7 @@ impl<'ra> DeclData<'ra> {
     fn determined(&self) -> bool {
         match &self.kind {
             DeclKind::Import { source_decl, import, .. } if import.is_glob() => {
-                import.parent_scope.module.unexpanded_invocations.borrow().is_empty()
-                    && source_decl.determined()
+                !import.parent_scope.module.has_unexpanded_invocations() && source_decl.determined()
             }
             _ => true,
         }
