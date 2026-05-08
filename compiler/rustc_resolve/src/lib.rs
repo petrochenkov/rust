@@ -664,8 +664,6 @@ struct CommonModuleData<'ra> {
     /// Mapping between names and their (possibly in-progress) resolutions in this module.
     /// Resolutions in modules from other crates are not populated until accessed.
     lazy_resolutions: Resolutions<'ra>,
-    /// True if this is a module from other crate that needs to be populated on access.
-    populate_on_access: CacheCell<bool>,
     /// Whether `#[no_implicit_prelude]` is active.
     no_implicit_prelude: bool,
     /// Used to memoize the traits in this module for faster searches through all traits in scope.
@@ -692,6 +690,8 @@ struct LocalModuleData<'ra> {
 
 struct ExternModuleData<'ra> {
     common: CommonModuleData<'ra>,
+    /// True if this is a module from other crate that needs to be populated on access.
+    populate_on_access: CacheCell<bool>,
 }
 
 /// All modules are unique and allocated on a same arena,
@@ -723,7 +723,6 @@ impl<'ra> CommonModuleData<'ra> {
         no_implicit_prelude: bool,
         arenas: &'ra ResolverArenas<'ra>,
     ) -> Self {
-        let is_foreign = !kind.is_local();
         let self_decl = match kind {
             ModuleKind::Def(def_kind, def_id, _, _) => {
                 let expn_id = expansion.as_local().unwrap_or(LocalExpnId::ROOT);
@@ -735,7 +734,6 @@ impl<'ra> CommonModuleData<'ra> {
             parent,
             kind,
             lazy_resolutions: Default::default(),
-            populate_on_access: CacheCell::new(is_foreign),
             no_implicit_prelude,
             traits: CmRefCell::new(None),
             span,
@@ -932,9 +930,8 @@ impl<'ra> ExternModule<'ra> {
         assert!(!kind.is_local());
         let common =
             CommonModuleData::new(parent, kind, vis, expn_id, span, no_implicit_prelude, arenas);
-        ExternModule(Interned::new_unchecked(
-            arenas.extern_modules.alloc(ExternModuleData { common }),
-        ))
+        let data = ExternModuleData { common, populate_on_access: CacheCell::new(true) };
+        ExternModule(Interned::new_unchecked(arenas.extern_modules.alloc(data)))
     }
 
     fn to_module(self) -> Module<'ra> {
@@ -2208,13 +2205,15 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     }
 
     fn resolutions(&self, module: Module<'ra>) -> &'ra Resolutions<'ra> {
-        if module.populate_on_access.get() {
-            module.populate_on_access.set(false);
-            self.build_reduced_graph_external(module.expect_extern());
-        }
         match module {
             Module::Local(m) => &m.0.0.lazy_resolutions,
-            Module::Extern(m) => &m.0.0.lazy_resolutions,
+            Module::Extern(m) => {
+                if m.populate_on_access.get() {
+                    m.populate_on_access.set(false);
+                    self.build_reduced_graph_external(m);
+                }
+                &m.0.0.lazy_resolutions
+            }
         }
     }
 
