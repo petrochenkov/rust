@@ -3290,20 +3290,22 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     return cached;
                 }
                 visited.insert(parent_module, false);
-                let m = r.expect_module(parent_module);
                 let mut res = false;
-                for importer in m.glob_importers.borrow().iter() {
-                    if let Some(next_parent_module) = importer.parent_scope.module.opt_def_id() {
-                        if next_parent_module == module
-                            || comes_from_same_module_for_glob(
-                                r,
-                                next_parent_module,
-                                module,
-                                visited,
-                            )
+                if let Some(m) = r.expect_module(parent_module).as_local() {
+                    for importer in m.glob_importers.borrow().iter() {
+                        if let Some(next_parent_module) = importer.parent_scope.module.opt_def_id()
                         {
-                            res = true;
-                            break;
+                            if next_parent_module == module
+                                || comes_from_same_module_for_glob(
+                                    r,
+                                    next_parent_module,
+                                    module,
+                                    visited,
+                                )
+                            {
+                                res = true;
+                                break;
+                            }
                         }
                     }
                 }

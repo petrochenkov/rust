@@ -668,7 +668,6 @@ struct CommonModuleData<'ra> {
     populate_on_access: CacheCell<bool>,
     /// Whether `#[no_implicit_prelude]` is active.
     no_implicit_prelude: bool,
-    glob_importers: CmRefCell<Vec<Import<'ra>>>,
     globs: CmRefCell<Vec<Import<'ra>>>,
     /// Used to memoize the traits in this module for faster searches through all traits in scope.
     traits: CmRefCell<
@@ -688,6 +687,7 @@ struct LocalModuleData<'ra> {
     underscore_disambiguator: CmCell<u32>,
     /// Macro invocations that can expand into items in this module.
     unexpanded_invocations: CmRefCell<FxHashSet<LocalExpnId>>,
+    glob_importers: CmRefCell<Vec<Import<'ra>>>,
 }
 
 struct ExternModuleData<'ra> {
@@ -737,7 +737,6 @@ impl<'ra> CommonModuleData<'ra> {
             lazy_resolutions: Default::default(),
             populate_on_access: CacheCell::new(is_foreign),
             no_implicit_prelude,
-            glob_importers: CmRefCell::new(Vec::new()),
             globs: CmRefCell::new(Vec::new()),
             traits: CmRefCell::new(None),
             span,
@@ -906,6 +905,7 @@ impl<'ra> LocalModule<'ra> {
             common,
             underscore_disambiguator: CmCell::new(0),
             unexpanded_invocations: Default::default(),
+            glob_importers: Default::default(),
         };
         LocalModule(Interned::new_unchecked(arenas.local_modules.alloc(data)))
     }
