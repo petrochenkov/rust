@@ -740,12 +740,20 @@ impl<'ra> CommonModuleData<'ra> {
     fn new(
         parent: Option<Module<'ra>>,
         kind: ModuleKind,
+        vis: Visibility<DefId>,
         expansion: ExpnId,
         span: Span,
         no_implicit_prelude: bool,
-        self_decl: Option<Decl<'ra>>,
+        arenas: &'ra ResolverArenas<'ra>,
     ) -> Self {
         let is_foreign = !kind.is_local();
+        let self_decl = match kind {
+            ModuleKind::Def(def_kind, def_id, _, _) => {
+                let expn_id = expansion.as_local().unwrap_or(LocalExpnId::ROOT);
+                Some(arenas.new_def_decl(Res::Def(def_kind, def_id), vis, span, expn_id, parent))
+            }
+            ModuleKind::Block => None,
+        };
         CommonModuleData {
             parent,
             kind,
@@ -893,12 +901,44 @@ impl<'ra> Module<'ra> {
 }
 
 impl<'ra> LocalModule<'ra> {
+    fn new(
+        parent: Option<Module<'ra>>,
+        kind: ModuleKind,
+        vis: Visibility<DefId>,
+        expn_id: ExpnId,
+        span: Span,
+        no_implicit_prelude: bool,
+        arenas: &'ra ResolverArenas<'ra>,
+    ) -> LocalModule<'ra> {
+        assert!(kind.is_local());
+        let common =
+            CommonModuleData::new(parent, kind, vis, expn_id, span, no_implicit_prelude, arenas);
+        LocalModule(Interned::new_unchecked(arenas.local_modules.alloc(LocalModuleData { common })))
+    }
+
     fn to_module(self) -> Module<'ra> {
         Module::Local(self)
     }
 }
 
 impl<'ra> ExternModule<'ra> {
+    fn new(
+        parent: Option<Module<'ra>>,
+        kind: ModuleKind,
+        vis: Visibility<DefId>,
+        expn_id: ExpnId,
+        span: Span,
+        no_implicit_prelude: bool,
+        arenas: &'ra ResolverArenas<'ra>,
+    ) -> ExternModule<'ra> {
+        assert!(!kind.is_local());
+        let common =
+            CommonModuleData::new(parent, kind, vis, expn_id, span, no_implicit_prelude, arenas);
+        ExternModule(Interned::new_unchecked(
+            arenas.extern_modules.alloc(ExternModuleData { common }),
+        ))
+    }
+
     fn to_module(self) -> Module<'ra> {
         Module::Extern(self)
     }
@@ -1577,34 +1617,6 @@ impl<'ra> ResolverArenas<'ra> {
         self.new_def_decl(res, Visibility::Public, span, expn_id, None)
     }
 
-    fn new_module(
-        &'ra self,
-        parent: Option<Module<'ra>>,
-        kind: ModuleKind,
-        vis: Visibility<DefId>,
-        expn_id: ExpnId,
-        span: Span,
-        no_implicit_prelude: bool,
-    ) -> Module<'ra> {
-        let self_decl = match kind {
-            ModuleKind::Def(def_kind, def_id, _, _) => {
-                let expn_id = expn_id.as_local().unwrap_or(LocalExpnId::ROOT);
-                Some(self.new_def_decl(Res::Def(def_kind, def_id), vis, span, expn_id, parent))
-            }
-            ModuleKind::Block => None,
-        };
-        let common =
-            CommonModuleData::new(parent, kind, expn_id, span, no_implicit_prelude, self_decl);
-        if common.kind.is_local() {
-            Module::Local(LocalModule(Interned::new_unchecked(
-                self.local_modules.alloc(LocalModuleData { common }),
-            )))
-        } else {
-            Module::Extern(ExternModule(Interned::new_unchecked(
-                self.extern_modules.alloc(ExternModuleData { common }),
-            )))
-        }
-    }
     fn alloc_decl(&'ra self, data: DeclData<'ra>) -> Decl<'ra> {
         Interned::new_unchecked(self.dropless.alloc(data))
     }
@@ -1766,26 +1778,26 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         arenas: &'ra ResolverArenas<'ra>,
     ) -> Resolver<'ra, 'tcx> {
         let root_def_id = CRATE_DEF_ID.to_def_id();
-        let graph_root = arenas.new_module(
+        let graph_root = LocalModule::new(
             None,
             ModuleKind::Def(DefKind::Mod, root_def_id, CRATE_NODE_ID, None),
             Visibility::Public,
             ExpnId::root(),
             crate_span,
             attr::contains_name(attrs, sym::no_implicit_prelude),
+            arenas,
         );
-        let graph_root = graph_root.expect_local();
         let local_modules = vec![graph_root];
         let local_module_map = FxIndexMap::from_iter([(CRATE_DEF_ID, graph_root)]);
-        let empty_module = arenas.new_module(
+        let empty_module = LocalModule::new(
             None,
             ModuleKind::Def(DefKind::Mod, root_def_id, CRATE_NODE_ID, None),
             Visibility::Public,
             ExpnId::root(),
             DUMMY_SP,
             true,
+            arenas,
         );
-        let empty_module = empty_module.expect_local();
 
         let mut node_id_to_def_id = NodeMap::default();
         let crate_feed = tcx.create_local_crate_def_id(crate_span);
@@ -1885,10 +1897,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         let parent = parent.map(|m| m.to_module());
         let vis =
             kind.opt_def_id().map_or(Visibility::Public, |def_id| self.tcx.visibility(def_id));
-        let module = self
-            .arenas
-            .new_module(parent, kind, vis, expn_id, span, no_implicit_prelude)
-            .expect_local();
+        let module =
+            LocalModule::new(parent, kind, vis, expn_id, span, no_implicit_prelude, self.arenas);
         self.local_modules.push(module);
         if let Some(def_id) = module.opt_def_id() {
             self.local_module_map.insert(def_id.expect_local(), module);
@@ -1907,10 +1917,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         let parent = parent.map(|m| m.to_module());
         let vis =
             kind.opt_def_id().map_or(Visibility::Public, |def_id| self.tcx.visibility(def_id));
-        let module = self
-            .arenas
-            .new_module(parent, kind, vis, expn_id, span, no_implicit_prelude)
-            .expect_extern();
+        let module =
+            ExternModule::new(parent, kind, vis, expn_id, span, no_implicit_prelude, self.arenas);
         self.extern_module_map.borrow_mut().insert(module.def_id(), module);
         module
     }
