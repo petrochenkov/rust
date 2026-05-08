@@ -535,7 +535,7 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
         root_id: NodeId,
         vis: Visibility,
     ) {
-        let current_module = self.parent_scope.module;
+        let current_module = self.parent_scope.module.expect_local();
         let import = self.r.arenas.alloc_import(ImportData {
             kind,
             parent_scope: self.parent_scope,
@@ -560,7 +560,7 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
                 if target.name != kw::Underscore {
                     self.r.per_ns(|this, ns| {
                         let key = BindingKey::new(IdentKey::new(target), ns);
-                        this.resolution_or_default(current_module, key, target.span)
+                        this.resolution_or_default(current_module.to_module(), key, target.span)
                             .borrow_mut(this)
                             .single_imports
                             .insert(import);
