@@ -667,8 +667,6 @@ struct CommonModuleData<'ra> {
     lazy_resolutions: Resolutions<'ra>,
     /// True if this is a module from other crate that needs to be populated on access.
     populate_on_access: CacheCell<bool>,
-    /// Used to disambiguate underscore items (`const _: T = ...`) in the module.
-    underscore_disambiguator: CmCell<u32>,
 
     /// Macro invocations that can expand into items in this module.
     unexpanded_invocations: CmRefCell<FxHashSet<LocalExpnId>>,
@@ -694,12 +692,12 @@ struct CommonModuleData<'ra> {
     self_decl: Option<Decl<'ra>>,
 }
 
-#[derive(Hash)]
 struct LocalModuleData<'ra> {
     common: CommonModuleData<'ra>,
+    /// Used to disambiguate underscore items (`const _: T = ...`) in the module.
+    underscore_disambiguator: CmCell<u32>,
 }
 
-#[derive(Hash)]
 struct ExternModuleData<'ra> {
     common: CommonModuleData<'ra>,
 }
@@ -722,19 +720,6 @@ struct LocalModule<'ra>(Interned<'ra, LocalModuleData<'ra>>);
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[rustc_pass_by_value]
 struct ExternModule<'ra>(Interned<'ra, ExternModuleData<'ra>>);
-
-// Allows us to use Interned without actually enforcing (via Hash/PartialEq/...) uniqueness of the
-// contained data.
-// FIXME: We may wish to actually have at least debug-level assertions that Interned's guarantees
-// are upheld.
-impl std::hash::Hash for CommonModuleData<'_> {
-    fn hash<H>(&self, _: &mut H)
-    where
-        H: std::hash::Hasher,
-    {
-        unreachable!()
-    }
-}
 
 impl<'ra> CommonModuleData<'ra> {
     fn new(
@@ -759,7 +744,6 @@ impl<'ra> CommonModuleData<'ra> {
             kind,
             lazy_resolutions: Default::default(),
             populate_on_access: CacheCell::new(is_foreign),
-            underscore_disambiguator: CmCell::new(0),
             unexpanded_invocations: Default::default(),
             no_implicit_prelude,
             glob_importers: CmRefCell::new(Vec::new()),
@@ -913,7 +897,8 @@ impl<'ra> LocalModule<'ra> {
         assert!(kind.is_local());
         let common =
             CommonModuleData::new(parent, kind, vis, expn_id, span, no_implicit_prelude, arenas);
-        LocalModule(Interned::new_unchecked(arenas.local_modules.alloc(LocalModuleData { common })))
+        let data = LocalModuleData { common, underscore_disambiguator: CmCell::new(0) };
+        LocalModule(Interned::new_unchecked(arenas.local_modules.alloc(data)))
     }
 
     fn to_module(self) -> Module<'ra> {
@@ -1005,6 +990,22 @@ impl<'ra> fmt::Debug for LocalModule<'ra> {
 impl<'ra> fmt::Debug for ExternModule<'ra> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.to_module().fmt(f)
+    }
+}
+
+// Allows us to use Interned without actually enforcing (via Hash/PartialEq/...) uniqueness of the
+// contained data.
+// FIXME: We may wish to actually have at least debug-level assertions that Interned's guarantees
+// are upheld.
+impl std::hash::Hash for LocalModuleData<'_> {
+    fn hash<H: std::hash::Hasher>(&self, _: &mut H) {
+        unreachable!()
+    }
+}
+
+impl std::hash::Hash for ExternModuleData<'_> {
+    fn hash<H: std::hash::Hasher>(&self, _: &mut H) {
+        unreachable!()
     }
 }
 
