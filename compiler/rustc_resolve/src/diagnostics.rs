@@ -3128,7 +3128,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             return None;
         };
 
-        while let Some(parent) = crate_module.parent {
+        while let Some(parent) = crate_module.parent() {
             crate_module = parent;
         }
 

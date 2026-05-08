@@ -657,8 +657,6 @@ type Resolutions<'ra> = CmRefCell<FxIndexMap<BindingKey, &'ra CmRefCell<NameReso
 ///
 /// You can use [`CommonModuleData::kind`] to determine the kind of module this is.
 struct CommonModuleData<'ra> {
-    /// The direct parent module (it may not be a `mod`, however).
-    parent: Option<Module<'ra>>,
     /// What kind of module this is, because this may not be a `mod`.
     kind: ModuleKind,
     /// Mapping between names and their (possibly in-progress) resolutions in this module.
@@ -680,6 +678,8 @@ struct CommonModuleData<'ra> {
 
 struct LocalModuleData<'ra> {
     common: CommonModuleData<'ra>,
+    /// The direct parent module (it may not be a `mod`, however).
+    parent: Option<LocalModule<'ra>>,
     /// Used to disambiguate underscore items (`const _: T = ...`) in the module.
     underscore_disambiguator: CmCell<u32>,
     /// Macro invocations that can expand into items in this module.
@@ -690,6 +690,8 @@ struct LocalModuleData<'ra> {
 
 struct ExternModuleData<'ra> {
     common: CommonModuleData<'ra>,
+    /// The direct parent module (it may not be a `mod`, however).
+    parent: Option<ExternModule<'ra>>,
     /// True if this is a module from other crate that needs to be populated on access.
     populate_on_access: CacheCell<bool>,
 }
@@ -715,7 +717,6 @@ struct ExternModule<'ra>(Interned<'ra, ExternModuleData<'ra>>);
 
 impl<'ra> CommonModuleData<'ra> {
     fn new(
-        parent: Option<Module<'ra>>,
         kind: ModuleKind,
         vis: Visibility<DefId>,
         expansion: ExpnId,
@@ -731,7 +732,6 @@ impl<'ra> CommonModuleData<'ra> {
             ModuleKind::Block => None,
         };
         CommonModuleData {
-            parent,
             kind,
             lazy_resolutions: Default::default(),
             no_implicit_prelude,
@@ -819,7 +819,7 @@ impl<'ra> Module<'ra> {
     fn nearest_item_scope(self) -> Module<'ra> {
         match self.kind {
             ModuleKind::Def(DefKind::Enum | DefKind::Trait, ..) => {
-                self.parent.expect("enum or trait module without a parent")
+                self.parent().expect("enum or trait module without a parent")
             }
             _ => self,
         }
@@ -830,7 +830,7 @@ impl<'ra> Module<'ra> {
     fn nearest_parent_mod(self) -> DefId {
         match self.kind {
             ModuleKind::Def(DefKind::Mod, def_id, _, _) => def_id,
-            _ => self.parent.expect("non-root module without parent").nearest_parent_mod(),
+            _ => self.parent().expect("non-root module without parent").nearest_parent_mod(),
         }
     }
 
@@ -839,13 +839,15 @@ impl<'ra> Module<'ra> {
     fn nearest_parent_mod_node_id(self) -> NodeId {
         match self.kind {
             ModuleKind::Def(DefKind::Mod, _, node_id, _) => node_id,
-            _ => self.parent.expect("non-root module without parent").nearest_parent_mod_node_id(),
+            _ => {
+                self.parent().expect("non-root module without parent").nearest_parent_mod_node_id()
+            }
         }
     }
 
     fn is_ancestor_of(self, mut other: Self) -> bool {
         while self != other {
-            if let Some(parent) = other.parent {
+            if let Some(parent) = other.parent() {
                 other = parent;
             } else {
                 return false;
@@ -883,11 +885,18 @@ impl<'ra> Module<'ra> {
             Module::Extern(_) => false,
         }
     }
+
+    fn parent(self) -> Option<Module<'ra>> {
+        match self {
+            Module::Local(m) => m.parent.map(Module::Local),
+            Module::Extern(m) => m.parent.map(Module::Extern),
+        }
+    }
 }
 
 impl<'ra> LocalModule<'ra> {
     fn new(
-        parent: Option<Module<'ra>>,
+        parent: Option<LocalModule<'ra>>,
         kind: ModuleKind,
         vis: Visibility<DefId>,
         expn_id: ExpnId,
@@ -896,10 +905,10 @@ impl<'ra> LocalModule<'ra> {
         arenas: &'ra ResolverArenas<'ra>,
     ) -> LocalModule<'ra> {
         assert!(kind.is_local());
-        let common =
-            CommonModuleData::new(parent, kind, vis, expn_id, span, no_implicit_prelude, arenas);
+        let common = CommonModuleData::new(kind, vis, expn_id, span, no_implicit_prelude, arenas);
         let data = LocalModuleData {
             common,
+            parent,
             underscore_disambiguator: CmCell::new(0),
             unexpanded_invocations: Default::default(),
             glob_importers: Default::default(),
@@ -919,7 +928,7 @@ impl<'ra> LocalModule<'ra> {
 
 impl<'ra> ExternModule<'ra> {
     fn new(
-        parent: Option<Module<'ra>>,
+        parent: Option<ExternModule<'ra>>,
         kind: ModuleKind,
         vis: Visibility<DefId>,
         expn_id: ExpnId,
@@ -928,9 +937,8 @@ impl<'ra> ExternModule<'ra> {
         arenas: &'ra ResolverArenas<'ra>,
     ) -> ExternModule<'ra> {
         assert!(!kind.is_local());
-        let common =
-            CommonModuleData::new(parent, kind, vis, expn_id, span, no_implicit_prelude, arenas);
-        let data = ExternModuleData { common, populate_on_access: CacheCell::new(true) };
+        let common = CommonModuleData::new(kind, vis, expn_id, span, no_implicit_prelude, arenas);
+        let data = ExternModuleData { common, parent, populate_on_access: CacheCell::new(true) };
         ExternModule(Interned::new_unchecked(arenas.extern_modules.alloc(data)))
     }
 
@@ -1904,7 +1912,6 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         span: Span,
         no_implicit_prelude: bool,
     ) -> LocalModule<'ra> {
-        let parent = parent.map(|m| m.to_module());
         let vis =
             kind.opt_def_id().map_or(Visibility::Public, |def_id| self.tcx.visibility(def_id));
         let module =
@@ -1924,7 +1931,6 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         span: Span,
         no_implicit_prelude: bool,
     ) -> ExternModule<'ra> {
-        let parent = parent.map(|m| m.to_module());
         let vis =
             kind.opt_def_id().map_or(Visibility::Public, |def_id| self.tcx.visibility(def_id));
         let module =
@@ -2415,7 +2421,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     fn resolve_self(&self, ctxt: &mut SyntaxContext, module: Module<'ra>) -> Module<'ra> {
         let mut module = self.expect_module(module.nearest_parent_mod());
         while module.span.ctxt().normalize_to_macros_2_0() != *ctxt {
-            let parent = module.parent.unwrap_or_else(|| self.expn_def_scope(ctxt.remove_mark()));
+            let parent = module.parent().unwrap_or_else(|| self.expn_def_scope(ctxt.remove_mark()));
             module = self.expect_module(parent.nearest_parent_mod());
         }
         module
@@ -2752,7 +2758,7 @@ fn module_to_string(mut module: Module<'_>) -> Option<String> {
     let mut names = Vec::new();
     loop {
         if let ModuleKind::Def(.., name) = module.kind {
-            if let Some(parent) = module.parent {
+            if let Some(parent) = module.parent() {
                 // `unwrap` is safe: the presence of a parent means it's not the crate root.
                 names.push(name.unwrap());
                 module = parent
@@ -2761,7 +2767,7 @@ fn module_to_string(mut module: Module<'_>) -> Option<String> {
             }
         } else {
             names.push(sym::opaque_module_name_placeholder);
-            let Some(parent) = module.parent else {
+            let Some(parent) = module.parent() else {
                 return None;
             };
             module = parent;

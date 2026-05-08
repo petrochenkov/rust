@@ -248,7 +248,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
 
         if let ModuleKind::Block = module.kind {
-            return Some((module.parent.unwrap().nearest_item_scope(), None));
+            return Some((module.parent().unwrap().nearest_item_scope(), None));
         }
 
         // We need to support the next case under a deprecation warning
@@ -263,7 +263,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         // ```
         // So we have to fall back to the module's parent during lexical resolution in this case.
         if derive_fallback_lint_id.is_some()
-            && let Some(parent) = module.parent
+            && let Some(parent) = module.parent()
             // Inner module is inside the macro
             && module.expansion != parent.expansion
             // Parent module is outside of the macro
@@ -961,7 +961,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         let mut ctxt = ident.span.ctxt().normalize_to_macros_2_0();
         module
             .unwrap_or_else(|| self.resolve_self(&mut ctxt, parent_scope.module))
-            .parent
+            .parent()
             .map(|parent| self.resolve_self(&mut ctxt, parent))
     }
 
