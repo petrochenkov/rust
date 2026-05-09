@@ -43,9 +43,9 @@ use crate::errors::{
 use crate::ref_mut::CmCell;
 use crate::{
     AmbiguityError, BindingKey, CmResolver, Decl, DeclData, DeclKind, Determinacy, Finalize,
-    IdentKey, ImportSuggestion, ImportSummary, LocalModule, ModuleOrUniformRoot, ParentScope,
-    PathResult, PerNS, Res, ResolutionError, Resolver, ScopeSet, Segment, Used, module_to_string,
-    names_to_string,
+    IdentKey, ImportSuggestion, ImportSummary, LocalModule, Module, ModuleOrUniformRoot,
+    ParentScope, PathResult, PerNS, Res, ResolutionError, Resolver, ScopeSet, Segment, Used,
+    module_to_string, names_to_string,
 };
 
 /// A potential import declaration in the process of being planted into a module.
@@ -1790,7 +1790,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
 
         // Add to module's glob_importers
-        if let Some(module) = module.as_local() {
+        if let Module::Local(module) = module {
             module.glob_importers.borrow_mut_unchecked().push(import);
         }
 

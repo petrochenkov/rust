@@ -3291,7 +3291,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 }
                 visited.insert(parent_module, false);
                 let mut res = false;
-                if let Some(m) = r.expect_module(parent_module).as_local() {
+                if let Module::Local(m) = r.expect_module(parent_module) {
                     for importer in m.glob_importers.borrow().iter() {
                         if let Some(next_parent_module) = importer.parent_scope.module.opt_def_id()
                         {

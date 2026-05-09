@@ -827,13 +827,6 @@ impl<'ra> Module<'ra> {
         true
     }
 
-    fn as_local(self) -> Option<LocalModule<'ra>> {
-        match self {
-            Module::Local(m) => Some(m),
-            Module::Extern(_) => None,
-        }
-    }
-
     #[track_caller]
     fn expect_local(self) -> LocalModule<'ra> {
         match self {

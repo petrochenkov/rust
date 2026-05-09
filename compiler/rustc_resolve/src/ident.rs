@@ -1122,7 +1122,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
 
         // In extern modules everything is determined from the start.
-        let Some(module) = module.as_local() else {
+        let Module::Local(module) = module else {
             return Err(ControlFlow::Continue(Determined));
         };
 
