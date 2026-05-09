@@ -1942,7 +1942,7 @@ impl<'a, 'ast, 'ra, 'tcx> LateResolutionVisitor<'a, 'ast, 'ra, 'tcx> {
                             && let Some(ty) = &self.diag_metadata.current_self_type
                             && Some(true) == self.diag_metadata.in_non_gat_assoc_type
                             && let crate::ModuleKind::Def(DefKind::Trait, trait_id, _, _) =
-                                module.kind
+                                module.kind()
                         {
                             if def_id_matches_path(
                                 self.r.tcx,

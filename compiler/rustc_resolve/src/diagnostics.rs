@@ -240,7 +240,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             return self.report_conflict(ident, ns, new_binding, old_binding);
         }
 
-        let container = match old_binding.parent_module.unwrap().kind {
+        let container = match old_binding.parent_module.unwrap().expect_local().kind {
             // Avoid using TyCtxt::def_kind_descr in the resolver, because it
             // indirectly *calls* the resolver, and would cause a query cycle.
             ModuleKind::Def(kind, def_id, _, _) => kind.descr(def_id),
@@ -1757,7 +1757,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 }
                 return;
             }
-            if Some(parent_nearest) == scope.opt_def_id() {
+            if Some(parent_nearest) == scope.kind.opt_def_id() {
                 err.subdiagnostic(MacroDefinedLater { span: unused_ident.span });
                 err.subdiagnostic(MacroSuggMovePosition { span: ident.span, ident });
                 return;
@@ -1765,7 +1765,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         }
 
         if ident.name == kw::Default
-            && let ModuleKind::Def(DefKind::Enum, def_id, _, _) = parent_scope.module.kind
+            && let ModuleKind::Def(DefKind::Enum, def_id, _, _) = parent_scope.module.kind()
         {
             let span = self.def_span(def_id);
             let source_map = self.tcx.sess.source_map();
@@ -1894,7 +1894,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 ident.name,
             );
             let sugg_span =
-                if let ModuleKind::Def(DefKind::Enum, id, _, _) = parent_scope.module.kind {
+                if let ModuleKind::Def(DefKind::Enum, id, _, _) = parent_scope.module.kind() {
                     let span = self.def_span(id);
                     if span.from_expansion() {
                         None
@@ -2607,7 +2607,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                         let module = module.to_module();
                         current_module.is_ancestor_of(module) && current_module != module
                     })
-                    .flat_map(|(_, module)| module.kind.name()),
+                    .map(|(_, module)| module.name),
             )
             .filter(|c| !c.to_string().is_empty())
             .collect::<Vec<_>>();
@@ -2631,8 +2631,8 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     ) -> (String, String, Option<Suggestion>) {
         let is_last = failed_segment_idx == path.len() - 1;
         let ns = if is_last { opt_ns.unwrap_or(TypeNS) } else { TypeNS };
-        let module_res = match module {
-            Some(ModuleOrUniformRoot::Module(module)) => module.res(),
+        let module_def_id = match module {
+            Some(ModuleOrUniformRoot::Module(module)) => module.opt_def_id(),
             _ => None,
         };
         let scope = match &path[..failed_segment_idx] {
@@ -2647,7 +2647,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         };
         let message = format!("cannot find `{ident}` in {scope}");
 
-        if module_res == self.graph_root.res() {
+        if module_def_id == Some(CRATE_DEF_ID.to_def_id()) {
             let is_mod = |res| matches!(res, Res::Def(DefKind::Mod, _));
             let mut candidates = self.lookup_import_candidates(ident, TypeNS, parent_scope, is_mod);
             candidates
@@ -3145,7 +3145,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         if !kinds.contains(MacroKinds::BANG) {
             return None;
         }
-        let module_name = crate_module.kind.name().unwrap_or(kw::Crate);
+        let module_name = crate_module.name().unwrap_or(kw::Crate);
         let import_snippet = match import.kind {
             ImportKind::Single { source, target, .. } if source != target => {
                 format!("{source} as {target}")

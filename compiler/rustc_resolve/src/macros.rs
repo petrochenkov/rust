@@ -175,10 +175,7 @@ impl<'ra, 'tcx> ResolverExpand for Resolver<'ra, 'tcx> {
     fn resolve_dollar_crates(&self) {
         hygiene::update_dollar_crate_names(|ctxt| {
             let ident = Ident::new(kw::DollarCrate, DUMMY_SP.with_ctxt(ctxt));
-            match self.resolve_crate_root(ident).kind {
-                ModuleKind::Def(.., name) if let Some(name) = name => name,
-                _ => kw::Crate,
-            }
+            self.resolve_crate_root(ident).name().unwrap_or(kw::Crate)
         });
     }
 
@@ -1184,7 +1181,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 // Silence `unused_imports` on the fallback import as well.
                 self.get_mut().record_use(ident, fallback_binding, Used::Other);
             } else {
-                let location = match parent_scope.module.kind {
+                let location = match parent_scope.module.kind() {
                     ModuleKind::Def(kind, def_id, _, name) => {
                         if let Some(name) = name {
                             format!("{} `{name}`", kind.descr(def_id))

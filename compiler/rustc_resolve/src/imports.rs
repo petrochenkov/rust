@@ -1846,7 +1846,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         // Since import resolution is finished, globs will not define any more names.
         *module.globs.borrow_mut(self) = Vec::new();
 
-        let Some(def_id) = module.opt_def_id() else { return };
+        let Some(def_id) = module.kind.opt_def_id() else { return };
 
         let mut children = Vec::new();
         let mut ambig_children = Vec::new();

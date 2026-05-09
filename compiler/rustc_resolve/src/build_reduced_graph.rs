@@ -9,9 +9,8 @@ use std::sync::Arc;
 
 use rustc_ast::visit::{self, AssocCtxt, Visitor, WalkItemKind};
 use rustc_ast::{
-    self as ast, AssocItem, AssocItemKind, Block, ConstItem, DUMMY_NODE_ID, Delegation, Fn,
-    ForeignItem, ForeignItemKind, Inline, Item, ItemKind, NodeId, StaticItem, StmtKind, TraitAlias,
-    TyAlias,
+    self as ast, AssocItem, AssocItemKind, Block, ConstItem, Delegation, Fn, ForeignItem,
+    ForeignItemKind, Inline, Item, ItemKind, NodeId, StaticItem, StmtKind, TraitAlias, TyAlias,
 };
 use rustc_attr_parsing::AttributeParser;
 use rustc_expand::base::{ResolverExpand, SyntaxExtension, SyntaxExtensionKind};
@@ -168,12 +167,9 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     let expn_id = self.cstore().expn_that_defined_untracked(self.tcx, def_id);
                     let module = self.new_extern_module(
                         parent,
-                        ModuleKind::Def(
-                            def_kind,
-                            def_id,
-                            DUMMY_NODE_ID,
-                            Some(self.tcx.item_name(def_id)),
-                        ),
+                        def_kind,
+                        def_id,
+                        self.tcx.item_name(def_id),
                         expn_id,
                         self.def_span(def_id),
                         // FIXME: Account for `#[no_implicit_prelude]` attributes.
@@ -253,7 +249,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         match vis.kind {
             ast::VisibilityKind::Public => Ok(Visibility::Public),
             ast::VisibilityKind::Inherited => {
-                Ok(match parent_scope.module.kind {
+                Ok(match parent_scope.module.expect_local().kind {
                     // Any inherited visibility resolved directly inside an enum or trait
                     // (i.e. variants, fields, and trait items) inherits from the visibility
                     // of the enum or trait.
@@ -350,7 +346,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
     }
 
     pub(crate) fn build_reduced_graph_external(&self, module: ExternModule<'ra>) {
-        let def_id = module.def_id();
+        let def_id = module.def_id;
         let children = self.tcx.module_children(def_id);
         for (i, child) in children.iter().enumerate() {
             self.build_reduced_graph_for_external_crate_res(child, module, i, None)

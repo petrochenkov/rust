@@ -247,7 +247,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             return Some((self.expn_def_scope(expn_id), None));
         }
 
-        if let ModuleKind::Block = module.kind {
+        if let ModuleKind::Block = module.kind() {
             return Some((module.parent().unwrap().nearest_item_scope(), None));
         }
 
@@ -643,11 +643,11 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     Err(ControlFlow::Break(..)) => return decl,
                 }
             }
-            Scope::ModuleGlobs(module, _) if !module.kind.is_local() => {
+            Scope::ModuleGlobs(Module::Extern(_), _) => {
                 // Fast path: external module decoding only creates non-glob declarations.
                 Err(Determined)
             }
-            Scope::ModuleGlobs(module, derive_fallback_lint_id) => {
+            Scope::ModuleGlobs(Module::Local(module), derive_fallback_lint_id) => {
                 let (adjusted_parent_scope, adjusted_finalize) = if matches!(
                     scope_set,
                     ScopeSet::Module(..) | ScopeSet::ModuleAndExternPrelude(..)
@@ -655,12 +655,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     (parent_scope, finalize)
                 } else {
                     (
-                        &ParentScope { module, ..*parent_scope },
+                        &ParentScope { module: module.to_module(), ..*parent_scope },
                         finalize.map(|f| Finalize { used: Used::Scope, ..f }),
                     )
                 };
                 let binding = self.reborrow().resolve_ident_in_module_globs_unadjusted(
-                    module.expect_local(),
+                    module,
                     ident,
                     orig_ident_span,
                     ns,
