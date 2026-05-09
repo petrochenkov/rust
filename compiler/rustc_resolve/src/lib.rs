@@ -172,9 +172,9 @@ struct ParentScope<'ra> {
 impl<'ra> ParentScope<'ra> {
     /// Creates a parent scope with the passed argument used as the module scope component,
     /// and other scope components set to default empty values.
-    fn module(module: Module<'ra>, arenas: &'ra ResolverArenas<'ra>) -> ParentScope<'ra> {
+    fn module(module: LocalModule<'ra>, arenas: &'ra ResolverArenas<'ra>) -> ParentScope<'ra> {
         ParentScope {
-            module,
+            module: module.to_module(),
             expansion: LocalExpnId::ROOT,
             macro_rules: arenas.alloc_macro_rules_scope(MacroRulesScope::Empty),
             derives: &[],
@@ -1934,7 +1934,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             ..
         };
 
-        let root_parent_scope = ParentScope::module(graph_root.to_module(), resolver.arenas);
+        let root_parent_scope = ParentScope::module(graph_root, resolver.arenas);
         resolver.invocation_parent_scopes.insert(LocalExpnId::ROOT, root_parent_scope);
         resolver.feed_visibility(crate_feed, Visibility::Public);
 
@@ -2337,7 +2337,7 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 // Do not report the lint if the macro name resolves in stdlib prelude
                 // even without the problematic `macro_use` import.
                 let found_in_stdlib_prelude = self.prelude.is_some_and(|prelude| {
-                    let empty_module = self.empty_module.to_module();
+                    let empty_module = self.empty_module;
                     let arenas = self.arenas;
                     self.cm()
                         .maybe_resolve_ident_in_module(
@@ -2703,12 +2703,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
             return;
         }
 
-        let module = self.graph_root.to_module();
+        let module = self.graph_root;
         let ident = Ident::with_dummy_span(sym::main);
         let parent_scope = &ParentScope::module(module, self.arenas);
 
         let Ok(name_binding) = self.cm().maybe_resolve_ident_in_module(
-            ModuleOrUniformRoot::Module(module),
+            ModuleOrUniformRoot::Module(module.to_module()),
             ident,
             ValueNS,
             parent_scope,
