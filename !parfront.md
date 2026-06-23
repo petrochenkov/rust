@@ -117,6 +117,9 @@ Most notable examples:
 - ["Only work-steal in the main loop for rustc_thread_pool"](https://github.com/rust-lang/rust/pull/143035) fixed deadlocks
 - More fixes can be found among [these PRs](https://github.com/rust-lang/rust/pulls?q=is%3Apr+is%3Amerged+author%3Azoxc+label%3AA-query-system)
 
+More of the not-so-recent history can be found in the [tracking issue](https://github.com/rust-lang/rust/issues/113349)
+and also in the [old tracking issue](https://github.com/rust-lang/rust/issues/48685).
+
 ## The plan
 
 To achieve the end goal we need an organizational push.
@@ -162,7 +165,7 @@ and try to debug and eventually fix them.
 Before enabling the test suite in blocking mode it can be optionally enabled in non-blocking mode first.
 
 Implementation for this step is [in progress](https://github.com/rust-lang/rust/pull/157705).
-Responsible people: CI - @heinwol, debugging found issues - @zetanumbers, backup - @petrochenkov.
+Responsible people: CI - @heinwol, reviews - infra team, debugging found issues - @zetanumbers, backup - @petrochenkov.
 
 ### Stable option for controlling parallelism in `rustc`
 
@@ -193,9 +196,55 @@ If `-j` is not passed to rustc, we maintain the current default behavior for com
 i.e. 1) no paralllel frontend, 2) parallel codegen, and 3) parallel linking when the used linker
 does it by default.
 
-### Preserving determinism
+Responsible people: implementation - @zetanumbers, reviews - @bjorn3 or @Zoxc,
+cargo implementation - @Bryanskiy, cargo reviews - cargo maintainers, backup - @petrochenkov.
 
-- Implement option for preserving determinism when running with -j
+### Preserving deterministic compilation
+
+By deterministic compilation (reproducible builds) here we'll understand obtaining identical
+binaries (or other compiler outputs) when rustc is run multiple times on the same source code
+with the same options and environment.
+
+The reproducibility may be needed in a number of scenarios:
+- When compiler outputs are compared to some existing snapshots for testing (rustc's own UI test suite)
+- When compiler outputs are [cached](https://rust-lang.zulipchat.com/#narrow/channel/187679-t-compiler.2Fparallel-rustc/topic/Adding.20a.20new.20option.20to.20parallel.20front-end/near/599644554) between multiple compilations using tools like sccache.
+  In this case different outputs will break the caching even if they are functionally equivalent.
+- [Other scenarios](https://reproducible-builds.org/docs/why/), including security-oriented.
+
+However, for the majority of compiler uses the reproducibility is not an issue, for example:
+- Building and running the project to check whether the tests pass, on CI or locally.
+- Compiling the project with `cargo check` to see and fix the reported errors.
+
+Parallel frontend has fundamental issues with deterministic compilation (see "Reproducibility issues" above).
+- Some issues may be fixable, but simply require a lot of resources to fix.
+- Some fixes may make compilation slower.
+- In some cases it's [not clear](https://github.com/rust-lang/rust/issues/49737#issuecomment-2833364108)
+  whether the fix is worth it, e.g. if it requires delaying diagnostic reporting until the compilation is finished.
+
+So we propose not blocking stabilization of the parallel frontend on resolving the determinism issues,
+but instead provide an option that allows to request determinism (or non-determinism) explicitly.
+
+Tentative option name - `--deterministic`.
+The option either doesn't take any arguments, or can take boolean arguments like `yes`/`no`.
+Eventually the option may allo more fine-grained control with something like `--deterministic=binary`
+or `--deterministic=diagnostics`, but this MCP doesn't propose it.
+
+The initial implementation of this option in rustc will simply turn off the frontend parallelism,
+while keeping the default codegen/linking parallelism.
+Perhaps later we'll be able to turn it off only partially.
+
+It's not entirely clear how the defaults for this options should work.
+For backward compatibility we need determinism to be enabled by default,
+but we can disable it by default if `-j` is passed.
+But then if cargo always passes through `-j` to rustc, then for compatibility it will also need
+to pass `--deterministic=true` together with `-j`.
+This option will need to be supported on cargo command line and in cargo config files.
+
+Responsible people: implementation - @zetanumbers, reviews - anyone?, cargo implementation - @Bryanskiy,
+cargo reviews - cargo maintainers, backup - @petrochenkov.
+
+### TODO
+
 - rustc-perf benchmarks for parallel frontend - iterate on the feedback, merge
 - Enable parallel frontend on nightly by default, collect feedback for at least 3 months
 - Address feedback and issues collected during 3 months or running on nightly
