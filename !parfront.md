@@ -157,7 +157,7 @@ issues encountered in parallel frontend specifically.
 For this subset it may be desirable to set a larger number of `M`.
 
 When the parallel test suite is enabled in blocking mode, there should be an announcement,
-and people should be aware that it is entirely ok and is a recommended course of action
+and the project contributors should be aware that it is entirely ok and is a recommended course of action
 to immediately disable these tests with `//@ ignore-parallel-frontend triage`.
 The responsible people will then triage the found tests, create corresponding issues,
 and try to debug and eventually fix them.
@@ -166,6 +166,22 @@ Before enabling the test suite in blocking mode it can be optionally enabled in 
 
 Implementation for this step is [in progress](https://github.com/rust-lang/rust/pull/157705).
 Responsible people: CI - @heinwol, reviews - infra team, debugging found issues - @zetanumbers, backup - @petrochenkov.
+Required time: 1 month.
+
+### Enable parallel benchmark suite in rustc-perf
+
+We need a benchmark suite that can detect nontrivial changes in performance of the parallel compiler.
+It will likely have to rely on wall times, so the measurements won't be very precise.
+
+There's an [in progress implementation](https://github.com/rust-lang/rustc-perf/pull/2421) for this,
+and the PR thread has discussion about what exactly needs to be measured.
+There's some existing feedback from rust-perf maintainers that needs to be addressed,
+and the work needs to be finished in general.
+
+The progress will happen in parallel with the stabilization, but the stabilization probably shouldn't be blocked on this.
+
+Responsible people: addressing feedback / finishing work - @heinwol, reviews - @Kobzol, backup - @petrochenkov.
+Required time: unclear.
 
 ### Stable option for controlling parallelism in `rustc`
 
@@ -198,6 +214,7 @@ does it by default.
 
 Responsible people: implementation - @zetanumbers, reviews - @bjorn3 or @Zoxc,
 cargo implementation - @Bryanskiy, cargo reviews - cargo maintainers, backup - @petrochenkov.
+Required time: 1 month.
 
 ### Preserving deterministic compilation
 
@@ -226,14 +243,14 @@ but instead provide an option that allows to request determinism (or non-determi
 
 Tentative option name - `--deterministic`.
 The option either doesn't take any arguments, or can take boolean arguments like `yes`/`no`.
-Eventually the option may allo more fine-grained control with something like `--deterministic=binary`
+Eventually the option may allow more fine-grained control with something like `--deterministic=binary`
 or `--deterministic=diagnostics`, but this MCP doesn't propose it.
 
 The initial implementation of this option in rustc will simply turn off the frontend parallelism,
 while keeping the default codegen/linking parallelism.
 Perhaps later we'll be able to turn it off only partially.
 
-It's not entirely clear how the defaults for this options should work.
+It's not entirely clear how the defaults for this option should work.
 For backward compatibility we need determinism to be enabled by default,
 but we can disable it by default if `-j` is passed.
 But then if cargo always passes through `-j` to rustc, then for compatibility it will also need
@@ -242,11 +259,40 @@ This option will need to be supported on cargo command line and in cargo config 
 
 Responsible people: implementation - @zetanumbers, reviews - anyone?, cargo implementation - @Bryanskiy,
 cargo reviews - cargo maintainers, backup - @petrochenkov.
+Required time: 2 weeks.
 
-### TODO
+### Enabling on nightly
 
-- rustc-perf benchmarks for parallel frontend - iterate on the feedback, merge
-- Enable parallel frontend on nightly by default, collect feedback for at least 3 months
-- Address feedback and issues collected during 3 months or running on nightly
-- Stabilize -j and the determinism-preserving option, decide whether they should be enabled
-  by default in rustc (probably not), decide on integration with cargo
+After all the options are implemented, the parallel frontend needs to be enabled by default
+on nightly by default, and we'll need to collect user feedback for it for at least ~3 months.
+A blog post announcement will need to be prepared.
+
+It makes sense to limit the parallelism to `-j2`, this way we may get fewer reported bugs and
+reproducibility issues, but we'll at least get less reports related to resource exhaustion issues like OOMs.
+
+What kind of feedback we expect:
+- Crashes, incorrect compilation, any similar issues.
+- More use cases requiring enabling `--deterministic`.
+- Potential performance and memory use issues.
+
+Nightly users encountering issues of any kind will be able to mitigate them by passing
+`--deterministic` to rustc, or even `-j1` in case of resource exhaustion, but that will be slower
+(and less resource hungry) than what we have on nightly now.
+
+The feedback will be collected, issues will be created and debugged,
+starting from crashes and incorrect compilations.
+We are ready to spend another 3 months on that.
+
+Responsible people: implementation / blog post - @petrochenkov, debugging - @zetanumbers and optionally @Zoxc,
+backup - @petrochenkov, something in cargo? - @Bryanskiy and cargo maintainers
+Required time: 3-6 months.
+
+### Stabilization
+
+Stabilize `-j` and `--deterministic`, finalize the decisions on defaults and integration with cargo,
+write an announcement post.
+
+Stabilize the corresponding cargo options simultaneously, or some time later.
+
+Responsible people: implementation / blog post - @petrochenkov,
+something in cargo? - @Bryanskiy and cargo maintainers
