@@ -127,8 +127,45 @@ This MCP aims to provide all these details, and propose a stabilization strategy
 
 The next steps will happen more or less in order.
 
-- Publish this MCP, publish updates to the project goal now, and regularly in the future
-- Enable parallel ui test suite on CI in blocking mode
+### MCP and the project goal
+
+This MCP is published.
+Recent updates are published to the project goal [tracking issue](https://github.com/rust-lang/rust-project-goals/issues/121),
+now and regularly in the future.
+
+Responsible people: @petrochenkov.
+
+### Enabling parallel UI test suite on CI
+
+UI test suite is a collection of 20+ thousands of small programs testing all kinds of compiler behavior,
+both in successful and failing compilation scenarios.
+
+UI test suite now supports [running in parallel mode](https://github.com/rust-lang/rust/pull/153801).
+- `--parallel-frontend-threads=N` sets the number of threads used by parallel frontend.
+- `--iteration-count=M` sets the number of times each test is run.
+
+The large values of `N` and `M` may give better reproduction for potential issues, infrastructure
+team will determine which values we can afford in practice.
+We recommend starting with `N=4` and `M=1`, there are a lot of CI runs and the issues will reproduce
+sooner or later even with small `M`.
+
+There's also a subset of the test suite (`tests/ui/parallel-rustc`) that contains reproducers for
+issues encountered in parallel frontend specifically.
+For this subset it may be desirable to set a larger number of `M`.
+
+When the parallel test suite is enabled in blocking mode, there should be an announcement,
+and people should be aware that it is entirely ok and is a recommended course of action
+to immediately disable these tests with `//@ ignore-parallel-frontend triage`.
+The responsible people will then triage the found tests, create corresponding issues,
+and try to debug and eventually fix them.
+
+Before enabling the test suite in blocking mode it can be optionally enabled in non-blocking mode first.
+
+Implementation for this step is [in progress](https://github.com/rust-lang/rust/pull/157705).
+Responsible people: CI - @heinwol, debugging found issues - @zetanumbers, backup - @petrochenkov.
+
+### Stable option for controlling parallelism in `rustc`
+
 - Implement option `rustc -j` controlling parallel job limit for the whole rustc
 - Implement option for preserving determinism when running with -j
 - rustc-perf benchmarks for parallel frontend - iterate on the feedback, merge
