@@ -166,7 +166,35 @@ Responsible people: CI - @heinwol, debugging found issues - @zetanumbers, backup
 
 ### Stable option for controlling parallelism in `rustc`
 
-- Implement option `rustc -j` controlling parallel job limit for the whole rustc
+`rustc` will have a single stable option called `-j` (short) or `--jobs` (long),
+taking a number that will limit the amount of parallel jobs that the compiler can use.
+
+The option name is borrowed from existing tools like [cargo](https://doc.rust-lang.org/cargo/commands/cargo-build.html#option-cargo-build---jobs),
+or [make](https://linux.die.net/man/1/make), or [cmake](https://cmake.org/cmake/help/latest/manual/cmake.1.html#cmdoption-cmake-build-j).
+
+This limit will affect all kinds of parallelism used internally by the compiler - frontend
+parallelism (parallel queries), backend parallelism (parallel codegen for multiple codegen units),
+linker parallelism (if supported).
+If necessary, the compiler can use *less* parallelism in some of its parts if it knows that using
+more will cause performance issues.
+
+This limit only gives a static upper bound for the parallelism, the actual usable resources will
+also be controlled dynamically by [jobserver](https://doc.rust-lang.org/rustc/jobserver.html).
+So if cargo is run with `-jN`, it will pass to rustc both `-jN` option for the statically known limit,
+and the jobserver for dynamic adaptability.
+
+Why one option - the user typically doesn't need to be aware of the compiler's internal details
+to limit resources available to it.
+Other options like `--jobs-frontend`, `--jobs-backend` or `--jobs-linker` can be additionally
+implemented for benchmarking and advanced use cases, but don't need to be stable or block
+stabilization of the single common `--jobs`.
+
+If `-j` is not passed to rustc, we maintain the current default behavior for compatibility,
+i.e. 1) no paralllel frontend, 2) parallel codegen, and 3) parallel linking when the used linker
+does it by default.
+
+### Preserving determinism
+
 - Implement option for preserving determinism when running with -j
 - rustc-perf benchmarks for parallel frontend - iterate on the feedback, merge
 - Enable parallel frontend on nightly by default, collect feedback for at least 3 months
