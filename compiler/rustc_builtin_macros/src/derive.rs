@@ -66,7 +66,7 @@ impl MultiItemModifier for Expander {
                             .map(|path| DeriveResolution {
                                 path,
                                 item: dummy_annotatable(),
-                                exts: None,
+                                ext: None,
                                 is_const: self.is_const,
                             })
                             .collect()

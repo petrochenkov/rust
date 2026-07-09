@@ -281,41 +281,46 @@ impl<'ra, 'tcx> ResolverExpand for Resolver<'ra, 'tcx> {
             }
         };
 
-        // Derives are not included when `invocations` are collected, so we have to add them here.
-        let parent_scope = &ParentScope { derives, ..parent_scope };
-        let supports_macro_expansion = invoc.fragment_kind.supports_macro_expansion();
-        let node_id = invoc.expansion_data.lint_node_id;
-        // This is a heuristic, but it's good enough for the lint.
-        let looks_like_invoc_in_mod_inert_attr = self
-            .invocation_parents
-            .get(&invoc_id)
-            .or_else(|| self.invocation_parents.get(&eager_expansion_root))
-            .filter(|&&InvocationParent { parent_def: mod_def_id, in_attr, .. }| {
-                in_attr
-                    && invoc.fragment_kind == AstFragmentKind::Expr
-                    && self.tcx.def_kind(mod_def_id) == DefKind::Mod
-            })
-            .map(|&InvocationParent { parent_def: mod_def_id, .. }| mod_def_id);
-        let sugg_span = match &invoc.kind {
-            InvocationKind::Attr { item: Annotatable::Item(item), .. }
-                if !item.span.from_expansion() =>
-            {
-                Some(item.span.shrink_to_lo())
+        let (ext, res) = match &invoc.kind {
+            InvocationKind::Derive { ext: (ext, res), .. } => (ext, *res),
+            _ => {
+                // Derives are not included when `invocations` are collected, so we have to add them here.
+                let parent_scope = &ParentScope { derives, ..parent_scope };
+                let supports_macro_expansion = invoc.fragment_kind.supports_macro_expansion();
+                let node_id = invoc.expansion_data.lint_node_id;
+                // This is a heuristic, but it's good enough for the lint.
+                let looks_like_invoc_in_mod_inert_attr = self
+                    .invocation_parents
+                    .get(&invoc_id)
+                    .or_else(|| self.invocation_parents.get(&eager_expansion_root))
+                    .filter(|&&InvocationParent { parent_def: mod_def_id, in_attr, .. }| {
+                        in_attr
+                            && invoc.fragment_kind == AstFragmentKind::Expr
+                            && self.tcx.def_kind(mod_def_id) == DefKind::Mod
+                    })
+                    .map(|&InvocationParent { parent_def: mod_def_id, .. }| mod_def_id);
+                let sugg_span = match &invoc.kind {
+                    InvocationKind::Attr { item: Annotatable::Item(item), .. }
+                        if !item.span.from_expansion() =>
+                    {
+                        Some(item.span.shrink_to_lo())
+                    }
+                    _ => None,
+                };
+                self.smart_resolve_macro_path(
+                    path,
+                    kind,
+                    supports_macro_expansion,
+                    inner_attr,
+                    parent_scope,
+                    node_id,
+                    force,
+                    deleg_impl,
+                    looks_like_invoc_in_mod_inert_attr,
+                    sugg_span,
+                )?
             }
-            _ => None,
         };
-        let (ext, res) = self.smart_resolve_macro_path(
-            path,
-            kind,
-            supports_macro_expansion,
-            inner_attr,
-            parent_scope,
-            node_id,
-            force,
-            deleg_impl,
-            looks_like_invoc_in_mod_inert_attr,
-            sugg_span,
-        )?;
 
         let span = invoc.span();
         let def_id = if deleg_impl.is_some() { None } else { res.opt_def_id() };
@@ -406,36 +411,36 @@ impl<'ra, 'tcx> ResolverExpand for Resolver<'ra, 'tcx> {
         });
         let parent_scope = self.invocation_parent_scopes[&expn_id];
         for (i, resolution) in entry.resolutions.iter_mut().enumerate() {
-            if resolution.exts.is_none() {
-                resolution.exts = Some(Arc::clone(
-                    match self.cm().resolve_derive_macro_path(
-                        &resolution.path,
-                        &parent_scope,
-                        force,
-                        None,
-                    ) {
-                        Ok((Some(ext), _)) => {
-                            if !ext.helper_attrs.is_empty() {
-                                let span = resolution.path.segments.last().unwrap().ident.span;
-                                let ctxt = Macros20NormalizedSyntaxContext::new(span.ctxt());
-                                entry.helper_attrs.extend(
-                                    ext.helper_attrs
-                                        .iter()
-                                        .map(|&name| (i, IdentKey { name, ctxt }, span)),
-                                );
-                            }
-                            entry.has_derive_copy |= ext.builtin_name == Some(sym::Copy);
-                            entry.has_derive_ord |= ext.builtin_name == Some(sym::Ord);
-                            ext
+            if resolution.ext.is_none() {
+                let (ext, res) = match self.cm().resolve_derive_macro_path(
+                    &resolution.path,
+                    &parent_scope,
+                    force,
+                    None,
+                ) {
+                    Ok((Some(ext), res)) => {
+                        if !ext.helper_attrs.is_empty() {
+                            let span = resolution.path.segments.last().unwrap().ident.span;
+                            let ctxt = Macros20NormalizedSyntaxContext::new(span.ctxt());
+                            entry.helper_attrs.extend(
+                                ext.helper_attrs
+                                    .iter()
+                                    .map(|&name| (i, IdentKey { name, ctxt }, span)),
+                            );
                         }
-                        Ok(_) | Err(Determinacy::Determined) => self.dummy_ext(MacroKind::Derive),
-                        Err(Determinacy::Undetermined) => {
-                            assert!(self.derive_data.is_empty());
-                            self.derive_data = derive_data;
-                            return Err(Indeterminate);
-                        }
-                    },
-                ));
+                        entry.has_derive_copy |= ext.builtin_name == Some(sym::Copy);
+                        entry.has_derive_ord |= ext.builtin_name == Some(sym::Ord);
+                        (ext, res)
+                    }
+                    Ok((None, res)) => (self.dummy_ext(MacroKind::Derive), res),
+                    Err(Determinacy::Determined) => (self.dummy_ext(MacroKind::Derive), Res::Err),
+                    Err(Determinacy::Undetermined) => {
+                        assert!(self.derive_data.is_empty());
+                        self.derive_data = derive_data;
+                        return Err(Indeterminate);
+                    }
+                };
+                resolution.ext = Some((Arc::clone(ext), res));
             }
         }
         // Sort helpers in a stable way independent from the derive resolution order.

@@ -53,13 +53,5 @@ error: cannot find derive macro `r#unsafe` in this scope
 LL | #[derive(unsafe(Debug))]
    |          ^^^^^^
 
-error: cannot find derive macro `r#unsafe` in this scope
-  --> $DIR/derive-unsafe-attributes.rs:1:10
-   |
-LL | #[derive(unsafe(Debug))]
-   |          ^^^^^^
-   |
-   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
-
-error: aborting due to 7 previous errors
+error: aborting due to 6 previous errors
 

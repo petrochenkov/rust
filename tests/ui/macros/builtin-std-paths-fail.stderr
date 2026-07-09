@@ -10,22 +10,6 @@ error[E0433]: cannot find `RustcDecodable` in `core`
 LL |     core::RustcDecodable,
    |           ^^^^^^^^^^^^^^ could not find `RustcDecodable` in `core`
 
-error[E0433]: cannot find `RustcDecodable` in `core`
-  --> $DIR/builtin-std-paths-fail.rs:2:11
-   |
-LL |     core::RustcDecodable,
-   |           ^^^^^^^^^^^^^^ could not find `RustcDecodable` in `core`
-   |
-   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
-
-error[E0433]: cannot find `RustcDecodable` in `core`
-  --> $DIR/builtin-std-paths-fail.rs:4:11
-   |
-LL |     core::RustcDecodable,
-   |           ^^^^^^^^^^^^^^ could not find `RustcDecodable` in `core`
-   |
-   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
-
 error[E0433]: cannot find `bench` in `core`
   --> $DIR/builtin-std-paths-fail.rs:7:9
    |
@@ -62,22 +46,6 @@ error[E0433]: cannot find `RustcDecodable` in `std`
 LL |     std::RustcDecodable,
    |          ^^^^^^^^^^^^^^ could not find `RustcDecodable` in `std`
 
-error[E0433]: cannot find `RustcDecodable` in `std`
-  --> $DIR/builtin-std-paths-fail.rs:14:10
-   |
-LL |     std::RustcDecodable,
-   |          ^^^^^^^^^^^^^^ could not find `RustcDecodable` in `std`
-   |
-   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
-
-error[E0433]: cannot find `RustcDecodable` in `std`
-  --> $DIR/builtin-std-paths-fail.rs:16:10
-   |
-LL |     std::RustcDecodable,
-   |          ^^^^^^^^^^^^^^ could not find `RustcDecodable` in `std`
-   |
-   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
-
 error[E0433]: cannot find `bench` in `std`
   --> $DIR/builtin-std-paths-fail.rs:19:8
    |
@@ -107,6 +75,6 @@ note: found an item that was configured out
    |
    = note: the item is gated here
 
-error: aborting due to 16 previous errors
+error: aborting due to 12 previous errors
 
 For more information about this error, try `rustc --explain E0433`.

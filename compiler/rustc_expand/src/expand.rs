@@ -23,7 +23,7 @@ use rustc_data_structures::stack::ensure_sufficient_stack;
 use rustc_errors::PResult;
 use rustc_feature::Features;
 use rustc_hir::Target;
-use rustc_hir::def::MacroKinds;
+use rustc_hir::def::{MacroKinds, Res};
 use rustc_hir::limit::Limit;
 use rustc_parse::parser::{
     AllowConstBlockItems, AttemptLocalParseRecovery, CommaRecoveryMode, ForceCollect, Parser,
@@ -388,6 +388,7 @@ pub enum InvocationKind {
         derives: Vec<ast::Path>,
     },
     Derive {
+        ext: (Arc<SyntaxExtension>, Res<NodeId>),
         path: ast::Path,
         is_const: bool,
         item: Annotatable,
@@ -531,6 +532,9 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                 }
             };
 
+            if let InvocationKind::Derive { ext: invoc_ext, .. } = &invoc.kind {
+                assert!(Arc::ptr_eq(&invoc_ext.0, &ext));
+            }
             let ExpansionData { depth, id: expn_id, .. } = invoc.expansion_data;
             let depth = depth - orig_expansion_data.depth;
             self.cx.current_expansion = invoc.expansion_data.clone();
@@ -548,14 +552,16 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                             derive_invocations.reserve(derives.len());
                             derives
                                 .into_iter()
-                                .map(|DeriveResolution { path, item, exts: _, is_const }| {
-                                    // FIXME: Consider using the derive resolutions (`_exts`)
-                                    // instead of enqueuing the derives to be resolved again later.
-                                    // Note that this can result in duplicate diagnostics.
+                                .map(|DeriveResolution { path, item, ext, is_const }| {
                                     let expn_id = LocalExpnId::fresh_empty();
                                     derive_invocations.push((
                                         Invocation {
-                                            kind: InvocationKind::Derive { path, item, is_const },
+                                            kind: InvocationKind::Derive {
+                                                path,
+                                                item,
+                                                ext: ext.unwrap(),
+                                                is_const,
+                                            },
                                             fragment_kind,
                                             expansion_data: ExpansionData {
                                                 id: expn_id,
@@ -899,7 +905,7 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                     unreachable!();
                 }
             }
-            InvocationKind::Derive { path, item, is_const } => match ext {
+            InvocationKind::Derive { path, item, is_const, ext: invoc_ext } => match ext {
                 SyntaxExtensionKind::Derive(expander)
                 | SyntaxExtensionKind::LegacyDerive(expander) => {
                     // The `MetaItem` representing the trait to derive can't
@@ -915,7 +921,12 @@ impl<'a, 'b> MacroExpander<'a, 'b> {
                         ExpandResult::Retry(item) => {
                             // Reassemble the original invocation for retrying.
                             return ExpandResult::Retry(Invocation {
-                                kind: InvocationKind::Derive { path: meta.path, item, is_const },
+                                kind: InvocationKind::Derive {
+                                    path: meta.path,
+                                    item,
+                                    is_const,
+                                    ext: invoc_ext,
+                                },
                                 ..invoc
                             });
                         }

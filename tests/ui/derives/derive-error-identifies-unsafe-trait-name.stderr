@@ -10,18 +10,5 @@ note: unsafe traits like `Sync` should be implemented explicitly
 LL |          Sync,
    |          ^^^^
 
-error: cannot find derive macro `Sync` in this scope
-  --> $DIR/derive-error-identifies-unsafe-trait-name.rs:3:10
-   |
-LL |          Sync,
-   |          ^^^^
-   |
-note: unsafe traits like `Sync` should be implemented explicitly
-  --> $DIR/derive-error-identifies-unsafe-trait-name.rs:3:10
-   |
-LL |          Sync,
-   |          ^^^^
-   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
-
-error: aborting due to 2 previous errors
+error: aborting due to 1 previous error
 

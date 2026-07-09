@@ -1,0 +1,10 @@
+warning: unused macro definition: `MyTrait`
+  --> $DIR/macro-rules-derive.rs:28:14
+   |
+LL | macro_rules! MyTrait {
+   |              ^^^^^^^
+   |
+   = note: `#[warn(unused_macros)]` (part of `#[warn(unused)]`) on by default
+
+warning: 1 warning emitted
+

@@ -16,7 +16,7 @@ use rustc_errors::{BufferedEarlyLint, DiagCtxtHandle, ErrorGuaranteed, PResult};
 use rustc_feature::Features;
 use rustc_hir as hir;
 use rustc_hir::attrs::{CfgEntry, CollapseMacroDebuginfo, Deprecation};
-use rustc_hir::def::MacroKinds;
+use rustc_hir::def::{MacroKinds, Res};
 use rustc_hir::limit::Limit;
 use rustc_hir::{Stability, find_attr};
 use rustc_lint_defs::RegisteredTools;
@@ -1035,10 +1035,7 @@ pub struct Indeterminate;
 pub struct DeriveResolution {
     pub path: ast::Path,
     pub item: Annotatable,
-    // FIXME: currently this field is only used in `is_none`/`is_some` conditions. However, the
-    // `Arc<SyntaxExtension>` will be used if the FIXME in `MacroExpander::fully_expand_fragment`
-    // is completed.
-    pub exts: Option<Arc<SyntaxExtension>>,
+    pub ext: Option<(Arc<SyntaxExtension>, Res<NodeId>)>,
     pub is_const: bool,
 }
 
