@@ -1,0 +1,12 @@
+error[E0658]: use of an internal attribute
+  --> $DIR/feature-gate.rs:5:3
+   |
+LL | #[rustc_edition_redirect = "2024"]
+   |   ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: add `#![feature(rustc_attrs)]` to the crate attributes to enable
+   = note: the `rustc_edition_redirect` attribute is an internal implementation detail that will never be stable
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0658`.

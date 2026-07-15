@@ -29,6 +29,7 @@ use rustc_middle::{bug, span_bug};
 use rustc_span::def_id::{CRATE_MOD_ID, ModId};
 use rustc_span::hygiene::{ExpnId, LocalExpnId, MacroKind};
 use rustc_span::{Ident, Span, Symbol, kw, sym};
+use smallvec::SmallVec;
 use thin_vec::ThinVec;
 use tracing::debug;
 
@@ -381,13 +382,15 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                     .unwrap_or_else(|| res.def_id()),
             )
         };
-        let ModChild { ident: orig_ident, res, vis, ref reexport_chain } = *child;
+        let ModChild { ident: orig_ident, res, vis, ref reexport_chain, ref edition_redirects } =
+            *child;
         let ident = IdentKey::new(orig_ident);
         let span = child_span(self, reexport_chain, res);
         let res = res.expect_non_local();
         let expansion = LocalExpnId::ROOT;
         let ambig = ambig_child.map(|ambig_child| {
-            let ModChild { ident: _, res, vis, ref reexport_chain } = *ambig_child;
+            let ModChild { ident: _, res, vis, ref reexport_chain, edition_redirects: _ } =
+                *ambig_child;
             let span = child_span(self, reexport_chain, res);
             let res = res.expect_non_local();
             // External ambiguities always report the `AMBIGUOUS_GLOB_IMPORTS` lint at the moment.
@@ -397,6 +400,32 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         // Record primary definitions.
         let mut define_extern = |ns| {
             let orig_ident_span = orig_ident.span;
+            let edition_redirects = if edition_redirects.is_empty() {
+                // Fast path when there are no edition redirects.
+                &[]
+            } else {
+                let edition_redirects = edition_redirects
+                    .iter()
+                    .map(|redirect| crate::EditionRedirectDecl {
+                        before: redirect.before,
+                        // Model this as a one-step reexport under the original
+                        // child's name: the target supplies the resolution, while
+                        // the child supplies its visibility and provenance.
+                        target: self.arenas.alloc_decl(DeclData {
+                            kind: DeclKind::Def(redirect.target.expect_non_local()),
+                            ambiguity: CmCell::new(None),
+                            initial_vis: vis,
+                            ambiguity_vis_max: CmCell::new(None),
+                            ambiguity_vis_min: CmCell::new(None),
+                            span,
+                            expansion,
+                            parent_module: Some(parent.to_module()),
+                            edition_redirects: &[],
+                        }),
+                    })
+                    .collect::<SmallVec<[_; 1]>>();
+                self.arenas.alloc_edition_redirects(&edition_redirects)
+            };
             let decl = self.arenas.alloc_decl(DeclData {
                 kind: DeclKind::Def(res),
                 ambiguity: CmCell::new(ambig),
@@ -406,13 +435,10 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
                 span,
                 expansion,
                 parent_module: Some(parent.to_module()),
+                edition_redirects,
             });
-            let resolution = self.arenas.alloc_name_resolution(NameResolution {
-                non_glob_decl: Some(decl),
-                orig_ident_span,
-                single_imports: Default::default(),
-                ..
-            });
+            let resolution =
+                self.arenas.alloc_name_resolution(NameResolution::new(Some(decl), orig_ident_span));
 
             let key =
                 BindingKey::new_disambiguated(ident, ns, || (child_index + 1).try_into().unwrap());
@@ -563,10 +589,13 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
 
         self.r.indeterminate_imports.push((import, None, 0));
         match import.kind {
-            ImportKind::Single { target, .. } => {
+            ImportKind::Single { target, edition_redirect, .. } => {
                 // Don't add underscore imports to `single_imports`
                 // because they cannot define any usable names.
-                if target.name != kw::Underscore {
+                //
+                // Same with edition redirects: these redirects are attached to
+                // an existing name and don't introduce one themselves.
+                if target.name != kw::Underscore && edition_redirect.is_none() {
                     self.r.per_ns(|this, ns| {
                         let key = BindingKey::new(IdentKey::new(target), ns);
                         this.resolution_or_default(current_module.to_module(), key, target.span)
@@ -723,6 +752,19 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
                     return;
                 }
 
+                let edition_redirect = if !nested
+                    && ast::attr::contains_name(&item.attrs, sym::rustc_edition_redirect)
+                    && let Some(Attribute::Parsed(AttributeKind::RustcEditionRedirect(redirect))) =
+                        AttributeParser::parse_limited_sym(
+                            self.r.tcx.sess,
+                            &item.attrs,
+                            &[sym::rustc_edition_redirect],
+                        ) {
+                    Some(redirect)
+                } else {
+                    None
+                };
+
                 let kind = ImportKind::Single {
                     source: source.ident,
                     target: ident,
@@ -730,6 +772,7 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
                     nested,
                     id,
                     def_id: feed.def_id(),
+                    edition_redirect,
                 };
 
                 self.add_import(module_path, kind, use_tree.span(), item, root_span, item.id, vis);
