@@ -2018,6 +2018,12 @@ impl<'ra, 'tcx> Resolver<'ra, 'tcx> {
         unsafe { CmResolver::new(self, !self.assert_speculative) }
     }
 
+    fn cm_const(&self) -> CmResolver<'_, 'ra, 'tcx> {
+        // SAFETY: we know that `assert_speculative` is true whenever we are using the
+        // resolver in a multi-threaded context, so this is safe.
+        unsafe { CmResolver::new_const(self) }
+    }
+
     /// Runs the function on each namespace.
     fn per_ns<F: FnMut(&mut Self, Namespace)>(&mut self, mut f: F) {
         f(self, TypeNS);
@@ -2843,7 +2849,7 @@ mod ref_mut {
     use std::ops::Deref;
     use std::{fmt, mem, ops};
 
-    use rustc_data_structures::sync::{DynSend, DynSync};
+    use rustc_data_structures::sync::DynSync;
 
     use crate::Resolver;
 
@@ -2857,22 +2863,6 @@ mod ref_mut {
         // `RefOrMut` technically holds a `&'a mut T`
         _marker: PhantomData<&'a mut T>,
     }
-
-    // SAFETY: `RefOrMut` can only be constructed via `RefOrMut::new`, which is `unsafe`.
-    // Its safety contract requires the caller to guarantee that any instance which might be
-    // observed from more than one thread is constructed with `mutable = false`.
-    //
-    // Given that contract holds:
-    // - `DynSync`: a shared `RefOrMut` only ever yields `&T`, so letting multiple threads
-    //   read through it concurrently is just ordinary shared-reference aliasing; no
-    //   thread can obtain `&mut T` through it, so there is no data race to worry about.
-    // - `DynSend`: sending a shared `RefOrMut` to another thread only transfers the ability
-    //   to take `&T` there too, which is equally sound. A mutable `RefOrMut` is never actually
-    //   moved across threads in practice, because the contract of `new` forbids it.
-    //
-    // Thus, these `impl`s rely entirely on safe usage of `RefOrMut::new`.
-    unsafe impl<'a, T: DynSync> DynSync for RefOrMut<'a, T> {}
-    unsafe impl<'a, T: DynSync> DynSend for RefOrMut<'a, T> {}
 
     impl<'a, T> Deref for RefOrMut<'a, T> {
         type Target = T;
@@ -2910,13 +2900,8 @@ mod ref_mut {
             RefOrMut { p, mutable, _marker: PhantomData }
         }
 
-        pub(crate) fn reborrow_ref(&self) -> RefOrMut<'_, T> {
-            assert!(
-                !self.mutable,
-                "Tried to reborrow a mutable `RefOrMut` through shared reference."
-            );
-            // Safe because of contract in `RefOrMut::new`.
-            RefOrMut { p: self.p, mutable: self.mutable, _marker: PhantomData }
+        pub(crate) unsafe fn new_const(p: &'a T) -> Self {
+            RefOrMut { p: p as *const T as *mut T, mutable: false, _marker: PhantomData }
         }
 
         /// This is needed because this wraps a `&mut T` and is therefore not `Copy`.
