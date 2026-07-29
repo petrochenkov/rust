@@ -52,7 +52,6 @@ fn dummy() {
 
     #[autodiff_forward(df7, Dual)]
     x = x + 3;
-    //~^^ ERROR attributes on expressions are experimental [E0658]
     //~^^ ERROR autodiff must be applied to function
 
     #[autodiff_forward(df7, Dual)]

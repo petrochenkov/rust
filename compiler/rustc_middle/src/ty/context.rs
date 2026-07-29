@@ -1625,6 +1625,7 @@ impl<'tcx> TyCtxt<'tcx> {
                 // `tcx.features().doc_cfg()`, but a normal rustc compilation may
                 // never observe that use. Do not lint it as unused here.
                 && *f != sym::doc_cfg
+                && *f != sym::stmt_expr_attributes
             })
             .collect::<Vec<_>>();
 

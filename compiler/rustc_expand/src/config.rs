@@ -17,7 +17,6 @@ use rustc_attr_parsing::{
     eval_config_entry, parse_cfg,
 };
 use rustc_data_structures::flat_map_in_place::FlatMapInPlace;
-use rustc_errors::msg;
 use rustc_feature::{
     ACCEPTED_LANG_FEATURES, EnabledLangFeature, EnabledLibFeature, Features, REMOVED_LANG_FEATURES,
     UNSTABLE_LANG_FEATURES,
@@ -28,7 +27,6 @@ use rustc_hir::{
 };
 use rustc_parse::parser::Recovery;
 use rustc_session::Session;
-use rustc_session::diagnostics::feature_err;
 use rustc_span::{STDLIB_STABLE_CRATES, Span, Symbol, sym};
 use tracing::instrument;
 
@@ -395,39 +393,8 @@ impl<'a> StripUnconfigured<'a> {
         eval_config_entry(self.sess, &cfg)
     }
 
-    /// If attributes are not allowed on expressions, emit an error for `attr`
-    #[instrument(level = "trace", skip(self))]
-    pub(crate) fn maybe_emit_expr_attr_err(&self, attr: &Attribute) {
-        if self.features.is_some_and(|features| !features.stmt_expr_attributes())
-            && !attr.span.allows_unstable(sym::stmt_expr_attributes)
-        {
-            let mut err = feature_err(
-                self.sess,
-                sym::stmt_expr_attributes,
-                attr.span,
-                msg!("attributes on expressions are experimental"),
-            );
-
-            if attr.is_doc_comment() {
-                err.help(if attr.style == AttrStyle::Outer {
-                    msg!("`///` is used for outer documentation comments; for a plain comment, use `//`")
-                } else {
-                    msg!("`//!` is used for inner documentation comments; for a plain comment, use `//` by removing the `!` or inserting a space in between them: `// !`")
-                });
-            }
-
-            err.emit();
-        }
-    }
-
     #[instrument(level = "trace", skip(self))]
     pub fn configure_expr(&self, expr: &mut ast::Expr, method_receiver: bool) {
-        if !method_receiver {
-            for attr in expr.attrs.iter() {
-                self.maybe_emit_expr_attr_err(attr);
-            }
-        }
-
         // If an expr is valid to cfg away it will have been removed by the
         // outer stmt or expression folder before descending in here.
         // Anything else is always required, and thus has to error out

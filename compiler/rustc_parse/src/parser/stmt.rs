@@ -1168,6 +1168,33 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn mk_stmt(&self, span: Span, kind: StmtKind) -> Stmt {
+        for attr in kind.attrs() {
+            match kind {
+                // Attributes on items are stable
+                StmtKind::Semi(_) | StmtKind::Empty => unreachable!(),
+                StmtKind::MacCall(mac) if mac.style == MacStmtStyle::Semicolon => unreachable!(),
+                // Any attributes are stable on items.
+                StmtKind::Item(_) => {}
+                // Any attributes are stable on let statements at parsing time.
+                StmtKind::Let(_) => {}
+                _ => {
+                    if attr.name() == Some(sym::cfg) {
+                        // `cfg` attributes are stable on all statements.
+                        continue;
+                    }
+                    if matches!(kind, StmtKind::Expr(_))
+                        && let Some(name) = attr.name()
+                        && name != sym::cfg_attr
+                        && rustc_feature::is_builtin_attr_name(name)
+                    {
+                        // Inert built-in attributes are stable on expression statements.
+                        continue;
+                    }
+
+                    self.psess.gated_spans.gate(sym::stmt_expr_attributes, attr.span);
+                }
+            }
+        }
         Stmt { id: DUMMY_NODE_ID, kind, span }
     }
 

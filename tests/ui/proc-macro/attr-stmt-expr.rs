@@ -1,3 +1,4 @@
+//@ check-pass
 //@ proc-macro: attr-stmt-expr.rs
 //@ proc-macro: test-macros.rs
 //@ compile-flags: -Z span-debug
@@ -22,8 +23,6 @@ macro_rules! my_macro {
 fn print_str(string: &'static str) {
     // macros are handled a bit differently
     #[expect_my_macro_expr]
-    //~^ ERROR attributes on expressions are experimental
-    //~| HELP add `#![feature(stmt_expr_attributes)]` to the crate attributes to enable
     my_macro!("{}", string)
 }
 
@@ -60,7 +59,5 @@ fn main() {
     struct Other {}
 
     #[expect_expr]
-    //~^ ERROR attributes on expressions are experimental
-    //~| HELP add `#![feature(stmt_expr_attributes)]` to the crate attributes to enable
     print_str("string")
 }

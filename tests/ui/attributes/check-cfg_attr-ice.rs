@@ -43,8 +43,7 @@ impl From<AnyOtherGuy> for This {
     fn from(#[cfg_attr::no_such_thing] any_other_guy: AnyOtherGuy) -> This {
         //~^ ERROR cannot find
         #[cfg_attr::no_such_thing]
-        //~^ ERROR attributes on expressions are experimental
-        //~| ERROR cannot find
+        //~^ ERROR cannot find
         unreachable!()
     }
 }

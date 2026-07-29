@@ -1262,7 +1262,6 @@ trait InvocationCollectorNode: HasAttrs + HasNodeId + Sized {
     fn flatten_outputs(_outputs: impl Iterator<Item = Self::OutputTy>) -> Self::OutputTy {
         unreachable!()
     }
-    fn pre_flat_map_node_collect_attr(_cfg: &StripUnconfigured<'_>, _attr: &ast::Attribute) {}
     fn post_flat_map_node_collect_bang(_output: &mut Self::OutputTy, _add_semicolon: AddSemicolon) {
     }
     fn wrap_flat_map_node_walk_flat_map(
@@ -1968,9 +1967,6 @@ impl InvocationCollectorNode for AstNodeWrapper<Box<ast::Expr>, OptExprTag> {
             _ => unreachable!(),
         }
     }
-    fn pre_flat_map_node_collect_attr(cfg: &StripUnconfigured<'_>, attr: &ast::Attribute) {
-        cfg.maybe_emit_expr_attr_err(attr);
-    }
     fn as_target(&self) -> Target {
         Target::Expression
     }
@@ -2349,11 +2345,9 @@ impl<'a, 'b> InvocationCollector<'a, 'b> {
                         self.expand_cfg_attr(&mut node, &attr, pos);
                         continue;
                     }
-                    _ => {
-                        Node::pre_flat_map_node_collect_attr(&self.cfg(), &attr);
-                        self.collect_attr((attr, pos, derives), node.to_annotatable(), Node::KIND)
-                            .make_ast::<Node>()
-                    }
+                    _ => self
+                        .collect_attr((attr, pos, derives), node.to_annotatable(), Node::KIND)
+                        .make_ast::<Node>(),
                 },
                 None if node.is_mac_call() => {
                     let (mac, attrs, add_semicolon) = node.take_mac_call();
@@ -2569,10 +2563,6 @@ impl<'a, 'b> MutVisitor for InvocationCollector<'a, 'b> {
     }
 
     fn visit_expr(&mut self, node: &mut ast::Expr) {
-        // FIXME: Feature gating is performed inconsistently between `Expr` and `OptExpr`.
-        if let Some(attr) = node.attrs.first() {
-            self.cfg().maybe_emit_expr_attr_err(attr);
-        }
         ensure_sufficient_stack(|| self.visit_node(node))
     }
 

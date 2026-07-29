@@ -370,9 +370,6 @@ pub(crate) fn allowed_targets_applied(
         if !features.fn_delegation() {
             allowed_targets.retain(|t| !matches!(t, Target::Delegation { .. }));
         }
-        if !features.stmt_expr_attributes() {
-            allowed_targets.retain(|t| !matches!(t, Target::Expression | Target::Statement));
-        }
         if !features.extern_types() {
             allowed_targets.retain(|t| !matches!(t, Target::ForeignTy));
         }

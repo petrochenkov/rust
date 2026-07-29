@@ -12,7 +12,6 @@ impl F {
     #[instrument_fn = "off"]
     fn no_instrument_fn(self, x: u32) -> u32 {
         #[instrument_fn = "off"] //~ ERROR attribute cannot be used on
-        //~^ ERROR attributes on expressions are experimental
         x * 2
     }
 }
@@ -47,5 +46,4 @@ fn instrument_closure() {
     let _x = #[instrument_fn = "on"]
     || {};
     //~^^ ERROR attribute cannot be used on
-    //~^^^ ERROR attributes on expressions are experimental
 }

@@ -16,12 +16,6 @@ error: feature `coroutine_clone` is declared but not used
 LL | #![feature(coroutine_clone)]
    |            ^^^^^^^^^^^^^^^
 
-error: feature `stmt_expr_attributes` is declared but not used
-  --> $DIR/unused-language-features.rs:9:12
-   |
-LL | #![feature(stmt_expr_attributes)]
-   |            ^^^^^^^^^^^^^^^^^^^^
-
 error: feature `asm_unwind` is declared but not used
   --> $DIR/unused-language-features.rs:11:12
    |
@@ -34,5 +28,5 @@ error: feature `negative_impls` is declared but not used
 LL | #![cfg_attr(all(), feature(negative_impls))]
    |                            ^^^^^^^^^^^^^^
 
-error: aborting due to 5 previous errors
+error: aborting due to 4 previous errors
 

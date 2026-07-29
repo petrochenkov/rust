@@ -494,6 +494,8 @@ pub fn check_crate(krate: &ast::Crate, sess: &Session, features: &Features) {
     gate_all!(yeet_expr, "`do yeet` expression is experimental");
     // tidy-alphabetical-end
 
+    gate_all!(stmt_expr_attributes, "attributes on expressions are experimental");
+
     gate_all!(
         async_trait_bounds,
         "`async` trait bounds are unstable",

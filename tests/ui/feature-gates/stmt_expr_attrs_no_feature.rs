@@ -1,3 +1,5 @@
+//@ check-pass
+
 #![feature(rustc_attrs)]
 
 macro_rules! stmt_mac {
@@ -11,7 +13,7 @@ fn main() {
     fn a() {}
 
     // Bug: built-in attrs like `rustc_dummy` are not gated on blocks, but other attrs are.
-    #[rustfmt::skip] //~ ERROR attributes on expressions are experimental
+    #[rustfmt::skip]
     {
 
     }
@@ -92,42 +94,43 @@ item_mac!(e);
 extern "C" {
     #[cfg(false)]
     fn x(a: [u8; #[rustc_dummy] 5]);
-    fn y(a: [u8; #[rustc_dummy] 5]); //~ ERROR attributes on expressions are experimental
+    fn y(a: [u8; #[rustc_dummy] 5]);
+    //~^ WARN `extern` block uses type `[u8; 5]`, which is not FFI-safe
 }
 
 struct Foo;
 impl Foo {
     #[cfg(false)]
     const X: u8 = #[rustc_dummy] 5;
-    const Y: u8 = #[rustc_dummy] 5; //~ ERROR attributes on expressions are experimental
+    const Y: u8 = #[rustc_dummy] 5;
 }
 
 trait Bar {
     #[cfg(false)]
     const X: [u8; #[rustc_dummy] 5];
-    const Y: [u8; #[rustc_dummy] 5]; //~ ERROR attributes on expressions are experimental
+    const Y: [u8; #[rustc_dummy] 5];
 }
 
 struct Joyce {
     #[cfg(false)]
     field: [u8; #[rustc_dummy] 5],
-    field2: [u8; #[rustc_dummy] 5] //~ ERROR attributes on expressions are experimental
+    field2: [u8; #[rustc_dummy] 5]
 }
 
 struct Walky(
     #[cfg(false)] [u8; #[rustc_dummy] 5],
-    [u8; #[rustc_dummy] 5] //~ ERROR attributes on expressions are experimental
+    [u8; #[rustc_dummy] 5]
 );
 
 enum Mike {
     Happy(
         #[cfg(false)] [u8; #[rustc_dummy] 5],
-        [u8; #[rustc_dummy] 5] //~ ERROR attributes on expressions are experimental
+        [u8; #[rustc_dummy] 5]
     ),
     Angry {
         #[cfg(false)]
         field: [u8; #[rustc_dummy] 5],
-        field2: [u8; #[rustc_dummy] 5] //~ ERROR attributes on expressions are experimental
+        field2: [u8; #[rustc_dummy] 5]
     }
 }
 
@@ -135,7 +138,7 @@ fn pat() {
     match 5 {
         #[cfg(false)]
         5 => #[rustc_dummy] (),
-        6 => #[rustc_dummy] (), //~ ERROR attributes on expressions are experimental
+        6 => #[rustc_dummy] (),
         _ => (),
     }
 }
