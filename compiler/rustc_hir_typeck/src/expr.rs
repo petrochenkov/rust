@@ -1919,7 +1919,14 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
         // Type-check each field.
         for (idx, field) in hir_fields.iter().enumerate() {
-            let ident = tcx.adjust_ident(field.ident, variant.def_id);
+            let ident = if field.ident.name == kw::Underscore
+                && let Some(v_field) = variant.fields.get(FieldIdx::ZERO)
+            {
+                v_field.ident(tcx).normalize_to_macros_2_0()
+            } else {
+                tcx.adjust_ident(field.ident, variant.def_id)
+            };
+
             let field_type = if let Some((i, v_field)) = remaining_fields.remove(&ident) {
                 seen_fields.insert(ident, field.span);
                 self.write_field_index(field.hir_id, i);
